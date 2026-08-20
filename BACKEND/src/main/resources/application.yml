@@ -1,0 +1,42 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: MoneyPal Fixed Deposit System
+  datasource:
+    url: jdbc:mysql://localhost:3306/moneypal_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: root
+    password: password
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  sql:
+    init:
+      mode: always
+  jpa:
+    defer-datasource-initialization: true
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+
+# Custom Application Security & JWT Properties
+app:
+  jwt:
+    # A 256-bit (32 bytes) hex string at least. Using a secure 512-bit key here:
+    secret: 407f3f31726a454848324e4d6a6a576b4a7276796c56784d633261623933624e5a7465355674384d5972744747514a67554f6c44347738374e6f477035645a30
+    expiration-ms: 86400000 # 24 Hours
+
+# Actuator Config for Liveliness & Health Probes
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true

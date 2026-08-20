@@ -1,0 +1,20 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=MySQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+  sql:
+    init:
+      mode: never # turn off data.sql seeding in test memory db if it conflicts, or keep it. Let's keep it "never" so tests seed manually and are clean.
+
+# Test JWT keys
+app:
+  jwt:
+    secret: 407f3f31726a454848324e4d6a6a576b4a7276796c56784d633261623933624e5a7465355674384d5972744747514a67554f6c44347738374e6f477035645a30
+    expiration-ms: 100000
