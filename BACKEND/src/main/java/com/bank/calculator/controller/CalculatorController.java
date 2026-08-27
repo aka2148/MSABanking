@@ -4,23 +4,27 @@ import com.bank.calculator.dto.EstimationRequest;
 import com.bank.calculator.dto.EstimationResponse;
 import com.bank.calculator.service.FdCalculatorService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/calculator")
+@RequestMapping({"/api/fd", "/api/v1/fd-calculator", "/api/v1/calculator"})
+@CrossOrigin(origins = "*")
 public class CalculatorController {
 
-    @Autowired
-    private FdCalculatorService fdCalculatorService;
+    private final FdCalculatorService calculatorService;
 
-    @PostMapping("/estimate")
-    public ResponseEntity<EstimationResponse> estimateInterest(@Valid @RequestBody EstimationRequest request) {
-        EstimationResponse response = fdCalculatorService.calculateEstimation(request);
+    public CalculatorController(FdCalculatorService calculatorService) {
+        this.calculatorService = calculatorService;
+    }
+
+    @PostMapping("/calculate")
+    public ResponseEntity<EstimationResponse> calculateMaturity(@Valid @RequestBody EstimationRequest request) {
+        EstimationResponse response = calculatorService.calculateMaturityAmount(request);
         return ResponseEntity.ok(response);
     }
 }
