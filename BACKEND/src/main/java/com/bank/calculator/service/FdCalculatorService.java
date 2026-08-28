@@ -2,136 +2,101 @@ package com.bank.calculator.service;
 
 import com.bank.calculator.dto.EstimationRequest;
 import com.bank.calculator.dto.EstimationResponse;
+import com.bank.customer.entity.CustomerCategory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 
 @Service
 public class FdCalculatorService {
 
-    // Maximum combined add-on cap
-    private static final BigDecimal MAX_SEGMENT_ADDON_CAP = new BigDecimal("2.00");
+    public static final BigDecimal SENIOR_CITIZEN_BOOST = new BigDecimal("0.50");
+    public static final BigDecimal EMPLOYEE_BOOST = new BigDecimal("0.75");
+    public static final BigDecimal STANDARD_BOOST = BigDecimal.ZERO;
+    public static final BigDecimal PENALTY_RATE = new BigDecimal("1.00"); // 1% penalty
 
-    // Dynamic Category benefits
-    private static final Map<String, BigDecimal> SEGMENT_RATES = Map.of(
-            "GENERAL", BigDecimal.ZERO,
-            "SENIOR", new BigDecimal("1.00"),
-            "SENIOR_CITIZEN", new BigDecimal("1.00"),
-            "EMPLOYEE", new BigDecimal("1.00"),
-            "STUDENT", new BigDecimal("0.50"),
-            "PREMIUM_USER", new BigDecimal("1.50")
-    );
-
-    public EstimationResponse calculateMaturityAmount(EstimationRequest request) {
-        // 1. Resolve Base Rate
-        BigDecimal baseRate = (request.getBaseRate() != null && request.getBaseRate().compareTo(BigDecimal.ZERO) > 0)
-                ? request.getBaseRate()
-                : resolveBaseRate(request.getTenure());
-
-        // 2. Category Logic: evaluate additional rates
-        Map<String, BigDecimal> appliedSegments = new LinkedHashMap<>();
-        BigDecimal rawAddOn = BigDecimal.ZERO;
-        List<String> segments = request.getCustomerSegments();
-
-        if (segments != null && !segments.isEmpty()) {
-            for (String segment : segments) {
-                if (segment != null) {
-                    String key = segment.trim().toUpperCase().replace(" ", "_");
-                    if (SEGMENT_RATES.containsKey(key)) {
-                        BigDecimal boost = SEGMENT_RATES.get(key);
-                        if (boost.compareTo(BigDecimal.ZERO) > 0) {
-                            appliedSegments.put(segment, boost);
-                            rawAddOn = rawAddOn.add(boost);
-                        }
-                    }
-                }
-            }
+    public BigDecimal getCategoryBoost(CustomerCategory category) {
+        if (category == null) {
+            return STANDARD_BOOST;
         }
-
-        // 3. Cap Enforcement: min(rawAddOn, MAX_SEGMENT_ADDON_CAP)
-        boolean isCapped = false;
-        BigDecimal effectiveAddOn = rawAddOn;
-
-        if (rawAddOn.compareTo(MAX_SEGMENT_ADDON_CAP) > 0) {
-            effectiveAddOn = MAX_SEGMENT_ADDON_CAP;
-            isCapped = true;
+        switch (category) {
+            case SENIOR_CITIZEN:
+                return SENIOR_CITIZEN_BOOST;
+            case EMPLOYEE:
+                return EMPLOYEE_BOOST;
+            case STANDARD:
+            default:
+                return STANDARD_BOOST;
         }
+    }
 
-        BigDecimal interestRate = baseRate.add(effectiveAddOn).setScale(2, RoundingMode.HALF_UP);
+    public BigDecimal calculateEffectiveRate(BigDecimal baseRate, CustomerCategory category) {
+        BigDecimal boost = getCategoryBoost(category);
+        return baseRate.add(boost);
+    }
 
-        // 4. Math Engine: Simple vs Compound Interest
-        BigDecimal maturityAmount;
-        String calcType = request.getCalculationType() != null 
-                ? request.getCalculationType().trim().toUpperCase() 
-                : "QUARTERLY";
+    public EstimationResponse calculateEstimation(EstimationRequest request) {
+        BigDecimal effectiveRate = calculateEffectiveRate(request.getBaseInterestRate(), request.getCategory());
+        return calculate(request.getPrincipal(), effectiveRate, request.getTermDays(), request.getCompoundingFrequency());
+    }
 
-        if ("SIMPLE".equals(calcType)) {
-            maturityAmount = computeSimpleInterest(request.getPrincipalAmount(), interestRate, request.getTenure());
+    public EstimationResponse calculate(BigDecimal principal, BigDecimal effectiveRatePercent, int termDays, String compoundingFrequency) {
+        double p = principal.doubleValue();
+        double r = effectiveRatePercent.doubleValue() / 100.0;
+        double t = (double) termDays / 365.0;
+
+        double maturityValue;
+        double apyValue;
+
+        if ("SIMPLE".equalsIgnoreCase(compoundingFrequency)) {
+            maturityValue = p * (1 + r * t);
+            apyValue = r;
         } else {
-            int frequencyPerYear = resolveCompoundingFrequency(calcType);
-            maturityAmount = computeCompoundInterest(request.getPrincipalAmount(), interestRate, request.getTenure(), frequencyPerYear);
+            int n = getCompoundingPeriodsPerYear(compoundingFrequency);
+            maturityValue = p * Math.pow(1 + r / n, n * t);
+            apyValue = Math.pow(1 + r / n, n) - 1;
         }
 
-        BigDecimal interestEarned = maturityAmount.subtract(request.getPrincipalAmount()).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal maturityAmount = BigDecimal.valueOf(maturityValue).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal totalInterest = maturityAmount.subtract(principal).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal apy = BigDecimal.valueOf(apyValue * 100.0).setScale(4, RoundingMode.HALF_UP);
 
-        // 5. Response Builder
-        EstimationResponse response = new EstimationResponse();
-        response.setPrincipalAmount(request.getPrincipalAmount());
-        response.setTenure(request.getTenure());
-        response.setCalculationType(calcType);
-        response.setBaseRate(baseRate);
-        response.setAppliedSegmentAddOns(appliedSegments);
-        response.setRawAddOnRate(rawAddOn);
-        response.setMaxAllowedCap(MAX_SEGMENT_ADDON_CAP);
-        response.setCapped(isCapped);
-        response.setInterestRate(interestRate);
-        response.setTotalInterestEarned(interestEarned);
-        response.setMaturityAmount(maturityAmount);
-
-        return response;
+        return EstimationResponse.builder()
+                .principal(principal)
+                .effectiveInterestRate(effectiveRatePercent)
+                .totalInterest(totalInterest)
+                .maturityAmount(maturityAmount)
+                .apy(apy)
+                .build();
     }
 
-    /**
-     * Simple Interest: M = P + (P * r * t / 100)
-     */
-    private BigDecimal computeSimpleInterest(BigDecimal principal, BigDecimal rate, int months) {
-        double p = principal.doubleValue();
-        double r = rate.doubleValue();
-        double t = months / 12.0;
-        double interest = (p * r * t) / 100.0;
-        return BigDecimal.valueOf(p + interest).setScale(2, RoundingMode.HALF_UP);
+    public BigDecimal calculatePrematurePayout(BigDecimal principal, BigDecimal baseRate, int elapsedDays, CustomerCategory category, String compoundingFrequency) {
+        if (elapsedDays <= 0) {
+            return principal;
+        }
+        // Penalized rate = baseRate - 1.0% + categoryBoost
+        BigDecimal effectivePenalizedRate = baseRate.subtract(PENALTY_RATE).add(getCategoryBoost(category));
+        if (effectivePenalizedRate.compareTo(BigDecimal.ZERO) < 0) {
+            effectivePenalizedRate = BigDecimal.ZERO;
+        }
+
+        EstimationResponse result = calculate(principal, effectivePenalizedRate, elapsedDays, compoundingFrequency);
+        return result.getMaturityAmount();
     }
 
-    /**
-     * Compound Interest: M = P * (1 + r / (100 * n)) ^ (n * t)
-     */
-    private BigDecimal computeCompoundInterest(BigDecimal principal, BigDecimal rate, int months, int n) {
-        double p = principal.doubleValue();
-        double r = rate.doubleValue() / 100.0;
-        double t = months / 12.0;
-        double maturity = p * Math.pow(1.0 + (r / n), n * t);
-        return BigDecimal.valueOf(maturity).setScale(2, RoundingMode.HALF_UP);
-    }
-
-    private int resolveCompoundingFrequency(String type) {
-        return switch (type) {
-            case "MONTHLY" -> 12;
-            case "HALF_YEARLY" -> 2;
-            case "YEARLY" -> 1;
-            case "QUARTERLY" -> 4;
-            default -> 4;
-        };
-    }
-
-    private BigDecimal resolveBaseRate(int tenureMonths) {
-        if (tenureMonths < 6) return new BigDecimal("4.50");
-        if (tenureMonths < 12) return new BigDecimal("5.75");
-        if (tenureMonths <= 24) return new BigDecimal("6.50");
-        if (tenureMonths <= 36) return new BigDecimal("7.00");
-        return new BigDecimal("6.75");
+    private int getCompoundingPeriodsPerYear(String frequency) {
+        if (frequency == null) {
+            return 4; // default to quarterly
+        }
+        switch (frequency.toUpperCase()) {
+            case "MONTHLY":
+                return 12;
+            case "YEARLY":
+                return 1;
+            case "QUARTERLY":
+            default:
+                return 4;
+        }
     }
 }

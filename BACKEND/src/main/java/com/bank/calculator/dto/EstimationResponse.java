@@ -1,102 +1,49 @@
 package com.bank.calculator.dto;
 
 import java.math.BigDecimal;
-import java.util.Map;
 
 public class EstimationResponse {
-
-    private BigDecimal principalAmount;
-    private Integer tenure;
-    private String calculationType;
-    private BigDecimal baseRate;
-    private Map<String, BigDecimal> appliedSegmentAddOns;
-    private BigDecimal rawAddOnRate;
-    private BigDecimal maxAllowedCap;
-    private boolean isCapped;
-    private BigDecimal interestRate;
-    private BigDecimal totalInterestEarned;
+    private BigDecimal principal;
+    private BigDecimal effectiveInterestRate;
+    private BigDecimal totalInterest;
     private BigDecimal maturityAmount;
+    private BigDecimal apy;
 
-    public EstimationResponse() {}
-
-    public BigDecimal getPrincipalAmount() {
-        return principalAmount;
+    // Constructors
+    public EstimationResponse() {
     }
 
-    public void setPrincipalAmount(BigDecimal principalAmount) {
-        this.principalAmount = principalAmount;
+    public EstimationResponse(BigDecimal principal, BigDecimal effectiveInterestRate, BigDecimal totalInterest, BigDecimal maturityAmount, BigDecimal apy) {
+        this.principal = principal;
+        this.effectiveInterestRate = effectiveInterestRate;
+        this.totalInterest = totalInterest;
+        this.maturityAmount = maturityAmount;
+        this.apy = apy;
     }
 
-    public Integer getTenure() {
-        return tenure;
+    // Getters and Setters
+    public BigDecimal getPrincipal() {
+        return principal;
     }
 
-    public void setTenure(Integer tenure) {
-        this.tenure = tenure;
+    public void setPrincipal(BigDecimal principal) {
+        this.principal = principal;
     }
 
-    public String getCalculationType() {
-        return calculationType;
+    public BigDecimal getEffectiveInterestRate() {
+        return effectiveInterestRate;
     }
 
-    public void setCalculationType(String calculationType) {
-        this.calculationType = calculationType;
+    public void setEffectiveInterestRate(BigDecimal effectiveInterestRate) {
+        this.effectiveInterestRate = effectiveInterestRate;
     }
 
-    public BigDecimal getBaseRate() {
-        return baseRate;
+    public BigDecimal getTotalInterest() {
+        return totalInterest;
     }
 
-    public void setBaseRate(BigDecimal baseRate) {
-        this.baseRate = baseRate;
-    }
-
-    public Map<String, BigDecimal> getAppliedSegmentAddOns() {
-        return appliedSegmentAddOns;
-    }
-
-    public void setAppliedSegmentAddOns(Map<String, BigDecimal> appliedSegmentAddOns) {
-        this.appliedSegmentAddOns = appliedSegmentAddOns;
-    }
-
-    public BigDecimal getRawAddOnRate() {
-        return rawAddOnRate;
-    }
-
-    public void setRawAddOnRate(BigDecimal rawAddOnRate) {
-        this.rawAddOnRate = rawAddOnRate;
-    }
-
-    public BigDecimal getMaxAllowedCap() {
-        return maxAllowedCap;
-    }
-
-    public void setMaxAllowedCap(BigDecimal maxAllowedCap) {
-        this.maxAllowedCap = maxAllowedCap;
-    }
-
-    public boolean isCapped() {
-        return isCapped;
-    }
-
-    public void setCapped(boolean capped) {
-        isCapped = capped;
-    }
-
-    public BigDecimal getInterestRate() {
-        return interestRate;
-    }
-
-    public void setInterestRate(BigDecimal interestRate) {
-        this.interestRate = interestRate;
-    }
-
-    public BigDecimal getTotalInterestEarned() {
-        return totalInterestEarned;
-    }
-
-    public void setTotalInterestEarned(BigDecimal totalInterestEarned) {
-        this.totalInterestEarned = totalInterestEarned;
+    public void setTotalInterest(BigDecimal totalInterest) {
+        this.totalInterest = totalInterest;
     }
 
     public BigDecimal getMaturityAmount() {
@@ -105,5 +52,55 @@ public class EstimationResponse {
 
     public void setMaturityAmount(BigDecimal maturityAmount) {
         this.maturityAmount = maturityAmount;
+    }
+
+    public BigDecimal getApy() {
+        return apy;
+    }
+
+    public void setApy(BigDecimal apy) {
+        this.apy = apy;
+    }
+
+    // Custom Builder
+    public static EstimationResponseBuilder builder() {
+        return new EstimationResponseBuilder();
+    }
+
+    public static class EstimationResponseBuilder {
+        private BigDecimal principal;
+        private BigDecimal effectiveInterestRate;
+        private BigDecimal totalInterest;
+        private BigDecimal maturityAmount;
+        private BigDecimal apy;
+
+        public EstimationResponseBuilder principal(BigDecimal principal) {
+            this.principal = principal;
+            return this;
+        }
+
+        public EstimationResponseBuilder effectiveInterestRate(BigDecimal effectiveInterestRate) {
+            this.effectiveInterestRate = effectiveInterestRate;
+            return this;
+        }
+
+        public EstimationResponseBuilder totalInterest(BigDecimal totalInterest) {
+            this.totalInterest = totalInterest;
+            return this;
+        }
+
+        public EstimationResponseBuilder maturityAmount(BigDecimal maturityAmount) {
+            this.maturityAmount = maturityAmount;
+            return this;
+        }
+
+        public EstimationResponseBuilder apy(BigDecimal apy) {
+            this.apy = apy;
+            return this;
+        }
+
+        public EstimationResponse build() {
+            return new EstimationResponse(principal, effectiveInterestRate, totalInterest, maturityAmount, apy);
+        }
     }
 }
