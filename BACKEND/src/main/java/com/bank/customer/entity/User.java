@@ -21,6 +21,9 @@ public class User implements UserDetails {
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
     private UserCredential credentials;
 
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
+    private java.util.List<UserRole> roleAssignments = new java.util.ArrayList<>();
+
     /* Legacy API compatibility. Role assignments belong in user_roles. */
     @Transient private Role role = Role.ROLE_CUSTOMER;
     @Transient private String email;
@@ -41,6 +44,8 @@ public class User implements UserDetails {
     public void setEmail(String email) { this.email = email; }
     public Role getRole() { return role; }
     public void setRole(Role role) { this.role = role; }
+    public java.util.List<UserRole> getRoleAssignments() { return roleAssignments; }
+    public void setRoleAssignments(java.util.List<UserRole> roleAssignments) { this.roleAssignments = roleAssignments; }
 
     @PrePersist
     void initializeIdentifiers() {
@@ -48,7 +53,12 @@ public class User implements UserDetails {
         if (uuid == null) uuid = java.util.UUID.randomUUID().toString();
     }
 
-    @Override public Collection<? extends GrantedAuthority> getAuthorities() { return List.of(new SimpleGrantedAuthority((role == null ? Role.ROLE_CUSTOMER : role).name())); }
+    @Override public Collection<? extends GrantedAuthority> getAuthorities() {
+        if (roleAssignments != null && !roleAssignments.isEmpty()) {
+            return roleAssignments.stream().map(assignment -> new SimpleGrantedAuthority(assignment.getRoleCode())).toList();
+        }
+        return List.of(new SimpleGrantedAuthority((role == null ? Role.ROLE_CUSTOMER : role).name()));
+    }
     @Override public String getPassword() { return credentials == null ? null : credentials.getPasswordHash(); }
     @Override public String getUsername() { return credentials == null ? null : credentials.getUsername(); }
     @Override public boolean isAccountNonExpired() { return true; }

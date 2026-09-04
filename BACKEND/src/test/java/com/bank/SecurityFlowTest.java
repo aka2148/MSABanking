@@ -1,7 +1,5 @@
 package com.bank;
 
-import com.bank.customer.entity.CustomerCategory;
-import com.bank.customer.entity.Role;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,6 +7,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -19,9 +18,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * End-to-end security flow test using the current YAML-spec routes (/api/v1/auth/*).
+ * The legacy /api/auth/* routes were removed as part of Flaw-3 cleanup.
+ */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@TestPropertySource(properties = "spring.flyway.enabled=false")
 public class SecurityFlowTest {
 
     @Autowired
@@ -32,50 +36,36 @@ public class SecurityFlowTest {
 
     @Test
     public void testAuthenticationAndSecuredEndpointFlow() throws Exception {
-        // 1. Register a customer user
+        // 1. Register via the YAML-spec route — returns a JwtResponse with token
         Map<String, Object> registerRequest = new HashMap<>();
-        registerRequest.put("username", "testcustomer");
+        registerRequest.put("username", "testcustomer_flow");
         registerRequest.put("password", "securepwd123");
-        registerRequest.put("email", "customer@bank.com");
-        registerRequest.put("role", Role.ROLE_CUSTOMER);
-        registerRequest.put("firstName", "John");
-        registerRequest.put("lastName", "Doe");
-        registerRequest.put("phone", "1234567890");
-        registerRequest.put("address", "123 Banking St");
-        registerRequest.put("category", CustomerCategory.STANDARD);
+        registerRequest.put("email", "customer_flow@bank.com");
+        registerRequest.put("fullName", "John Doe");
 
-        mockMvc.perform(post("/api/auth/register")
+        MvcResult registerResult = mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(registerRequest)))
-                .andExpect(status().isOk());
-
-        // 2. Login to get JWT Token
-        Map<String, String> loginRequest = new HashMap<>();
-        loginRequest.put("username", "testcustomer");
-        loginRequest.put("password", "securepwd123");
-
-        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(loginRequest)))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andReturn();
 
-        String responseBody = loginResult.getResponse().getContentAsString();
-        Map<?, ?> responseMap = objectMapper.readValue(responseBody, Map.class);
-        String token = (String) responseMap.get("token");
+        // Extract JWT from registration response
+        String registerBody = registerResult.getResponse().getContentAsString();
+        Map<?, ?> registerMap = objectMapper.readValue(registerBody, Map.class);
+        String token = (String) registerMap.get("token");
 
-        // 3. Request profile with JWT Token (Expect 200 OK)
-        mockMvc.perform(get("/api/customer/profile")
+        // 2. /auth/me returns the current user's profile (200 OK with token)
+        mockMvc.perform(get("/api/v1/auth/me")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
 
-        // 4. Request security-protected admin operational report with customer token (Expect 403 Forbidden)
-        mockMvc.perform(get("/api/reports/operational")
+        // 3. CUSTOMER role must NOT be able to list all customers (403 Forbidden)
+        mockMvc.perform(get("/api/v1/customers")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden());
 
-        // 5. Request secured endpoint without token (Expect 403 Forbidden since no authentication token is present)
-        mockMvc.perform(get("/api/reports/operational"))
+        // 4. Secured endpoint without any token should return 403
+        mockMvc.perform(get("/api/v1/customers"))
                 .andExpect(status().isForbidden());
     }
 }

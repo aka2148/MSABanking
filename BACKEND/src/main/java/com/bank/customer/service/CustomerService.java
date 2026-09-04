@@ -8,6 +8,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+// NOTE: CustomerController (@RestController) is intentionally disabled — those routes are broken.
+// This @Service bean is kept active because FdAccountController (FD module) depends on it
+// for getProfileEntityByUsername() in ownership validation.
 @Service
 public class CustomerService {
 

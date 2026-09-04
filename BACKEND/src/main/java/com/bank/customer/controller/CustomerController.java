@@ -8,7 +8,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-@RestController
+// DEPRECATED: Routes not in YAML spec. Operations moved to AuthCustomerController under /api/v1.
+// @RestController removed — this bean is no longer active.
 @RequestMapping("/api/customer")
 public class CustomerController {
 

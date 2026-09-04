@@ -8,11 +8,14 @@ import jakarta.persistence.*;
 public class CustomerProfile {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) @Column(name = "cus_customer_id") private Long id;
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL) @JoinColumn(name = "cus_user_id", nullable = false, unique = true) private User user;
+    @OneToOne(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private CustomerDetails details;
     @Column(name = "cus_customer_number", nullable = false, unique = true, length = 50) private String customerNumber;
     @Column(name = "cus_legal_entity_type", length = 30) private String legalEntityType;
     @Column(name = "cus_home_branch_id") private Long homeBranchId;
     @Column(name = "cus_kyc_status", nullable = false, length = 30) private String kycStatus = "PENDING";
     @Column(name = "cus_risk_category", length = 30) private String riskCategory;
+    @Column(name = "cus_signup_contact_method", length = 30) private String signupContactMethod;
     @Column(name = "cus_classification_type_id") private Long classificationTypeId;
     @Column(name = "cus_uuid", nullable = false, length = 64) private String uuid;
 
@@ -27,8 +30,22 @@ public class CustomerProfile {
     public void setId(Long id) { this.id = id; }
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }
+    public CustomerDetails getDetails() { return details; }
+    public void setDetails(CustomerDetails details) { this.details = details; if (details != null) details.setCustomer(this); }
     public String getCustomerNumber() { return customerNumber; }
     public void setCustomerNumber(String customerNumber) { this.customerNumber = customerNumber; }
+    public String getLegalEntityType() { return legalEntityType; }
+    public void setLegalEntityType(String legalEntityType) { this.legalEntityType = legalEntityType; }
+    public Long getHomeBranchId() { return homeBranchId; }
+    public void setHomeBranchId(Long homeBranchId) { this.homeBranchId = homeBranchId; }
+    public String getKycStatus() { return kycStatus; }
+    public void setKycStatus(String kycStatus) { this.kycStatus = kycStatus; }
+    public String getRiskCategory() { return riskCategory; }
+    public void setRiskCategory(String riskCategory) { this.riskCategory = riskCategory; }
+    public String getSignupContactMethod() { return signupContactMethod; }
+    public void setSignupContactMethod(String signupContactMethod) { this.signupContactMethod = signupContactMethod; }
+    public Long getClassificationTypeId() { return classificationTypeId; }
+    public void setClassificationTypeId(Long classificationTypeId) { this.classificationTypeId = classificationTypeId; }
     public String getFirstName() { return firstName; }
     public void setFirstName(String firstName) { this.firstName = firstName; }
     public String getLastName() { return lastName; }
@@ -45,6 +62,7 @@ public class CustomerProfile {
     public static class CustomerProfileBuilder {
         private final CustomerProfile profile = new CustomerProfile();
         public CustomerProfileBuilder user(User value) { profile.setUser(value); return this; }
+        public CustomerProfileBuilder details(CustomerDetails value) { profile.setDetails(value); return this; }
         public CustomerProfileBuilder firstName(String value) { profile.setFirstName(value); return this; }
         public CustomerProfileBuilder lastName(String value) { profile.setLastName(value); return this; }
         public CustomerProfileBuilder phone(String value) { profile.setPhone(value); return this; }
