@@ -16,6 +16,9 @@ public class UserCredential {
     @Column(name = "ucr_failed_attempt_count", nullable = false) private int failedAttemptCount;
     @Column(name = "ucr_locked_until") private OffsetDateTime lockedUntil;
     @Column(name = "ucr_mfa_enabled", nullable = false) private boolean mfaEnabled;
+    @Column(name = "ucr_password_changed_at") private OffsetDateTime passwordChangedAt;
+    @Column(name = "ucr_last_login_at") private OffsetDateTime lastLoginAt;
+    @Column(name = "ucr_last_login_ip", length = 64) private String lastLoginIp;
     @Column(name = "ucr_uuid", nullable = false, length = 64) private String uuid;
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -27,6 +30,12 @@ public class UserCredential {
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
     public OffsetDateTime getLockedUntil() { return lockedUntil; }
     public void setLockedUntil(OffsetDateTime lockedUntil) { this.lockedUntil = lockedUntil; }
+    public int getFailedAttemptCount() { return failedAttemptCount; }
+    public void setFailedAttemptCount(int failedAttemptCount) { this.failedAttemptCount = failedAttemptCount; }
+    public OffsetDateTime getLastLoginAt() { return lastLoginAt; }
+    public void setLastLoginAt(OffsetDateTime lastLoginAt) { this.lastLoginAt = lastLoginAt; }
+    public String getLastLoginIp() { return lastLoginIp; }
+    public void setLastLoginIp(String lastLoginIp) { this.lastLoginIp = lastLoginIp; }
 
     @PrePersist
     void initializeUuid() { if (uuid == null) uuid = java.util.UUID.randomUUID().toString(); }

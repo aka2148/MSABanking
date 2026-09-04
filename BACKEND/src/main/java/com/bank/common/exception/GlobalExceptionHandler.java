@@ -3,6 +3,8 @@ package com.bank.common.exception;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
+import com.bank.security.controller.LoginController;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -38,6 +40,21 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleAccessDeniedException(AccessDeniedException ex) {
         return buildResponse(HttpStatus.FORBIDDEN, "Access Denied: " + ex.getMessage());
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<Map<String, Object>> handleAuthenticationException(AuthenticationException ex) {
+        return buildResponse(HttpStatus.UNAUTHORIZED, "Invalid username or password");
+    }
+
+    @ExceptionHandler(LoginController.AuthenticationFailureException.class)
+    public ResponseEntity<Map<String, Object>> handleLoginAuthenticationFailure(LoginController.AuthenticationFailureException ex) {
+        return buildResponse(HttpStatus.UNAUTHORIZED, "Authentication failed");
+    }
+
+    @ExceptionHandler(com.bank.security.userservice.UserServiceClientAdapter.UserServiceUnavailableException.class)
+    public ResponseEntity<Map<String, Object>> handleUserServiceUnavailable(Exception ex) {
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, "Authentication service is temporarily unavailable");
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

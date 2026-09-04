@@ -13,6 +13,9 @@ import org.springframework.stereotype.Component;
 
 import java.security.Key;
 import java.util.Date;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Component
@@ -48,6 +51,20 @@ public class JwtTokenProvider {
                 .compact();
     }
 
+    public String generateSessionToken(String userId, String username, List<String> roles, String sessionId) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
+        return Jwts.builder()
+                .setId(sessionId)
+                .setSubject(username)
+                .claim("userId", userId)
+                .claim("roles", String.join(",", roles))
+                .setIssuedAt(now)
+                .setExpiration(expiryDate)
+                .signWith(key(), SignatureAlgorithm.HS512)
+                .compact();
+    }
+
     public String getUsernameFromJwt(String token) {
         Claims claims = Jwts.parserBuilder()
                 .setSigningKey(key())
@@ -56,6 +73,28 @@ public class JwtTokenProvider {
                 .getBody();
 
         return claims.getSubject();
+    }
+
+    public List<String> getRolesFromJwt(String token) {
+        Object roles = Jwts.parserBuilder().setSigningKey(key()).build()
+                .parseClaimsJws(token).getBody().get("roles");
+        if (roles == null || roles.toString().isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(roles.toString().split(","))
+                .map(String::trim)
+                .filter(role -> !role.isBlank())
+                .toList();
+    }
+
+    public String getSessionIdFromJwt(String token) {
+        return Jwts.parserBuilder().setSigningKey(key()).build()
+                .parseClaimsJws(token).getBody().getId();
+    }
+
+    public String getUserIdFromJwt(String token) {
+        return Jwts.parserBuilder().setSigningKey(key()).build()
+                .parseClaimsJws(token).getBody().get("userId", String.class);
     }
 
     public boolean validateToken(String authToken) {
