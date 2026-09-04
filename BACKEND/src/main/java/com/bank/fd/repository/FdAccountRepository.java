@@ -13,7 +13,7 @@ import java.util.Optional;
 @Repository
 public interface FdAccountRepository extends JpaRepository<FdAccount, Long> {
     Optional<FdAccount> findByAccountNumber(String accountNumber);
-    List<FdAccount> findByCustomerId(Long customerId);
+    List<FdAccount> findByPrimaryHolderId(Long primaryHolderId);
     List<FdAccount> findByStatus(FdStatus status);
 
     @Query("SELECT MAX(a.accountNumber) FROM FdAccount a WHERE a.accountNumber LIKE :prefix%")

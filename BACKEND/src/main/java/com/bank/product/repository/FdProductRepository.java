@@ -8,5 +8,5 @@ import java.util.List;
 
 @Repository
 public interface FdProductRepository extends JpaRepository<FdProduct, Long> {
-    List<FdProduct> findByIsActiveTrue();
+    List<FdProduct> findByStatusIgnoreCase(String status);
 }

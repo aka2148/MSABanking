@@ -2,138 +2,39 @@ package com.bank.fd.entity;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
+/** Maps public.fd_transactions from the BankingTech PostgreSQL schema. */
 @Entity
-@Table(name = "fd_transactions")
+@Table(name = "fd_transactions", schema = "public")
 public class FdTransaction {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false)
-    private String accountNumber;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private TransactionType transactionType;
-
-    @Column(nullable = false)
-    private BigDecimal amount;
-
-    @Column(nullable = false)
-    private LocalDateTime transactionDate;
-
-    private String description;
-
-    // Constructors
-    public FdTransaction() {
-    }
-
-    public FdTransaction(Long id, String accountNumber, TransactionType transactionType, BigDecimal amount, LocalDateTime transactionDate, String description) {
-        this.id = id;
-        this.accountNumber = accountNumber;
-        this.transactionType = transactionType;
-        this.amount = amount;
-        this.transactionDate = transactionDate;
-        this.description = description;
-    }
-
-    // Getters and Setters
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getAccountNumber() {
-        return accountNumber;
-    }
-
-    public void setAccountNumber(String accountNumber) {
-        this.accountNumber = accountNumber;
-    }
-
-    public TransactionType getTransactionType() {
-        return transactionType;
-    }
-
-    public void setTransactionType(TransactionType transactionType) {
-        this.transactionType = transactionType;
-    }
-
-    public BigDecimal getAmount() {
-        return amount;
-    }
-
-    public void setAmount(BigDecimal amount) {
-        this.amount = amount;
-    }
-
-    public LocalDateTime getTransactionDate() {
-        return transactionDate;
-    }
-
-    public void setTransactionDate(LocalDateTime transactionDate) {
-        this.transactionDate = transactionDate;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    // Custom Builder
-    public static FdTransactionBuilder builder() {
-        return new FdTransactionBuilder();
-    }
-
-    public static class FdTransactionBuilder {
-        private Long id;
-        private String accountNumber;
-        private TransactionType transactionType;
-        private BigDecimal amount;
-        private LocalDateTime transactionDate;
-        private String description;
-
-        public FdTransactionBuilder id(Long id) {
-            this.id = id;
-            return this;
-        }
-
-        public FdTransactionBuilder accountNumber(String accountNumber) {
-            this.accountNumber = accountNumber;
-            return this;
-        }
-
-        public FdTransactionBuilder transactionType(TransactionType transactionType) {
-            this.transactionType = transactionType;
-            return this;
-        }
-
-        public FdTransactionBuilder amount(BigDecimal amount) {
-            this.amount = amount;
-            return this;
-        }
-
-        public FdTransactionBuilder transactionDate(LocalDateTime transactionDate) {
-            this.transactionDate = transactionDate;
-            return this;
-        }
-
-        public FdTransactionBuilder description(String description) {
-            this.description = description;
-            return this;
-        }
-
-        public FdTransaction build() {
-            return new FdTransaction(id, accountNumber, transactionType, amount, transactionDate, description);
-        }
-    }
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) @Column(name = "ft_transaction_id") private Long id;
+    @Column(name = "ft_account_id", nullable = false) private Long accountId;
+    @Column(name = "ft_txn_type_id", nullable = false) private Long transactionTypeId;
+    @Column(name = "ft_amount", nullable = false, precision = 18, scale = 4) private BigDecimal amount;
+    @Column(name = "ft_txn_date", nullable = false) private OffsetDateTime transactionDate;
+    @Column(name = "ft_balance_after", precision = 18, scale = 4) private BigDecimal balanceAfter;
+    @Column(name = "ft_currency_id", nullable = false) private Long currencyId;
+    @Column(name = "ft_remarks", length = 500) private String remarks;
+    @Column(name = "ft_uuid", nullable = false, length = 64) private String uuid;
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public Long getAccountId() { return accountId; }
+    public void setAccountId(Long accountId) { this.accountId = accountId; }
+    public Long getTransactionTypeId() { return transactionTypeId; }
+    public void setTransactionTypeId(Long transactionTypeId) { this.transactionTypeId = transactionTypeId; }
+    public BigDecimal getAmount() { return amount; }
+    public void setAmount(BigDecimal amount) { this.amount = amount; }
+    public OffsetDateTime getTransactionDate() { return transactionDate; }
+    public void setTransactionDate(OffsetDateTime transactionDate) { this.transactionDate = transactionDate; }
+    public BigDecimal getBalanceAfter() { return balanceAfter; }
+    public void setBalanceAfter(BigDecimal balanceAfter) { this.balanceAfter = balanceAfter; }
+    public Long getCurrencyId() { return currencyId; }
+    public void setCurrencyId(Long currencyId) { this.currencyId = currencyId; }
+    public String getRemarks() { return remarks; }
+    public void setRemarks(String remarks) { this.remarks = remarks; }
+    public String getUuid() { return uuid; }
+    public void setUuid(String uuid) { this.uuid = uuid; }
+    @PrePersist
+    void initializeUuid() { if (uuid == null) uuid = java.util.UUID.randomUUID().toString(); }
 }

@@ -6,147 +6,65 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
-import java.util.Collections;
+import java.util.List;
 
+/** Maps public.users; credentials are intentionally stored in user_credentials. */
 @Entity
-@Table(name = "users")
+@Table(name = "users", schema = "public")
 public class User implements UserDetails {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) @Column(name = "usr_user_id") private Long id;
+    @Column(name = "usr_user_uuid", nullable = false, unique = true, length = 64) private String userUuid;
+    @Column(name = "usr_user_type", nullable = false, length = 30) private String userType = "CUSTOMER";
+    @Column(name = "usr_status", nullable = false, length = 30) private String status = "ACTIVE";
+    @Column(name = "usr_uuid", nullable = false, length = 64) private String uuid;
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
+    private UserCredential credentials;
 
-    @Column(unique = true, nullable = false)
-    private String username;
+    /* Legacy API compatibility. Role assignments belong in user_roles. */
+    @Transient private Role role = Role.ROLE_CUSTOMER;
+    @Transient private String email;
 
-    @Column(nullable = false)
-    private String password;
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getUserUuid() { return userUuid; }
+    public void setUserUuid(String userUuid) { this.userUuid = userUuid; }
+    public String getUserType() { return userType; }
+    public void setUserType(String userType) { this.userType = userType; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+    public String getUuid() { return uuid; }
+    public void setUuid(String uuid) { this.uuid = uuid; }
+    public UserCredential getCredentials() { return credentials; }
+    public void setCredentials(UserCredential credentials) { this.credentials = credentials; if (credentials != null) credentials.setUser(this); }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+    public Role getRole() { return role; }
+    public void setRole(Role role) { this.role = role; }
 
-    @Column(unique = true, nullable = false)
-    private String email;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private Role role;
-
-    // Constructors
-    public User() {
+    @PrePersist
+    void initializeIdentifiers() {
+        if (userUuid == null) userUuid = java.util.UUID.randomUUID().toString();
+        if (uuid == null) uuid = java.util.UUID.randomUUID().toString();
     }
 
-    public User(Long id, String username, String password, String email, Role role) {
-        this.id = id;
-        this.username = username;
-        this.password = password;
-        this.email = email;
-        this.role = role;
-    }
+    @Override public Collection<? extends GrantedAuthority> getAuthorities() { return List.of(new SimpleGrantedAuthority((role == null ? Role.ROLE_CUSTOMER : role).name())); }
+    @Override public String getPassword() { return credentials == null ? null : credentials.getPasswordHash(); }
+    @Override public String getUsername() { return credentials == null ? null : credentials.getUsername(); }
+    @Override public boolean isAccountNonExpired() { return true; }
+    @Override public boolean isAccountNonLocked() { return credentials == null || credentials.getLockedUntil() == null || credentials.getLockedUntil().isBefore(java.time.OffsetDateTime.now()); }
+    @Override public boolean isCredentialsNonExpired() { return true; }
+    @Override public boolean isEnabled() { return "ACTIVE".equalsIgnoreCase(status); }
 
-    // Getters and Setters
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public Role getRole() {
-        return role;
-    }
-
-    public void setRole(Role role) {
-        this.role = role;
-    }
-
-    // UserDetails Implementation
-    @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Collections.singletonList(new SimpleGrantedAuthority(role.name()));
-    }
-
-    @Override
-    public boolean isAccountNonExpired() {
-        return true;
-    }
-
-    @Override
-    public boolean isAccountNonLocked() {
-        return true;
-    }
-
-    @Override
-    public boolean isCredentialsNonExpired() {
-        return true;
-    }
-
-    @Override
-    public boolean isEnabled() {
-        return true;
-    }
-
-    // Custom Builder
-    public static UserBuilder builder() {
-        return new UserBuilder();
-    }
-
+    public static UserBuilder builder() { return new UserBuilder(); }
     public static class UserBuilder {
-        private Long id;
-        private String username;
-        private String password;
-        private String email;
-        private Role role;
-
-        public UserBuilder id(Long id) {
-            this.id = id;
-            return this;
-        }
-
-        public UserBuilder username(String username) {
-            this.username = username;
-            return this;
-        }
-
-        public UserBuilder password(String password) {
-            this.password = password;
-            return this;
-        }
-
-        public UserBuilder email(String email) {
-            this.email = email;
-            return this;
-        }
-
-        public UserBuilder role(Role role) {
-            this.role = role;
-            return this;
-        }
-
-        public User build() {
-            return new User(id, username, password, email, role);
-        }
+        private final User user = new User();
+        public UserBuilder id(Long id) { user.setId(id); return this; }
+        public UserBuilder username(String username) { ensureCredentials().setUsername(username); return this; }
+        public UserBuilder password(String password) { ensureCredentials().setPasswordHash(password); return this; }
+        public UserBuilder email(String email) { user.setEmail(email); return this; }
+        public UserBuilder role(Role role) { user.setRole(role); return this; }
+        public User build() { return user; }
+        private UserCredential ensureCredentials() { if (user.getCredentials() == null) user.setCredentials(new UserCredential()); return user.getCredentials(); }
     }
 }

@@ -23,7 +23,7 @@ public class FdProductService {
     }
 
     public List<FdProduct> getActiveProducts() {
-        return fdProductRepository.findByIsActiveTrue();
+        return fdProductRepository.findByStatusIgnoreCase("ACTIVE");
     }
 
     public FdProduct getProductById(Long id) {

@@ -54,7 +54,7 @@ public class AuthController {
         String jwt = jwtTokenProvider.generateToken(authentication);
 
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        User user = userRepository.findByUsername(userDetails.getUsername()).orElseThrow();
+        User user = userRepository.findByCredentialsUsername(userDetails.getUsername()).orElseThrow();
 
         List<String> roles = userDetails.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
@@ -65,12 +65,8 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<String> registerUser(@Valid @RequestBody RegisterRequest registerRequest) {
-        if (userRepository.existsByUsername(registerRequest.getUsername())) {
+        if (userRepository.existsByCredentialsUsername(registerRequest.getUsername())) {
             throw new InvalidInputException("Error: Username is already taken!");
-        }
-
-        if (userRepository.existsByEmail(registerRequest.getEmail())) {
-            throw new InvalidInputException("Error: Email is already in use!");
         }
 
         Role role = registerRequest.getRole() != null ? registerRequest.getRole() : Role.ROLE_CUSTOMER;
@@ -92,6 +88,7 @@ public class AuthController {
                 .address(registerRequest.getAddress())
                 .category(category)
                 .build();
+        profile.setCustomerNumber("CUS-" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase());
 
         customerProfileRepository.save(profile);
 

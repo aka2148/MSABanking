@@ -15,7 +15,7 @@ public class CustomerService {
     private CustomerProfileRepository customerProfileRepository;
 
     public CustomerProfileDto getProfileByUsername(String username) {
-        CustomerProfile profile = customerProfileRepository.findByUserUsername(username)
+        CustomerProfile profile = customerProfileRepository.findByUserCredentialsUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer profile not found for user: " + username));
         return mapToDto(profile);
     }
@@ -26,13 +26,13 @@ public class CustomerService {
     }
 
     public CustomerProfile getProfileEntityByUsername(String username) {
-        return customerProfileRepository.findByUserUsername(username)
+        return customerProfileRepository.findByUserCredentialsUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer profile not found for user: " + username));
     }
 
     @Transactional
     public CustomerProfileDto updateProfile(String username, CustomerProfileDto dto) {
-        CustomerProfile profile = customerProfileRepository.findByUserUsername(username)
+        CustomerProfile profile = customerProfileRepository.findByUserCredentialsUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer profile not found for user: " + username));
 
         profile.setFirstName(dto.getFirstName());

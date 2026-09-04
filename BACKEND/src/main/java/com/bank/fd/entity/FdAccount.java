@@ -1,266 +1,91 @@
 package com.bank.fd.entity;
 
 import jakarta.persistence.*;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
+/** Maps public.fd_accounts from the BankingTech PostgreSQL schema. */
 @Entity
-@Table(name = "fd_accounts")
+@Table(name = "fd_accounts", schema = "public")
 public class FdAccount {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "fa_account_id") private Long id;
+    @Column(name = "fa_account_number", nullable = false, unique = true, length = 50) private String accountNumber;
+    @Column(name = "fa_primary_holder_id", nullable = false) private Long primaryHolderId;
+    @Column(name = "fa_product_id", nullable = false) private Long productId;
+    @Column(name = "fa_applied_rate_outcome_id") private Long appliedRateOutcomeId;
+    @Column(name = "fa_principal_amount", nullable = false, precision = 18, scale = 4) private BigDecimal principalAmount;
+    @Column(name = "fa_currency_id", nullable = false) private Long currencyId;
+    @Column(name = "fa_tenure_months", nullable = false) private Integer tenureMonths;
+    @Column(name = "fa_interest_rate", precision = 9, scale = 4) private BigDecimal interestRate;
+    @Column(name = "fa_compounding_frequency", length = 30) private String compoundingFrequency;
+    @Column(name = "fa_payout_frequency", length = 30) private String payoutFrequency;
+    @Column(name = "fa_auto_renewal", nullable = false) private boolean autoRenewal;
+    @Column(name = "fa_open_date", nullable = false) private OffsetDateTime openDate;
+    @Column(name = "fa_maturity_date") private OffsetDateTime maturityDate;
+    @Column(name = "fa_maturity_amount", precision = 18, scale = 4) private BigDecimal maturityAmount;
+    @Enumerated(EnumType.STRING) @Column(name = "fa_status", nullable = false, length = 30) private FdStatus status = FdStatus.ACTIVE;
+    @Column(name = "fa_created_by", length = 255) private String createdBy;
+    @Column(name = "fa_created_date", nullable = false) private OffsetDateTime createdDate;
+    @Column(name = "fa_updated_by", length = 255) private String updatedBy;
+    @Column(name = "fa_updated_date") private OffsetDateTime updatedDate;
+    @Column(name = "fa_version", length = 50) private String version;
+    @Column(name = "fa_uuid", nullable = false, length = 64) private String uuid;
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    /* Accrual entries now live in fd_interest_accrual, not on fd_accounts. */
+    @Transient private BigDecimal accruedInterest = BigDecimal.ZERO;
 
-    @Column(unique = true, nullable = false)
-    private String accountNumber;
-
-    @Column(nullable = false)
-    private Long customerId; // Reference to CustomerProfile.id
-
-    @Column(nullable = false)
-    private Long productId; // Reference to FdProduct.id
-
-    @Column(nullable = false)
-    private BigDecimal depositAmount;
-
-    @Column(nullable = false)
-    private BigDecimal interestRate; // Locked-in rate at creation (inclusive of bonus)
-
-    @Column(nullable = false)
-    private LocalDate bookingDate;
-
-    @Column(nullable = false)
-    private LocalDate maturityDate;
-
-    @Column(nullable = false)
-    private Integer termDays;
-
-    @Column(nullable = false)
-    private String compoundingFrequency; // SIMPLE, MONTHLY, QUARTERLY, YEARLY
-
-    @Column(nullable = false)
-    private BigDecimal accruedInterest = BigDecimal.ZERO;
-
-    @Column(nullable = false)
-    private BigDecimal maturityAmount;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private FdStatus status = FdStatus.ACTIVE;
-
-    // Constructors
-    public FdAccount() {
-    }
-
-    public FdAccount(Long id, String accountNumber, Long customerId, Long productId, BigDecimal depositAmount, BigDecimal interestRate, LocalDate bookingDate, LocalDate maturityDate, Integer termDays, String compoundingFrequency, BigDecimal accruedInterest, BigDecimal maturityAmount, FdStatus status) {
-        this.id = id;
-        this.accountNumber = accountNumber;
-        this.customerId = customerId;
-        this.productId = productId;
-        this.depositAmount = depositAmount;
-        this.interestRate = interestRate;
-        this.bookingDate = bookingDate;
-        this.maturityDate = maturityDate;
-        this.termDays = termDays;
-        this.compoundingFrequency = compoundingFrequency;
-        this.accruedInterest = accruedInterest != null ? accruedInterest : BigDecimal.ZERO;
-        this.maturityAmount = maturityAmount;
-        this.status = status != null ? status : FdStatus.ACTIVE;
-    }
-
-    // Getters and Setters
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getAccountNumber() {
-        return accountNumber;
-    }
-
-    public void setAccountNumber(String accountNumber) {
-        this.accountNumber = accountNumber;
-    }
-
-    public Long getCustomerId() {
-        return customerId;
-    }
-
-    public void setCustomerId(Long customerId) {
-        this.customerId = customerId;
-    }
-
-    public Long getProductId() {
-        return productId;
-    }
-
-    public void setProductId(Long productId) {
-        this.productId = productId;
-    }
-
-    public BigDecimal getDepositAmount() {
-        return depositAmount;
-    }
-
-    public void setDepositAmount(BigDecimal depositAmount) {
-        this.depositAmount = depositAmount;
-    }
-
-    public BigDecimal getInterestRate() {
-        return interestRate;
-    }
-
-    public void setInterestRate(BigDecimal interestRate) {
-        this.interestRate = interestRate;
-    }
-
-    public LocalDate getBookingDate() {
-        return bookingDate;
-    }
-
-    public void setBookingDate(LocalDate bookingDate) {
-        this.bookingDate = bookingDate;
-    }
-
-    public LocalDate getMaturityDate() {
-        return maturityDate;
-    }
-
-    public void setMaturityDate(LocalDate maturityDate) {
-        this.maturityDate = maturityDate;
-    }
-
-    public Integer getTermDays() {
-        return termDays;
-    }
-
-    public void setTermDays(Integer termDays) {
-        this.termDays = termDays;
-    }
-
-    public String getCompoundingFrequency() {
-        return compoundingFrequency;
-    }
-
-    public void setCompoundingFrequency(String compoundingFrequency) {
-        this.compoundingFrequency = compoundingFrequency;
-    }
-
-    public BigDecimal getAccruedInterest() {
-        return accruedInterest;
-    }
-
-    public void setAccruedInterest(BigDecimal accruedInterest) {
-        this.accruedInterest = accruedInterest;
-    }
-
-    public BigDecimal getMaturityAmount() {
-        return maturityAmount;
-    }
-
-    public void setMaturityAmount(BigDecimal maturityAmount) {
-        this.maturityAmount = maturityAmount;
-    }
-
-    public FdStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(FdStatus status) {
-        this.status = status;
-    }
-
-    // Custom Builder
-    public static FdAccountBuilder builder() {
-        return new FdAccountBuilder();
-    }
-
-    public static class FdAccountBuilder {
-        private Long id;
-        private String accountNumber;
-        private Long customerId;
-        private Long productId;
-        private BigDecimal depositAmount;
-        private BigDecimal interestRate;
-        private LocalDate bookingDate;
-        private LocalDate maturityDate;
-        private Integer termDays;
-        private String compoundingFrequency;
-        private BigDecimal accruedInterest = BigDecimal.ZERO;
-        private BigDecimal maturityAmount;
-        private FdStatus status = FdStatus.ACTIVE;
-
-        public FdAccountBuilder id(Long id) {
-            this.id = id;
-            return this;
-        }
-
-        public FdAccountBuilder accountNumber(String accountNumber) {
-            this.accountNumber = accountNumber;
-            return this;
-        }
-
-        public FdAccountBuilder customerId(Long customerId) {
-            this.customerId = customerId;
-            return this;
-        }
-
-        public FdAccountBuilder productId(Long productId) {
-            this.productId = productId;
-            return this;
-        }
-
-        public FdAccountBuilder depositAmount(BigDecimal depositAmount) {
-            this.depositAmount = depositAmount;
-            return this;
-        }
-
-        public FdAccountBuilder interestRate(BigDecimal interestRate) {
-            this.interestRate = interestRate;
-            return this;
-        }
-
-        public FdAccountBuilder bookingDate(LocalDate bookingDate) {
-            this.bookingDate = bookingDate;
-            return this;
-        }
-
-        public FdAccountBuilder maturityDate(LocalDate maturityDate) {
-            this.maturityDate = maturityDate;
-            return this;
-        }
-
-        public FdAccountBuilder termDays(Integer termDays) {
-            this.termDays = termDays;
-            return this;
-        }
-
-        public FdAccountBuilder compoundingFrequency(String compoundingFrequency) {
-            this.compoundingFrequency = compoundingFrequency;
-            return this;
-        }
-
-        public FdAccountBuilder accruedInterest(BigDecimal accruedInterest) {
-            this.accruedInterest = accruedInterest;
-            return this;
-        }
-
-        public FdAccountBuilder maturityAmount(BigDecimal maturityAmount) {
-            this.maturityAmount = maturityAmount;
-            return this;
-        }
-
-        public FdAccountBuilder status(FdStatus status) {
-            this.status = status;
-            return this;
-        }
-
-        public FdAccount build() {
-            return new FdAccount(id, accountNumber, customerId, productId, depositAmount, interestRate, bookingDate, maturityDate, termDays, compoundingFrequency, accruedInterest, maturityAmount, status);
-        }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getAccountNumber() { return accountNumber; }
+    public void setAccountNumber(String accountNumber) { this.accountNumber = accountNumber; }
+    public Long getPrimaryHolderId() { return primaryHolderId; }
+    public void setPrimaryHolderId(Long primaryHolderId) { this.primaryHolderId = primaryHolderId; }
+    public Long getCustomerId() { return primaryHolderId; }
+    public void setCustomerId(Long customerId) { this.primaryHolderId = customerId; }
+    public Long getProductId() { return productId; }
+    public void setProductId(Long productId) { this.productId = productId; }
+    public Long getAppliedRateOutcomeId() { return appliedRateOutcomeId; }
+    public void setAppliedRateOutcomeId(Long appliedRateOutcomeId) { this.appliedRateOutcomeId = appliedRateOutcomeId; }
+    public BigDecimal getPrincipalAmount() { return principalAmount; }
+    public void setPrincipalAmount(BigDecimal principalAmount) { this.principalAmount = principalAmount; }
+    public BigDecimal getDepositAmount() { return principalAmount; }
+    public void setDepositAmount(BigDecimal depositAmount) { this.principalAmount = depositAmount; }
+    public Long getCurrencyId() { return currencyId; }
+    public void setCurrencyId(Long currencyId) { this.currencyId = currencyId; }
+    public Integer getTenureMonths() { return tenureMonths; }
+    public void setTenureMonths(Integer tenureMonths) { this.tenureMonths = tenureMonths; }
+    public Integer getTermDays() { return tenureMonths == null ? null : tenureMonths * 30; }
+    public void setTermDays(Integer termDays) { this.tenureMonths = termDays == null ? null : Math.max(1, termDays / 30); }
+    public BigDecimal getInterestRate() { return interestRate; }
+    public void setInterestRate(BigDecimal interestRate) { this.interestRate = interestRate; }
+    public String getCompoundingFrequency() { return compoundingFrequency; }
+    public void setCompoundingFrequency(String compoundingFrequency) { this.compoundingFrequency = compoundingFrequency; }
+    public String getPayoutFrequency() { return payoutFrequency; }
+    public void setPayoutFrequency(String payoutFrequency) { this.payoutFrequency = payoutFrequency; }
+    public boolean isAutoRenewal() { return autoRenewal; }
+    public void setAutoRenewal(boolean autoRenewal) { this.autoRenewal = autoRenewal; }
+    public OffsetDateTime getOpenDate() { return openDate; }
+    public void setOpenDate(OffsetDateTime openDate) { this.openDate = openDate; }
+    public LocalDate getBookingDate() { return openDate == null ? null : openDate.toLocalDate(); }
+    public void setBookingDate(LocalDate bookingDate) { this.openDate = bookingDate == null ? null : bookingDate.atStartOfDay().atOffset(ZoneOffset.UTC); }
+    public LocalDate getMaturityDate() { return maturityDate == null ? null : maturityDate.toLocalDate(); }
+    public void setMaturityDate(LocalDate maturityDate) { this.maturityDate = maturityDate == null ? null : maturityDate.atStartOfDay().atOffset(ZoneOffset.UTC); }
+    public OffsetDateTime getMaturityDateTime() { return maturityDate; }
+    public void setMaturityDateTime(OffsetDateTime maturityDate) { this.maturityDate = maturityDate; }
+    public BigDecimal getMaturityAmount() { return maturityAmount; }
+    public void setMaturityAmount(BigDecimal maturityAmount) { this.maturityAmount = maturityAmount; }
+    public FdStatus getStatus() { return status; }
+    public void setStatus(FdStatus status) { this.status = status; }
+    public BigDecimal getAccruedInterest() { return accruedInterest; }
+    public void setAccruedInterest(BigDecimal accruedInterest) { this.accruedInterest = accruedInterest; }
+    @PrePersist
+    void initializeMetadata() {
+        if (uuid == null) uuid = java.util.UUID.randomUUID().toString();
+        if (createdDate == null) createdDate = OffsetDateTime.now(ZoneOffset.UTC);
+        if (openDate == null) openDate = OffsetDateTime.now(ZoneOffset.UTC);
     }
 }

@@ -57,6 +57,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/calculator/estimate").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/h2-console/**").permitAll() // for test profiling
+                .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/api-docs/**", "/openapi/**").permitAll()
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session

@@ -26,32 +26,7 @@ public class ReportService {
     private CustomerService customerService;
 
     public CustomerPortfolioReport getCustomerPortfolioReport(String username) {
-        CustomerProfileDto customer = customerService.getProfileByUsername(username);
-        List<FdAccount> accounts = fdAccountRepository.findByCustomerId(customer.getId());
-
-        int activeCount = 0;
-        BigDecimal totalDeposit = BigDecimal.ZERO;
-        BigDecimal totalAccrued = BigDecimal.ZERO;
-        BigDecimal totalMaturity = BigDecimal.ZERO;
-
-        for (FdAccount account : accounts) {
-            if (account.getStatus() == FdStatus.ACTIVE) {
-                activeCount++;
-                totalDeposit = totalDeposit.add(account.getDepositAmount());
-                totalAccrued = totalAccrued.add(account.getAccruedInterest());
-                totalMaturity = totalMaturity.add(account.getMaturityAmount());
-            }
-        }
-
-        return CustomerPortfolioReport.builder()
-                .customerUsername(username)
-                .fullName(customer.getFirstName() + " " + customer.getLastName())
-                .activeCount(activeCount)
-                .totalDepositAmount(totalDeposit.setScale(2, RoundingMode.HALF_UP))
-                .totalAccruedInterest(totalAccrued.setScale(2, RoundingMode.HALF_UP))
-                .totalProjectedMaturityAmount(totalMaturity.setScale(2, RoundingMode.HALF_UP))
-                .accounts(accounts)
-                .build();
+        throw new UnsupportedOperationException("Portfolio reports require an FD user reference mapping after the BankingTech schema migration.");
     }
 
     public BankOperationalReport getBankOperationalReport() {
