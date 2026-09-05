@@ -2,7 +2,7 @@
 
 Verified: `npm install && ng build` completes clean (1.45 MB initial bundle, all
 routes lazy-loaded). If it doesn't build on your machine, the difference is
-your Node/npm version — this was tested against Angular 18.
+your Node/npm version - this was tested against Angular 18.
 
 ## Run it
 
@@ -27,10 +27,6 @@ src/app/
     ├── components/glass-shell/    # bg photo + click-glide + scroll-parallax wrapper
     └── styles/                    # _tokens.scss (palette/type), _glass.scss (component classes)
 ```
-
-`public/auth-bg.jpg` is a **procedurally generated placeholder** (navy/gold
-gradient + ledger grid) — swap it for your real background whenever it's
-ready, same filename, same folder.
 
 ## Schema gap analysis — what we already handle vs. what's still open
 
@@ -57,13 +53,16 @@ Checked against the customer module team's list of missing tables:
   again once guards get built.
 
 **Still needs a conversation with the backend team, not a frontend fix:**
-- `user_customer_map` — nothing to build here on our end, but confirm the
+- `user_customer_map` — nothing to build here on my end, but confirm the
   actual FK/linking field name before wiring `signup()`'s response handling
   to anything beyond a redirect.
 
 ## Known gaps / next steps
 
 1. Signup's file upload is UI-only — see the note above.
+<img width="1917" height="862" alt="image" src="https://github.com/user-attachments/assets/7555183b-3b15-4b7b-a78e-24938c27c49d" />
+<img width="1917" height="871" alt="image" src="https://github.com/user-attachments/assets/0a145472-0b3c-4bdf-b60a-df9ff6ca5763" />
+
 2. No route guard yet — `/dashboard` is reachable without logging in. Add
    once `role` handling is real.
 3. `AuthService.baseUrl` is hardcoded to `localhost:8080/api/auth` — move to
@@ -71,3 +70,9 @@ Checked against the customer module team's list of missing tables:
 4. Login/signup are the only screens using the glass shell so far — reuse
    `<app-glass-shell>` for every other module for visual consistency, per the
    "full glass everywhere" call.
+
+## Visuals 
+<img width="1910" height="965" alt="image" src="https://github.com/user-attachments/assets/09cf93d8-1570-453c-ac31-3a6c6d0e4592" />
+<img width="1747" height="791" alt="image" src="https://github.com/user-attachments/assets/208a2553-aa5e-4cb1-a5b8-bdbf16498a13" />
+
+
