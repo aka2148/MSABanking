@@ -48,8 +48,23 @@ public class Currency {
     @Column(name = "cur_uuid", length = 64)
     private String uuid;
 
+    @Column(name = "cur_ldbid", length = 50)
+    private String ldbid;
+
+    @Column(name = "cur_host_ts")
+    private LocalDateTime hostTs;
+
+    @Column(name = "cur_local_ts")
+    private LocalDateTime localTs;
+
+    @Column(name = "cur_rule_system_id")
+    private Integer ruleSystemId;
+
     @Column(name = "cur_crud_value", length = 10)
     private String crudValue;
+
+    @Column(name = "cur_workstation_id")
+    private Integer workstationId;
 
     public Currency() {}
 
@@ -92,6 +107,21 @@ public class Currency {
     public String getUuid() { return uuid; }
     public void setUuid(String uuid) { this.uuid = uuid; }
 
+    public String getLdbid() { return ldbid; }
+    public void setLdbid(String ldbid) { this.ldbid = ldbid; }
+
+    public LocalDateTime getHostTs() { return hostTs; }
+    public void setHostTs(LocalDateTime hostTs) { this.hostTs = hostTs; }
+
+    public LocalDateTime getLocalTs() { return localTs; }
+    public void setLocalTs(LocalDateTime localTs) { this.localTs = localTs; }
+
+    public Integer getRuleSystemId() { return ruleSystemId; }
+    public void setRuleSystemId(Integer ruleSystemId) { this.ruleSystemId = ruleSystemId; }
+
     public String getCrudValue() { return crudValue; }
     public void setCrudValue(String crudValue) { this.crudValue = crudValue; }
+
+    public Integer getWorkstationId() { return workstationId; }
+    public void setWorkstationId(Integer workstationId) { this.workstationId = workstationId; }
 }
