@@ -1,0 +1,53 @@
+<div class="glass-shell">
+
+  <!--
+    Fixed background layer.
+    It stays attached to the viewport while the
+    signup/content area is allowed to scroll.
+  -->
+  <div class="glass-shell__bg-scroll-layer">
+
+    <div
+      class="glass-shell__bg"
+      [style.background-image]="'url(' + backgroundUrl + ')'"
+      [style.width.px]="bgWidthPx"
+      [style.height.px]="bgHeightPx"
+      [style.left.px]="bgBaseLeftPx"
+      [style.top.px]="bgBaseTopPx"
+      [style.transform]="bgTransform"
+    ></div>
+
+  </div>
+
+  <!-- Main content -->
+  <div
+    class="glass-shell__content"
+    [class]="'glass-shell__content--' + align"
+  >
+
+    <!-- Brand -->
+    <div
+      class="glass-shell__brand"
+      *ngIf="showBrand"
+    >
+
+      <div class="glass-shell__brand-mark">
+        MB
+      </div>
+
+      <h1 class="glass-shell__brand-name">
+        MoneyPal Bank
+      </h1>
+
+      <p class="glass-shell__brand-tag">
+        Banking, held to a ledger.
+      </p>
+
+    </div>
+
+    <!-- Projected content -->
+    <ng-content></ng-content>
+
+  </div>
+
+</div>

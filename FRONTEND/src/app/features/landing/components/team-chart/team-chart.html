@@ -1,0 +1,19 @@
+<div class="team-chart" #chartRoot [class.team-chart--glow]="isGlowing">
+  <div class="team-chart__node team-chart__node--leader">
+    {{ leader }}
+  </div>
+
+  <div class="team-chart__connector team-chart__connector--top"></div>
+
+  <div class="team-chart__modules">
+    <div class="team-chart__module" *ngFor="let mod of modules; let i = index" [style.--delay]="i">
+      <div class="team-chart__connector team-chart__connector--branch"></div>
+      <div class="team-chart__node team-chart__node--module">{{ mod.name }}</div>
+      <div class="team-chart__members">
+        <div class="team-chart__node team-chart__node--member" *ngFor="let member of mod.members">
+          {{ member }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
