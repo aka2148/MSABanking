@@ -1,0 +1,4 @@
+package com.bank.product.dto.request;
+import jakarta.validation.constraints.Size; import jakarta.validation.constraints.NotNull; import jakarta.validation.constraints.Positive;import java.math.BigDecimal;import java.time.OffsetDateTime;
+public class ProductAttributeValueRequest{
+@NotNull(message="attributeDefId is required") @Positive(message="attributeDefId must be positive") private Integer attributeDefId; public Integer getAttributeDefId(){return attributeDefId;} public void setAttributeDefId(Integer v){attributeDefId=v;}@Size(max=500)private String valueString;private BigDecimal valueNumber;private OffsetDateTime valueDate;public String getValueString(){return valueString;}public void setValueString(String v){valueString=v;}public BigDecimal getValueNumber(){return valueNumber;}public void setValueNumber(BigDecimal v){valueNumber=v;}public OffsetDateTime getValueDate(){return valueDate;}public void setValueDate(OffsetDateTime v){valueDate=v;}}
