@@ -12,6 +12,8 @@ spring:
   sql:
     init:
       mode: never # turn off data.sql seeding in test memory db if it conflicts, or keep it. Let's keep it "never" so tests seed manually and are clean.
+  flyway:
+    enabled: false
 
 # Test JWT keys
 app:

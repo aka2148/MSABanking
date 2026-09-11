@@ -4,26 +4,26 @@ server:
 spring:
   application:
     name: MoneyPal Fixed Deposit System
-
   datasource:
-    url: jdbc:postgresql://YOUR_SUPABASE_HOST:5432/postgres
-    username: postgres
-    password: YOUR_SUPABASE_PASSWORD
+    url: ${SUPABASE_DB_URL}
+    username: ${SUPABASE_DB_USERNAME:postgres}
+    password: ${SUPABASE_DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
-
   sql:
     init:
-      mode: always
-
+      mode: never
   jpa:
-    defer-datasource-initialization: true
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: true
     properties:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
 
 # Custom Application Security & JWT Properties
 app:

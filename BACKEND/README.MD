@@ -4,13 +4,15 @@
 
 The backend now targets the supplied BankingTech PostgreSQL public schema. Its Flyway baseline is [V1__bankingtech_public_schema.sql](src/main/resources/db/migration/V1__bankingtech_public_schema.sql), copied unchanged from the supplied SQL file.
 
-Set the connection details before startup:
+Set the Supabase database connection details before startup. The frontend anon key is not a PostgreSQL password and must not be used here. In the Supabase dashboard, open **Connect** and copy the PostgreSQL connection details; use the database password from that dialog.
 
 ```powershell
-$env:DB_URL = "jdbc:postgresql://localhost:5432/bankingtech"
-$env:DB_USERNAME = "postgres"
-$env:DB_PASSWORD = "your-password"
+$env:SUPABASE_DB_URL = "jdbc:postgresql://db.<project-ref>.supabase.co:5432/postgres?sslmode=require"
+$env:SUPABASE_DB_USERNAME = "postgres"
+$env:SUPABASE_DB_PASSWORD = "your-supabase-database-password"
 ```
+
+For an IPv4-only network, use the Supabase Session Pooler host and port shown in the same **Connect** dialog instead of the direct `db.<project-ref>.supabase.co` host.
 
 Flyway applies the schema and Hibernate validates the entity mappings; it will not create or alter tables. The former MySQL `data.sql` seed was removed because it referenced the retired `fd_products` table.
 

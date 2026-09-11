@@ -11,7 +11,7 @@ com\bank\customer\repository\CustomerProfileRepository.class
 com\bank\customer\entity\CustomerProfile.class
 com\bank\product\controller\FdProductController.class
 com\bank\common\exception\BankingException.class
-com\bank\fd\entity\FdTransaction$FdTransactionBuilder.class
+com\bank\customer\entity\UserCredential.class
 com\bank\security\jwt\JwtAuthenticationFilter.class
 com\bank\customer\repository\UserRepository.class
 com\bank\calculator\dto\EstimationRequest.class
@@ -25,7 +25,6 @@ com\bank\fd\entity\TransactionType.class
 com\bank\fd\entity\FdTransaction.class
 com\bank\reports\controller\ReportController.class
 com\bank\fd\api\dto\ApiErrorResponse.class
-com\bank\product\entity\FdProduct$FdProductBuilder.class
 com\bank\reports\dto\CustomerPortfolioReport$CustomerPortfolioReportBuilder.class
 com\bank\security\jwt\JwtTokenProvider.class
 com\bank\MoneyPalApplication.class
@@ -45,7 +44,6 @@ com\bank\customer\dto\CustomerProfileDto$CustomerProfileDtoBuilder.class
 com\bank\customer\entity\User.class
 com\bank\customer\entity\CustomerCategory.class
 com\bank\calculator\service\FdCalculatorService.class
-com\bank\fd\entity\FdAccount$FdAccountBuilder.class
 com\bank\fd\api\controller\FdV1ContractController.class
 com\bank\product\entity\FdProduct.class
 com\bank\product\repository\FdProductRepository.class

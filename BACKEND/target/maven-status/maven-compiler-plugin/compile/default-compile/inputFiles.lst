@@ -13,6 +13,7 @@ C:\bankingtech\BankingTechnology\BACKEND\src\main\java\com\bank\customer\entity\
 C:\bankingtech\BankingTechnology\BACKEND\src\main\java\com\bank\customer\entity\CustomerProfile.java
 C:\bankingtech\BankingTechnology\BACKEND\src\main\java\com\bank\customer\entity\Role.java
 C:\bankingtech\BankingTechnology\BACKEND\src\main\java\com\bank\customer\entity\User.java
+C:\bankingtech\BankingTechnology\BACKEND\src\main\java\com\bank\customer\entity\UserCredential.java
 C:\bankingtech\BankingTechnology\BACKEND\src\main\java\com\bank\customer\repository\CustomerProfileRepository.java
 C:\bankingtech\BankingTechnology\BACKEND\src\main\java\com\bank\customer\repository\UserRepository.java
 C:\bankingtech\BankingTechnology\BACKEND\src\main\java\com\bank\customer\service\CustomerService.java

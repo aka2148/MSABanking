@@ -5,9 +5,9 @@ spring:
   application:
     name: MoneyPal Fixed Deposit System
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/bankingtech}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
+    url: ${SUPABASE_DB_URL}
+    username: ${SUPABASE_DB_USERNAME:postgres}
+    password: ${SUPABASE_DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
   sql:
     init:
