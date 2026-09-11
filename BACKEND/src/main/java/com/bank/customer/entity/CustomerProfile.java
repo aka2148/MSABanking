@@ -1,6 +1,8 @@
 package com.bank.customer.entity;
 
 import jakarta.persistence.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /** Maps public.customers; demographic/contact data is stored in related customer tables. */
 @Entity
@@ -15,6 +17,18 @@ public class CustomerProfile {
     @Column(name = "cus_risk_category", length = 30) private String riskCategory;
     @Column(name = "cus_classification_type_id") private Long classificationTypeId;
     @Column(name = "cus_uuid", nullable = false, length = 64) private String uuid;
+
+    @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<CustomerDetail> details = new ArrayList<>();
+
+    @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<CustomerPhoneNumber> phoneNumbers = new ArrayList<>();
+
+    @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<CustomerEmail> emails = new ArrayList<>();
+
+    @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<CustomerAddress> addresses = new ArrayList<>();
 
     /* Values now belong to customer_details, customer_phone_numbers, and customer_addresses. */
     @Transient private String firstName;
@@ -39,6 +53,10 @@ public class CustomerProfile {
     public void setAddress(String address) { this.address = address; }
     public CustomerCategory getCategory() { return category; }
     public void setCategory(CustomerCategory category) { this.category = category; }
+    public void addDetail(CustomerDetail detail) { details.add(detail); detail.setCustomer(this); }
+    public void addPhoneNumber(CustomerPhoneNumber phoneNumber) { phoneNumbers.add(phoneNumber); phoneNumber.setCustomer(this); }
+    public void addEmail(CustomerEmail email) { emails.add(email); email.setCustomer(this); }
+    public void addAddress(CustomerAddress address) { addresses.add(address); address.setCustomer(this); }
     @PrePersist
     void initializeUuid() { if (uuid == null) uuid = java.util.UUID.randomUUID().toString(); }
     public static CustomerProfileBuilder builder() { return new CustomerProfileBuilder(); }

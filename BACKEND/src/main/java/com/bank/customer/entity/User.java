@@ -6,6 +6,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
+import java.util.ArrayList;
 import java.util.List;
 
 /** Maps public.users; credentials are intentionally stored in user_credentials. */
@@ -20,6 +21,9 @@ public class User implements UserDetails {
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
     private UserCredential credentials;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    private List<UserRole> roleAssignments = new ArrayList<>();
 
     /* Legacy API compatibility. Role assignments belong in user_roles. */
     @Transient private Role role = Role.ROLE_CUSTOMER;
@@ -41,6 +45,7 @@ public class User implements UserDetails {
     public void setEmail(String email) { this.email = email; }
     public Role getRole() { return role; }
     public void setRole(Role role) { this.role = role; }
+    public void addRoleAssignment(UserRole roleAssignment) { roleAssignments.add(roleAssignment); roleAssignment.setUser(this); }
 
     @PrePersist
     void initializeIdentifiers() {
@@ -48,7 +53,16 @@ public class User implements UserDetails {
         if (uuid == null) uuid = java.util.UUID.randomUUID().toString();
     }
 
-    @Override public Collection<? extends GrantedAuthority> getAuthorities() { return List.of(new SimpleGrantedAuthority((role == null ? Role.ROLE_CUSTOMER : role).name())); }
+    @Override public Collection<? extends GrantedAuthority> getAuthorities() {
+        if (!roleAssignments.isEmpty()) {
+            return roleAssignments.stream()
+                    .map(UserRole::getRole)
+                    .map(BankRole::getCode)
+                    .map(SimpleGrantedAuthority::new)
+                    .toList();
+        }
+        return List.of(new SimpleGrantedAuthority((role == null ? Role.ROLE_CUSTOMER : role).name()));
+    }
     @Override public String getPassword() { return credentials == null ? null : credentials.getPasswordHash(); }
     @Override public String getUsername() { return credentials == null ? null : credentials.getUsername(); }
     @Override public boolean isAccountNonExpired() { return true; }

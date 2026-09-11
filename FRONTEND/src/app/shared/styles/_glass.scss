@@ -1,0 +1,202 @@
+.glass-card {
+  position: relative;
+  // Less blur than before (was 20px) — the map should read clearly through
+  // the card, not just tint it. Slightly higher base opacity + scrim below
+  // compensate so text stays legible against a sharper backdrop.
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.35);
+  padding: 40px;
+  width: 100%;
+  max-width: 440px;
+  color: white;
+
+  &--wide {
+    max-width: 560px;
+  }
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(31, 20, 11, 0.45);
+    border-radius: inherit;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  > * { position: relative; z-index: 1; }
+
+  h2 {
+    font-family: var(--font-display);
+    font-size: var(--fs-xl);
+    margin: 0 0 4px;
+  }
+
+  &__sub {
+    color: rgba(255, 255, 255, 0.75);
+    font-size: var(--fs-sm);
+    margin: 0 0 24px;
+  }
+
+  &__footer {
+    text-align: center;
+    margin-top: 20px;
+    font-size: var(--fs-sm);
+    color: rgba(255, 255, 255, 0.7);
+  }
+}
+
+.glass-field {
+  margin-bottom: 16px;
+
+  &__label {
+    display: block;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: var(--fs-sm);
+    margin-bottom: 4px;
+
+    small {
+      color: rgba(255, 255, 255, 0.5);
+      font-weight: 400;
+    }
+  }
+
+  &__error {
+    display: block;
+    color: #FFB3B3;
+    font-size: var(--fs-xs);
+    margin-top: 4px;
+  }
+
+  input, select {
+    width: 100%;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: var(--radius-sm);
+    color: white;
+    font-family: var(--font-body);
+    font-size: var(--fs-base);
+    box-sizing: border-box;
+
+    &::placeholder { color: rgba(255, 255, 255, 0.45); }
+
+    &:focus {
+      outline: none;
+      border-color: var(--gold-500);
+      box-shadow: 0 0 0 3px rgba(199, 154, 62, 0.25);
+    }
+
+    &.ng-invalid.ng-touched {
+      border-color: var(--rose-500);
+    }
+  }
+
+  select option {
+    color: var(--ink-900);
+  }
+
+  input[type="file"] {
+    padding: 8px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: var(--fs-sm);
+
+    &::file-selector-button {
+      background: var(--gold-500);
+      color: var(--ink-900);
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 6px 12px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+  }
+}
+
+.glass-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.glass-btn {
+  padding: 12px 20px;
+  background: var(--gold-500);
+  color: var(--ink-900);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms ease;
+
+  &:hover:not(:disabled) { background: #D9AE52; }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  &--ghost {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    color: white;
+
+    &:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.1);
+    }
+  }
+
+  &--full {
+    width: 100%;
+  }
+}
+
+.glass-link {
+  color: var(--gold-500);
+  font-weight: 500;
+  text-decoration: none;
+  &:hover { text-decoration: underline; }
+}
+
+.glass-error {
+  background: rgba(194, 74, 74, 0.2);
+  border: 1px solid rgba(194, 74, 74, 0.4);
+  color: #FFD6D6;
+  font-size: var(--fs-sm);
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 16px;
+}
+
+.stepper-progress {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+
+  &__bar {
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.2);
+    overflow: hidden;
+    transition: background 300ms ease;
+
+    &--done { background: var(--gold-500); }
+  }
+}
+
+.stepper-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+
+  &--single {
+    justify-content: flex-end;
+  }
+}
