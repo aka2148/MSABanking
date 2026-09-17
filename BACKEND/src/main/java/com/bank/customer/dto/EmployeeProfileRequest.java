@@ -11,7 +11,7 @@ public class EmployeeProfileRequest {
     @NotBlank private String fullName;
     /** User ID that this employee profile is linked to. Required for creation. */
     private Long userId;
-    private Long homeBranchId;
+    private Integer homeBranchId;
     private String designation;
     private LocalDate dateOfJoining;
     private LocalDate dateOfLeaving;
@@ -22,8 +22,8 @@ public class EmployeeProfileRequest {
     public void setFullName(String v) { fullName = v; }
     public Long getUserId() { return userId; }
     public void setUserId(Long v) { userId = v; }
-    public Long getHomeBranchId() { return homeBranchId; }
-    public void setHomeBranchId(Long v) { homeBranchId = v; }
+    public Integer getHomeBranchId() { return homeBranchId; }
+    public void setHomeBranchId(Integer v) { homeBranchId = v; }
     public String getDesignation() { return designation; }
     public void setDesignation(String v) { designation = v; }
     public LocalDate getDateOfJoining() { return dateOfJoining; }

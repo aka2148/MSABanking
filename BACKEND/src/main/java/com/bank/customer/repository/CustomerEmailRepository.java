@@ -7,5 +7,5 @@ import java.util.Optional;
 
 public interface CustomerEmailRepository extends JpaRepository<CustomerEmail, Long> {
     List<CustomerEmail> findByCustomerId(Long customerId);
-    Optional<CustomerEmail> findByIdAndCustomerId(Long id, Long customerId);
+    Optional<CustomerEmail> findByIdAndCustomerId(Integer id, Long customerId);
 }

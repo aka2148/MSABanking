@@ -1,6 +1,8 @@
 package com.bank.customer.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.OffsetDateTime;
 
 @Entity
@@ -9,10 +11,11 @@ public class UserPasswordHistory {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "uph_history_id")
-    private Long id;
+    private Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "uph_user_id", nullable = false)
+    @JdbcTypeCode(SqlTypes.INTEGER)
     private User user;
 
     @Column(name = "uph_password_hash", nullable = false, length = 255)

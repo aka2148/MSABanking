@@ -11,14 +11,14 @@ import java.time.LocalDate;
  */
 public class IdentityProofRequest {
     /** ID of the ClassificationType that represents the document type (passport, PAN, Aadhaar etc.) */
-    @NotNull private Long proofTypeId;
+    @NotNull private Integer proofTypeId;
     @NotBlank private String proofValue;
     private String maskedValue;
     private LocalDate expiryDate;
     private String documentReference;
 
-    public Long getProofTypeId() { return proofTypeId; }
-    public void setProofTypeId(Long v) { proofTypeId = v; }
+    public Integer getProofTypeId() { return proofTypeId; }
+    public void setProofTypeId(Integer v) { proofTypeId = v; }
     public String getProofValue() { return proofValue; }
     public void setProofValue(String v) { proofValue = v; }
     public String getMaskedValue() { return maskedValue; }

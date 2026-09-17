@@ -1,16 +1,19 @@
 package com.bank.customer.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.LocalDate;
 
 /** Maps public.customer_identity_proofs. cip_proof_type is a FK to customer_classification_types. */
 @Entity
 @Table(name = "customer_identity_proofs", schema = "public")
 public class IdentityProof {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) @Column(name = "cip_proof_id") private Long id;
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) @Column(name = "cip_proof_id") private Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "cip_customer_id", nullable = false)
+    @JdbcTypeCode(SqlTypes.INTEGER)
     private CustomerProfile customer;
 
     /** FK to customer_classification_types — the type/category of the identity document. */
@@ -24,7 +27,7 @@ public class IdentityProof {
     @Column(name = "cip_verification_status", nullable = false) private String verificationStatus = "PENDING";
     @Column(name = "cip_document_ref") private String documentReference;
 
-    public Long getId() { return id; }
+    public Integer getId() { return id; }
     public CustomerProfile getCustomer() { return customer; }
     public void setCustomer(CustomerProfile v) { customer = v; }
     public ClassificationType getProofType() { return proofType; }

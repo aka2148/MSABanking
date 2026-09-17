@@ -1,13 +1,15 @@
 package com.bank.customer.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /** Maps public.customer_phone_numbers. */
 @Entity
 @Table(name = "customer_phone_numbers", schema = "public")
 public class CustomerPhone {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) @Column(name = "cph_phone_id") private Long id;
-    @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "cph_customer_id", nullable = false) private CustomerProfile customer;
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) @Column(name = "cph_phone_id") private Integer id;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "cph_customer_id", nullable = false) @JdbcTypeCode(SqlTypes.INTEGER) private CustomerProfile customer;
     @Column(name = "cph_contact_type") private String contactType;
     @Column(name = "cph_country_code") private String countryCode;
     @Column(name = "cph_phone_number", nullable = false) private String phoneNumber;
@@ -18,7 +20,7 @@ public class CustomerPhone {
     @Column(name = "cph_verification_method") private String verificationMethod;
     @Column(name = "cph_consent_marketing", nullable = false) private boolean consentMarketing;
 
-    public Long getId() { return id; }
+    public Integer getId() { return id; }
     public CustomerProfile getCustomer() { return customer; }
     public void setCustomer(CustomerProfile v) { customer = v; }
     public String getContactType() { return contactType; }

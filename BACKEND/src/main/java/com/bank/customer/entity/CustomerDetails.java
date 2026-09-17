@@ -1,6 +1,8 @@
 package com.bank.customer.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
 
@@ -10,10 +12,11 @@ public class CustomerDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "cud_detail_id")
-    private Long id;
+    private Integer id;
 
     @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "cud_customer_id", nullable = false)
+    @JdbcTypeCode(SqlTypes.INTEGER)
     private CustomerProfile customer;
 
     @Column(name = "cud_full_name", nullable = false, length = 255)
@@ -28,7 +31,7 @@ public class CustomerDetails {
     @Column(name = "cud_occupation", length = 255)
     private String occupation;
 
-    public Long getId() { return id; }
+    public Integer getId() { return id; }
     public CustomerProfile getCustomer() { return customer; }
     public void setCustomer(CustomerProfile customer) { this.customer = customer; }
     public String getFullName() { return fullName; }
