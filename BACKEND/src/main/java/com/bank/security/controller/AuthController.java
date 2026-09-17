@@ -34,6 +34,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -88,7 +89,7 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<String> registerUser(@Valid @RequestBody RegisterRequest registerRequest) {
+    public ResponseEntity<Map<String, Object>> registerUser(@Valid @RequestBody RegisterRequest registerRequest) {
         if (userRepository.existsByCredentialsUsername(registerRequest.getUsername())) {
             throw new InvalidInputException("Error: Username is already taken!");
         }
@@ -148,6 +149,9 @@ public class AuthController {
 
         customerProfileRepository.save(profile);
 
-        return ResponseEntity.ok("User registered successfully with profile!");
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "message", "User registered successfully with profile!"
+        ));
     }
 }

@@ -454,11 +454,19 @@ export class Signup {
       ...accountRest
     } = account;
 
+    const nameParts = personal.fullName.trim().split(/\s+/);
+    const firstName = nameParts.shift() ?? '';
+    const lastName = nameParts.join(' ') || firstName;
+
     this.authService
       .signup({
         ...personal,
         ...documents,
         ...accountRest,
+        firstName,
+        lastName,
+        phone: account.mobileNumber,
+        address: account.addressLine,
         credentialType: 'PASSWORD',
         userType: 'CUSTOMER',
       })
