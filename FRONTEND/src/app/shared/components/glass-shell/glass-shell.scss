@@ -1,0 +1,145 @@
+.glass-shell {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+/*
+ * Background layer
+ *
+ * The background is fixed to the viewport so that
+ * scrolling the form does not move the map away.
+ */
+.glass-shell__bg-scroll-layer {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/*
+ * Enlarged and positioned map.
+ *
+ * Width, height, left, top and transform are calculated
+ * dynamically by GlassShell.
+ */
+.glass-shell__bg {
+  position: absolute;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+
+  transition:
+    transform 1100ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+/*
+ * Main content area
+ */
+.glass-shell__content {
+  position: relative;
+  z-index: 1;
+
+  display: flex;
+  align-items: center;
+
+  min-height: 100vh;
+
+  padding: 24px;
+  gap: 60px;
+
+  &--right {
+    justify-content: flex-end;
+    padding-right: 8%;
+  }
+
+  &--left {
+    justify-content: flex-start;
+    padding-left: 8%;
+    flex-direction: row-reverse;
+  }
+
+  &--center {
+    justify-content: center;
+  }
+
+  /*
+   * Mobile/tablet layout
+   */
+  @media (max-width: 900px) {
+    justify-content: center !important;
+
+    flex-direction: column !important;
+
+    padding-left: 24px !important;
+    padding-right: 24px !important;
+
+    gap: 24px;
+  }
+}
+
+/*
+ * Brand section
+ */
+.glass-shell__brand {
+  color: white;
+  max-width: 380px;
+
+  @media (max-width: 900px) {
+    display: none;
+  }
+}
+
+/*
+ * MB logo/brand mark
+ */
+.glass-shell__brand-mark {
+  width: 56px;
+  height: 56px;
+
+  border-radius: var(--radius-md);
+
+  background: var(--gold-500);
+  color: var(--ink-900);
+
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.5rem;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-bottom: 20px;
+}
+
+/*
+ * Brand name
+ */
+.glass-shell__brand-name {
+  font-family: var(--font-display);
+
+  font-size: 2.75rem;
+  font-weight: 600;
+
+  margin: 0 0 12px;
+
+  line-height: 1.1;
+}
+
+/*
+ * Brand tagline
+ */
+.glass-shell__brand-tag {
+  color: rgba(255, 255, 255, 0.65);
+
+  font-size: var(--fs-lg);
+
+  margin: 0;
+}

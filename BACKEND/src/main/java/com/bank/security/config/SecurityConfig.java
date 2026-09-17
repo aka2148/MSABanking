@@ -53,10 +53,11 @@ public class SecurityConfig {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/auth/**", "/auth/**").permitAll()
                 .requestMatchers("/api/calculator/estimate").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/h2-console/**").permitAll() // for test profiling
+                .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/api-docs/**", "/openapi/**").permitAll()
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session

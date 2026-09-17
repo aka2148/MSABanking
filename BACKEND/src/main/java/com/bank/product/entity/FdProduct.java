@@ -3,172 +3,40 @@ package com.bank.product.entity;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 
+/** Local FD projection of the upstream product service, stored in fd_product_ref. */
 @Entity
-@Table(name = "fd_products")
+@Table(name = "fd_product_ref", schema = "public")
 public class FdProduct {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) @Column(name = "fpr_product_id") private Long id;
+    @Column(name = "fpr_product_code", nullable = false, length = 50) private String productCode;
+    @Column(name = "fpr_product_name", nullable = false, length = 255) private String productName;
+    @Column(name = "fpr_status", length = 30) private String status;
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    /* Product rules and attributes now own these values in the upstream product schema. */
+    @Transient private BigDecimal minAmount;
+    @Transient private BigDecimal maxAmount;
+    @Transient private Integer minTermDays;
+    @Transient private Integer maxTermDays;
+    @Transient private BigDecimal baseInterestRate;
 
-    @Column(nullable = false, unique = true)
-    private String productName;
-
-    @Column(nullable = false)
-    private BigDecimal minAmount;
-
-    @Column(nullable = false)
-    private BigDecimal maxAmount;
-
-    @Column(nullable = false)
-    private Integer minTermDays;
-
-    @Column(nullable = false)
-    private Integer maxTermDays;
-
-    @Column(nullable = false)
-    private BigDecimal baseInterestRate; // e.g. 6.50 for 6.5%
-
-    @Column(nullable = false)
-    private boolean isActive = true;
-
-    // Constructors
-    public FdProduct() {
-    }
-
-    public FdProduct(Long id, String productName, BigDecimal minAmount, BigDecimal maxAmount, Integer minTermDays, Integer maxTermDays, BigDecimal baseInterestRate, boolean isActive) {
-        this.id = id;
-        this.productName = productName;
-        this.minAmount = minAmount;
-        this.maxAmount = maxAmount;
-        this.minTermDays = minTermDays;
-        this.maxTermDays = maxTermDays;
-        this.baseInterestRate = baseInterestRate;
-        this.isActive = isActive;
-    }
-
-    // Getters and Setters
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getProductName() {
-        return productName;
-    }
-
-    public void setProductName(String productName) {
-        this.productName = productName;
-    }
-
-    public BigDecimal getMinAmount() {
-        return minAmount;
-    }
-
-    public void setMinAmount(BigDecimal minAmount) {
-        this.minAmount = minAmount;
-    }
-
-    public BigDecimal getMaxAmount() {
-        return maxAmount;
-    }
-
-    public void setMaxAmount(BigDecimal maxAmount) {
-        this.maxAmount = maxAmount;
-    }
-
-    public Integer getMinTermDays() {
-        return minTermDays;
-    }
-
-    public void setMinTermDays(Integer minTermDays) {
-        this.minTermDays = minTermDays;
-    }
-
-    public Integer getMaxTermDays() {
-        return maxTermDays;
-    }
-
-    public void setMaxTermDays(Integer maxTermDays) {
-        this.maxTermDays = maxTermDays;
-    }
-
-    public BigDecimal getBaseInterestRate() {
-        return baseInterestRate;
-    }
-
-    public void setBaseInterestRate(BigDecimal baseInterestRate) {
-        this.baseInterestRate = baseInterestRate;
-    }
-
-    public boolean isActive() {
-        return isActive;
-    }
-
-    public void setActive(boolean active) {
-        isActive = active;
-    }
-
-    // Custom Builder
-    public static FdProductBuilder builder() {
-        return new FdProductBuilder();
-    }
-
-    public static class FdProductBuilder {
-        private Long id;
-        private String productName;
-        private BigDecimal minAmount;
-        private BigDecimal maxAmount;
-        private Integer minTermDays;
-        private Integer maxTermDays;
-        private BigDecimal baseInterestRate;
-        private boolean isActive = true;
-
-        public FdProductBuilder id(Long id) {
-            this.id = id;
-            return this;
-        }
-
-        public FdProductBuilder productName(String productName) {
-            this.productName = productName;
-            return this;
-        }
-
-        public FdProductBuilder minAmount(BigDecimal minAmount) {
-            this.minAmount = minAmount;
-            return this;
-        }
-
-        public FdProductBuilder maxAmount(BigDecimal maxAmount) {
-            this.maxAmount = maxAmount;
-            return this;
-        }
-
-        public FdProductBuilder minTermDays(Integer minTermDays) {
-            this.minTermDays = minTermDays;
-            return this;
-        }
-
-        public FdProductBuilder maxTermDays(Integer maxTermDays) {
-            this.maxTermDays = maxTermDays;
-            return this;
-        }
-
-        public FdProductBuilder baseInterestRate(BigDecimal baseInterestRate) {
-            this.baseInterestRate = baseInterestRate;
-            return this;
-        }
-
-        public FdProductBuilder isActive(boolean isActive) {
-            this.isActive = isActive;
-            return this;
-        }
-
-        public FdProduct build() {
-            return new FdProduct(id, productName, minAmount, maxAmount, minTermDays, maxTermDays, baseInterestRate, isActive);
-        }
-    }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getProductCode() { return productCode; }
+    public void setProductCode(String productCode) { this.productCode = productCode; }
+    public String getProductName() { return productName; }
+    public void setProductName(String productName) { this.productName = productName; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+    public BigDecimal getMinAmount() { return minAmount; }
+    public void setMinAmount(BigDecimal minAmount) { this.minAmount = minAmount; }
+    public BigDecimal getMaxAmount() { return maxAmount; }
+    public void setMaxAmount(BigDecimal maxAmount) { this.maxAmount = maxAmount; }
+    public Integer getMinTermDays() { return minTermDays; }
+    public void setMinTermDays(Integer minTermDays) { this.minTermDays = minTermDays; }
+    public Integer getMaxTermDays() { return maxTermDays; }
+    public void setMaxTermDays(Integer maxTermDays) { this.maxTermDays = maxTermDays; }
+    public BigDecimal getBaseInterestRate() { return baseInterestRate; }
+    public void setBaseInterestRate(BigDecimal baseInterestRate) { this.baseInterestRate = baseInterestRate; }
+    public boolean isActive() { return "ACTIVE".equalsIgnoreCase(status); }
+    public void setActive(boolean active) { status = active ? "ACTIVE" : "INACTIVE"; }
 }

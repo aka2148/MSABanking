@@ -1,0 +1,24 @@
+:root {
+  --ink-900:   #0B1F3A;
+  --ink-700:   #14315C;
+  --gold-500:  #C79A3E;
+  --gold-100:  #F3E7CB;
+  --paper-50:  #F7F8FA;
+  --paper-100: #EDEFF3;
+  --paper-200: #DDE1E8;
+  --ink-600:   #3A4A63;
+  --ink-400:   #6B7A94;
+  --mint-500:  #1F8A70;
+  --rose-500:  #C24A4A;
+
+  --font-display: 'Outfit', 'Segoe UI', sans-serif;
+  --font-body: 'Inter', 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+
+  --fs-xs: 0.75rem; --fs-sm: 0.875rem; --fs-base: 1rem;
+  --fs-lg: 1.25rem; --fs-xl: 1.75rem; --fs-2xl: 2.5rem;
+
+  --radius-sm: 6px; --radius-md: 10px; --radius-lg: 16px;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');

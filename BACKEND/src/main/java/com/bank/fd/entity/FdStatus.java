@@ -1,8 +1,9 @@
 package com.bank.fd.entity;
 
 public enum FdStatus {
+    PENDING,
     ACTIVE,
     MATURED,
-    CLOSED_PREMATURE,
-    CLOSED_MATURED
+    CLOSED,
+    PREMATURELY_CLOSED
 }

@@ -1,0 +1,486 @@
+import { Component } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import {
+  ReactiveFormsModule,
+  FormBuilder,
+  FormGroup,
+  Validators,
+} from '@angular/forms';
+import { RouterLink, Router } from '@angular/router';
+import {
+  trigger,
+  transition,
+  style,
+  animate,
+} from '@angular/animations';
+
+import { AuthService } from '../../../core/services/auth.service';
+import { GlassShell } from '../../../shared/components/glass-shell/glass-shell';
+import {
+  GlassSelect,
+  GlassSelectOption,
+} from '../../../shared/components/glass-select/glass-select';
+import { PreferredCurrency } from '../../../core/models/auth.models';
+
+const CURRENCY_FOCAL_POINTS: Record<
+  PreferredCurrency,
+  { x: number; y: number }
+> = {
+  INR: { x: 71.9, y: 42.0 }, // India
+  USD: { x: 22.8, y: 31.5 }, // USA
+  JPY: { x: 88.8, y: 33.5 }, // Japan
+  KWD: { x: 63.3, y: 37.4 }, // Kuwait
+};
+
+@Component({
+  selector: 'app-signup',
+  standalone: true,
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    RouterLink,
+    GlassShell,
+    GlassSelect,
+  ],
+  templateUrl: './signup.html',
+  styleUrl: './signup.scss',
+  animations: [
+    trigger('stepTransition', [
+      transition(':increment', [
+        style({
+          transform: 'translateX(36px)',
+          opacity: 0,
+        }),
+        animate(
+          '700ms cubic-bezier(0.16, 1, 0.3, 1)',
+          style({
+            transform: 'translateX(0)',
+            opacity: 1,
+          })
+        ),
+      ]),
+      transition(':decrement', [
+        style({
+          transform: 'translateX(-36px)',
+          opacity: 0,
+        }),
+        animate(
+          '700ms cubic-bezier(0.16, 1, 0.3, 1)',
+          style({
+            transform: 'translateX(0)',
+            opacity: 1,
+          })
+        ),
+      ]),
+    ]),
+  ],
+})
+export class Signup {
+  loading = false;
+  errorMessage = '';
+  currentStep = 0;
+
+  readonly stepKeys = ['personal', 'documents', 'account'];
+
+  readonly stepLabels = [
+    'Personal details',
+    'Documents',
+    'Account setup',
+  ];
+
+  genderOptions: GlassSelectOption[] = [
+    { label: 'Female', value: 'Female' },
+    { label: 'Male', value: 'Male' },
+    { label: 'Other', value: 'Other' },
+    { label: 'Prefer not to say', value: 'Prefer not to say' },
+  ];
+
+  languageOptions: GlassSelectOption[] = [
+    { label: 'English', value: 'English' },
+    { label: 'Hindi', value: 'Hindi' },
+    { label: 'Kannada', value: 'Kannada' },
+    { label: 'Tamil', value: 'Tamil' },
+  ];
+
+  proofTypeOptions: GlassSelectOption[] = [
+    { label: 'Aadhaar', value: 'AADHAAR' },
+    { label: 'PAN', value: 'PAN' },
+    { label: 'Passport', value: 'PASSPORT' },
+    { label: 'Driving Licence', value: 'DRIVING_LICENSE' },
+  ];
+
+  currencyOptions: GlassSelectOption[] = [
+    { label: 'INR - Indian Rupee', value: 'INR' },
+    { label: 'USD - US Dollar', value: 'USD' },
+    { label: 'JPY - Japanese Yen', value: 'JPY' },
+    { label: 'KWD - Kuwaiti Dinar', value: 'KWD' },
+  ];
+
+  legalEntityOptions: GlassSelectOption[] = [
+    { label: 'Individual', value: 'INDIVIDUAL' },
+    { label: 'Joint', value: 'JOINT' },
+    { label: 'Corporate', value: 'CORPORATE' },
+  ];
+
+  // Placeholder branch list — no live branches endpoint yet.
+  // Replace with a real API call once the branches table is populated/exposed.
+  homeBranchOptions: GlassSelectOption[] = [
+    {
+      label: 'Mumbai Main Branch (MUM001)',
+      value: 'MUM001',
+    },
+    {
+      label: 'Bengaluru MG Road (BLR001)',
+      value: 'BLR001',
+    },
+    {
+      label: 'Delhi Connaught Place (DEL001)',
+      value: 'DEL001',
+    },
+    {
+      label: 'Chennai Anna Salai (CHN001)',
+      value: 'CHN001',
+    },
+    {
+      label: 'Manipal Campus Branch (MPL001)',
+      value: 'MPL001',
+    },
+  ];
+
+  selectedFile: File | null = null;
+
+  focalX = CURRENCY_FOCAL_POINTS['INR'].x;
+  focalY = CURRENCY_FOCAL_POINTS['INR'].y;
+
+  form: FormGroup;
+
+  constructor(
+    private fb: FormBuilder,
+    private authService: AuthService,
+    private router: Router
+  ) {
+    this.form = this.fb.group({
+      personal: this.fb.group({
+        fullName: ['', Validators.required],
+        dateOfBirth: ['', Validators.required],
+        gender: ['', Validators.required],
+        fatherOrSpouseName: ['', Validators.required],
+        occupation: ['', Validators.required],
+        countryOfOrigin: ['', Validators.required],
+        preferredLanguage: ['English', Validators.required],
+      }),
+
+      documents: this.fb.group({
+        proofOfIdType: ['', Validators.required],
+        proofOfIdValue: ['', Validators.required],
+        startDate: ['', Validators.required],
+      }),
+
+      account: this.fb.group({
+        legalEntityType: ['INDIVIDUAL', Validators.required],
+        homeBranchId: ['', Validators.required],
+
+        username: [
+          '',
+          [
+            Validators.required,
+            Validators.minLength(4),
+          ],
+        ],
+
+        mobileNumber: [
+          '',
+          [
+            Validators.required,
+            Validators.pattern(/^[0-9]{10}$/),
+          ],
+        ],
+
+        email: [
+          '',
+          [
+            Validators.required,
+            Validators.email,
+          ],
+        ],
+
+        addressLine: ['', Validators.required],
+
+        city: ['', Validators.required],
+
+        postalCode: [
+          '',
+          [
+            Validators.required,
+            Validators.pattern(/^[0-9]{6}$/),
+          ],
+        ],
+
+        password: [
+          '',
+          [
+            Validators.required,
+            Validators.minLength(8),
+          ],
+        ],
+
+        confirmPassword: ['', Validators.required],
+
+        preferredCurrency: [
+          'INR' as PreferredCurrency,
+          Validators.required,
+        ],
+      }),
+    });
+
+    /*
+     * Dynamic document validation
+     *
+     * The validation rules for proofOfIdValue change
+     * depending on the selected proofOfIdType.
+     */
+    this.documentsGroup
+      .get('proofOfIdType')!
+      .valueChanges.subscribe((type: string) => {
+        const valueControl =
+          this.documentsGroup.get('proofOfIdValue')!;
+
+        // Remove the previous document-specific validators.
+        valueControl.clearValidators();
+
+        switch (type) {
+          case 'AADHAAR':
+            valueControl.setValidators([
+              Validators.required,
+              Validators.pattern(/^[2-9][0-9]{11}$/),
+            ]);
+            break;
+
+          case 'PAN':
+            valueControl.setValidators([
+              Validators.required,
+              Validators.pattern(/^[A-Z]{5}[0-9]{4}[A-Z]$/),
+            ]);
+            break;
+
+          case 'PASSPORT':
+            valueControl.setValidators([
+              Validators.required,
+              Validators.pattern(/^[A-Z][0-9]{7}$/),
+            ]);
+            break;
+
+          case 'DRIVING_LICENSE':
+            valueControl.setValidators([
+              Validators.required,
+              Validators.pattern(/^[A-Z0-9-]{8,20}$/),
+            ]);
+            break;
+
+          default:
+            valueControl.setValidators([
+              Validators.required,
+            ]);
+            break;
+        }
+
+        // Force Angular to immediately recalculate validity.
+        valueControl.updateValueAndValidity();
+      });
+
+    /*
+     * Currency background focal point
+     */
+    this.accountGroup
+      .get('preferredCurrency')!
+      .valueChanges.subscribe(
+        (currency: PreferredCurrency) => {
+          const point = CURRENCY_FOCAL_POINTS[currency];
+
+          if (point) {
+            this.focalX = point.x;
+            this.focalY = point.y;
+          }
+        }
+      );
+  }
+
+  get personalGroup(): FormGroup {
+    return this.form.get('personal') as FormGroup;
+  }
+
+  get documentsGroup(): FormGroup {
+    return this.form.get('documents') as FormGroup;
+  }
+
+  get accountGroup(): FormGroup {
+    return this.form.get('account') as FormGroup;
+  }
+
+  get currentGroup(): FormGroup {
+    return this.form.get(
+      this.stepKeys[this.currentStep]
+    ) as FormGroup;
+  }
+
+  get isLastStep(): boolean {
+    return this.currentStep === this.stepKeys.length - 1;
+  }
+
+  get passwordsMismatch(): boolean {
+    const {
+      password,
+      confirmPassword,
+    } = this.accountGroup.getRawValue();
+
+    return !!confirmPassword && password !== confirmPassword;
+  }
+
+  showError(
+    group: FormGroup,
+    controlName: string
+  ): boolean {
+    const c = group.get(controlName);
+
+    return !!c && c.invalid && c.touched;
+  }
+
+  errorText(
+    group: FormGroup,
+    controlName: string,
+    label: string
+  ): string {
+    const c = group.get(controlName);
+
+    if (!c || !c.errors) {
+      return '';
+    }
+
+    if (c.errors['required']) {
+      return `${label} is required.`;
+    }
+
+    if (c.errors['email']) {
+      return 'Enter a valid email address.';
+    }
+
+    if (c.errors['pattern']) {
+      /*
+       * Specific error messages for document numbers.
+       */
+      if (controlName === 'proofOfIdValue') {
+        switch (
+          this.documentsGroup.get('proofOfIdType')?.value
+        ) {
+          case 'AADHAAR':
+            return 'Aadhaar must contain exactly 12 digits.';
+
+          case 'PAN':
+            return 'PAN must be in the format ABCDE1234F.';
+
+          case 'PASSPORT':
+            return 'Passport must contain 1 letter followed by 7 digits.';
+
+          case 'DRIVING_LICENSE':
+            return 'Enter a valid driving licence number.';
+        }
+      }
+
+      return `Enter a valid ${label.toLowerCase()}.`;
+    }
+
+    if (c.errors['minlength']) {
+      return `${label} is too short.`;
+    }
+
+    return 'Invalid value.';
+  }
+
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+
+    this.selectedFile = input.files?.[0] ?? null;
+  }
+
+  next(): void {
+    if (this.currentGroup.invalid) {
+      this.currentGroup.markAllAsTouched();
+
+      this.errorMessage =
+        'Please fill in all required fields before continuing.';
+
+      return;
+    }
+
+    this.errorMessage = '';
+
+    if (this.isLastStep) {
+      this.submit();
+      return;
+    }
+
+    this.currentStep++;
+  }
+
+  back(): void {
+    this.errorMessage = '';
+
+    if (this.currentStep > 0) {
+      this.currentStep--;
+    }
+  }
+
+  submit(): void {
+    if (this.passwordsMismatch || this.form.invalid) {
+      this.form.markAllAsTouched();
+
+      this.errorMessage =
+        'Please fill in all required fields before continuing.';
+
+      return;
+    }
+
+    this.loading = true;
+    this.errorMessage = '';
+
+    const {
+      personal,
+      documents,
+      account,
+    } = this.form.getRawValue();
+
+    const {
+      confirmPassword,
+      ...accountRest
+    } = account;
+
+    this.authService
+      .signup({
+        ...personal,
+        ...documents,
+        ...accountRest,
+        credentialType: 'PASSWORD',
+        userType: 'CUSTOMER',
+      })
+      .subscribe({
+        next: (res) => {
+          this.loading = false;
+
+          if (res.success) {
+            this.router.navigate(['/login']);
+          } else {
+            this.errorMessage =
+              res.message ??
+              'Could not create your account.';
+          }
+        },
+
+        error: () => {
+          this.loading = false;
+
+          this.errorMessage =
+            'Could not reach the server. Try again shortly.';
+        },
+      });
+  }
+}
