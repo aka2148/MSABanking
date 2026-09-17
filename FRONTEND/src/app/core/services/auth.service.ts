@@ -23,7 +23,7 @@ export class AuthService {
 
   signup(form: Omit<SignupRequest, 'context'>): Observable<SignupResponse> {
     const payload: SignupRequest = { ...form, context: this.buildContext() };
-    return this.http.post<SignupResponse>(`${this.baseUrl}/signup`, payload);
+    return this.http.post<SignupResponse>(`${this.baseUrl}/register`, payload);
   }
 
   /** Reuse this in every module that writes data — FD creation, transactions, forex. */

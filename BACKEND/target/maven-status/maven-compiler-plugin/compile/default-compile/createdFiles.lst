@@ -1,8 +1,10 @@
 com\bank\customer\entity\UserRole.class
 com\bank\common\exception\ResourceNotFoundException.class
 com\bank\security\dto\RegisterRequest.class
+com\bank\security\service\LoginAttemptService.class
 com\bank\common\exception\InvalidInputException.class
 com\bank\reports\service\ReportService.class
+com\bank\security\userservice\UserServiceClientConfig.class
 com\bank\fd\scheduler\FdBatchScheduler.class
 com\bank\fd\controller\BatchTriggerController.class
 com\bank\fd\entity\FdStatus.class
@@ -13,13 +15,13 @@ com\bank\security\service\OtpService.class
 com\bank\customer\entity\CustomerProfile.class
 com\bank\product\controller\FdProductController.class
 com\bank\common\exception\BankingException.class
-<<<<<<< HEAD
 com\bank\customer\entity\UserCredential.class
-=======
+com\bank\security\userservice\UserServiceClientAdapter.class
 com\bank\security\controller\LoginController$OtpVerifyRequest.class
+com\bank\security\userservice\UserServiceClient$AccountStatus.class
+com\bank\security\userservice\UserServiceClientAdapter$UserServiceUnavailableException.class
 com\bank\customer\entity\BankRole.class
 com\bank\security\controller\LoginController$PasswordChangeRequest.class
->>>>>>> 97b80d6f98e6b0da17602eb0d4a93ccc9680d014
 com\bank\security\jwt\JwtAuthenticationFilter.class
 com\bank\customer\repository\UserRepository.class
 com\bank\calculator\dto\EstimationRequest.class
@@ -38,6 +40,7 @@ com\bank\security\controller\LoginController$RefreshRequest.class
 com\bank\fd\api\dto\ApiErrorResponse.class
 com\bank\reports\dto\CustomerPortfolioReport$CustomerPortfolioReportBuilder.class
 com\bank\security\controller\LoginController$AuthenticationFailureException.class
+com\bank\security\userservice\UserServiceClientAdapter$RoleResponse.class
 com\bank\security\jwt\JwtTokenProvider.class
 com\bank\MoneyPalApplication.class
 com\bank\customer\entity\CustomerProfile$CustomerProfileBuilder.class
@@ -65,20 +68,20 @@ com\bank\customer\entity\User.class
 com\bank\customer\repository\BankRoleRepository.class
 com\bank\customer\entity\CustomerCategory.class
 com\bank\calculator\service\FdCalculatorService.class
-<<<<<<< HEAD
-=======
 com\bank\customer\entity\CustomerEmail.class
 com\bank\security\controller\LoginController$UsernameRequest.class
->>>>>>> 97b80d6f98e6b0da17602eb0d4a93ccc9680d014
 com\bank\fd\api\controller\FdV1ContractController.class
 com\bank\product\entity\FdProduct.class
 com\bank\product\repository\FdProductRepository.class
 com\bank\security\controller\LoginController$LoginRequest.class
+com\bank\security\userservice\UserServiceClient$Contacts.class
+com\bank\security\userservice\UserServiceClient$CredentialValidation.class
 com\bank\fd\repository\FdAccountRepository.class
 com\bank\customer\controller\CustomerController.class
 com\bank\common\exception\InsufficientFundsException.class
 com\bank\reports\dto\BankOperationalReport$BankOperationalReportBuilder.class
 com\bank\security\dto\LoginRequest.class
+com\bank\security\userservice\UserServiceClient.class
 com\bank\fd\entity\FdAccount.class
 com\bank\customer\entity\Role.class
 com\bank\customer\service\CustomerService.class
