@@ -1,15 +1,13 @@
 package com.bank.customer.entity;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import java.time.OffsetDateTime;
 
 @Entity
 @Table(name = "user_roles", schema = "public", uniqueConstraints = @UniqueConstraint(columnNames = {"ur_user_id", "ur_role_id"}))
 public class UserRole {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) @Column(name = "ur_user_role_id") private Integer id;
-    @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "ur_user_id", nullable = false) @JdbcTypeCode(SqlTypes.INTEGER) private User user;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "ur_user_id", nullable = false) private User user;
     @ManyToOne(fetch = FetchType.EAGER, optional = false) @JoinColumn(name = "ur_role_id", nullable = false) private RoleDefinition role;
     @Column(name = "ur_assigned_date", nullable = false) private OffsetDateTime assignedDate = OffsetDateTime.now();
     public Integer getId() { return id; }

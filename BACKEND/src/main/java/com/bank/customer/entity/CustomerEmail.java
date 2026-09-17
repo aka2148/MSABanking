@@ -1,15 +1,13 @@
 package com.bank.customer.entity;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 /** Maps public.customer_emails. */
 @Entity
 @Table(name = "customer_emails", schema = "public")
 public class CustomerEmail {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) @Column(name = "cem_email_id") private Integer id;
-    @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "cem_customer_id", nullable = false) @JdbcTypeCode(SqlTypes.INTEGER) private CustomerProfile customer;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "cem_customer_id", nullable = false) private CustomerProfile customer;
     @Column(name = "cem_contact_type") private String contactType;
     @Column(name = "cem_email_address", nullable = false) private String emailAddress;
     /** True if this was the email address used at signup registration. */

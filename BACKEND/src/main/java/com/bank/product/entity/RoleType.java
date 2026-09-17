@@ -17,7 +17,7 @@ public class RoleType {
     @Column(name = "rot_description", length = 500)
     private String description;
 
-    @Column(name = "rot_is_active", nullable = false)
+    @Transient
     private Boolean isActive = true;
 
     @Column(name = "rot_created_by", length = 255)

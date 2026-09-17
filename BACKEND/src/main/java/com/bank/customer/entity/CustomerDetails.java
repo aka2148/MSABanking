@@ -1,8 +1,6 @@
 package com.bank.customer.entity;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
 
@@ -16,7 +14,6 @@ public class CustomerDetails {
 
     @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "cud_customer_id", nullable = false)
-    @JdbcTypeCode(SqlTypes.INTEGER)
     private CustomerProfile customer;
 
     @Column(name = "cud_full_name", nullable = false, length = 255)
