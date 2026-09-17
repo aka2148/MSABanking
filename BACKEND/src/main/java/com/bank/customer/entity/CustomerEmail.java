@@ -6,7 +6,7 @@ import jakarta.persistence.*;
 @Entity
 @Table(name = "customer_emails", schema = "public")
 public class CustomerEmail {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) @Column(name = "cem_email_id") private Integer id;
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) @Column(name = "cem_email_id") private Long id;
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "cem_customer_id", nullable = false) private CustomerProfile customer;
     @Column(name = "cem_contact_type") private String contactType;
     @Column(name = "cem_email_address", nullable = false) private String emailAddress;
@@ -17,7 +17,7 @@ public class CustomerEmail {
     @Column(name = "cem_verification_method") private String verificationMethod;
     @Column(name = "cem_consent_marketing", nullable = false) private boolean consentMarketing;
 
-    public Integer getId() { return id; }
+    public Long getId() { return id; }
     public CustomerProfile getCustomer() { return customer; }
     public void setCustomer(CustomerProfile v) { customer = v; }
     public String getContactType() { return contactType; }
