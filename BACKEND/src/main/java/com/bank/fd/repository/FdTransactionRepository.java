@@ -8,6 +8,5 @@ import java.util.List;
 
 @Repository
 public interface FdTransactionRepository extends JpaRepository<FdTransaction, Long> {
-    List<FdTransaction> findByAccountId(Long accountId);
     List<FdTransaction> findByAccountIdOrderByTransactionDateAscIdAsc(Long accountId);
 }

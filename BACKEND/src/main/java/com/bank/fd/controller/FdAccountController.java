@@ -79,7 +79,8 @@ public class FdAccountController {
     public ResponseEntity<List<FdTransaction>> getAccountTransactions(@PathVariable String accountNumber) {
         FdAccount account = fdAccountService.getAccountByNumber(accountNumber);
         validateOwnershipOrStaff(account);
-        List<FdTransaction> transactions = fdTransactionRepository.findByAccountId(account.getId());
+        List<FdTransaction> transactions = fdTransactionRepository
+                .findByAccountIdOrderByTransactionDateAscIdAsc(account.getId());
         return ResponseEntity.ok(transactions);
     }
 
