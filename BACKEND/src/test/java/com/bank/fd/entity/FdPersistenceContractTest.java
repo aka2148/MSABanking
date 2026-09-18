@@ -25,6 +25,16 @@ class FdPersistenceContractTest {
     }
 
     @Test
+    void legacyTermDaysMustMapToWholeThirtyDayMonths() {
+        FdAccount account = new FdAccount();
+
+        account.setTermDays(60);
+
+        assertEquals(2, account.getTenureMonths());
+        assertThrows(IllegalArgumentException.class, () -> account.setTermDays(365));
+    }
+
+    @Test
     void rowVersionUsesNumericLifecycleColumn() throws NoSuchFieldException {
         Field rowVersion = FdAccount.class.getDeclaredField("rowVersion");
 

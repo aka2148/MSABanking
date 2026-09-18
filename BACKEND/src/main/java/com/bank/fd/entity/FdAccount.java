@@ -60,7 +60,16 @@ public class FdAccount {
     public Integer getTenureMonths() { return tenureMonths; }
     public void setTenureMonths(Integer tenureMonths) { this.tenureMonths = tenureMonths; }
     public Integer getTermDays() { return tenureMonths == null ? null : tenureMonths * 30; }
-    public void setTermDays(Integer termDays) { this.tenureMonths = termDays == null ? null : Math.max(1, termDays / 30); }
+    public void setTermDays(Integer termDays) {
+        if (termDays == null) {
+            this.tenureMonths = null;
+            return;
+        }
+        if (termDays <= 0 || termDays % 30 != 0) {
+            throw new IllegalArgumentException("Legacy term days must be a positive whole number of 30-day months");
+        }
+        this.tenureMonths = termDays / 30;
+    }
     public BigDecimal getInterestRate() { return interestRate; }
     public void setInterestRate(BigDecimal interestRate) { this.interestRate = interestRate; }
     public String getCompoundingFrequency() { return compoundingFrequency; }
