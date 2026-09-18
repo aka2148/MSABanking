@@ -18,17 +18,21 @@ import java.time.LocalDate;
 public class CreateAccountContractRequest {
 
     @NotNull
+    @Min(1)
     @JsonProperty("product_id")
     private Long productId;
 
     @NotNull
+    @Min(1)
     @JsonProperty("currency_id")
     private Long currencyId;
 
     @NotNull
+    @Min(1)
     @JsonProperty("primary_holder_id")
     private Long primaryHolderId;
 
+    @Min(1)
     @JsonProperty("applied_rate_outcome_id")
     private Long appliedRateOutcomeId;
 
@@ -43,6 +47,8 @@ public class CreateAccountContractRequest {
     @JsonProperty("tenure_months")
     private Integer tenureMonths;
 
+    @NotNull
+    @DecimalMin("0.0")
     @Digits(integer = 5, fraction = 4)
     @JsonProperty("interest_rate")
     private BigDecimal interestRate;
