@@ -735,8 +735,12 @@ paths:
             schema:
               $ref: '#/components/schemas/ProductRefSyncEvent'
       responses:
-        '204':
-          description: Synced
+        '501':
+          description: Synchronization not implemented
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /internal/sync/currency:
     post:
@@ -750,8 +754,12 @@ paths:
             schema:
               $ref: '#/components/schemas/CurrencyRefSyncEvent'
       responses:
-        '204':
-          description: Synced
+        '501':
+          description: Synchronization not implemented
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /internal/sync/user:
     post:
@@ -765,8 +773,12 @@ paths:
             schema:
               $ref: '#/components/schemas/UserRefSyncEvent'
       responses:
-        '204':
-          description: Synced
+        '501':
+          description: Synchronization not implemented
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /internal/sync/role-type:
     post:
@@ -780,8 +792,12 @@ paths:
             schema:
               $ref: '#/components/schemas/RoleTypeRefSyncEvent'
       responses:
-        '204':
-          description: Synced
+        '501':
+          description: Synchronization not implemented
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /internal/sync/rule-outcome:
     post:
@@ -795,8 +811,12 @@ paths:
             schema:
               $ref: '#/components/schemas/RuleOutcomeRefSyncEvent'
       responses:
-        '204':
-          description: Synced
+        '501':
+          description: Synchronization not implemented
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /ref/products:
     get:

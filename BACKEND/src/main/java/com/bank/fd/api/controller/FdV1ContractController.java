@@ -149,19 +149,19 @@ public class FdV1ContractController {
 
     // Internal reference-data synchronization
     @PostMapping("/internal/sync/product")
-    public ResponseEntity<Void> syncProduct(@RequestBody Map<String, Object> body) { return ResponseEntity.noContent().build(); }
+    public ResponseEntity<ApiErrorResponse> syncProduct(@RequestBody Map<String, Object> body) { return notImplemented("syncProduct"); }
 
     @PostMapping("/internal/sync/currency")
-    public ResponseEntity<Void> syncCurrency(@RequestBody Map<String, Object> body) { return ResponseEntity.noContent().build(); }
+    public ResponseEntity<ApiErrorResponse> syncCurrency(@RequestBody Map<String, Object> body) { return notImplemented("syncCurrency"); }
 
     @PostMapping("/internal/sync/user")
-    public ResponseEntity<Void> syncUser(@RequestBody Map<String, Object> body) { return ResponseEntity.noContent().build(); }
+    public ResponseEntity<ApiErrorResponse> syncUser(@RequestBody Map<String, Object> body) { return notImplemented("syncUser"); }
 
     @PostMapping("/internal/sync/role-type")
-    public ResponseEntity<Void> syncRoleType(@RequestBody Map<String, Object> body) { return ResponseEntity.noContent().build(); }
+    public ResponseEntity<ApiErrorResponse> syncRoleType(@RequestBody Map<String, Object> body) { return notImplemented("syncRoleType"); }
 
     @PostMapping("/internal/sync/rule-outcome")
-    public ResponseEntity<Void> syncRuleOutcome(@RequestBody Map<String, Object> body) { return ResponseEntity.noContent().build(); }
+    public ResponseEntity<ApiErrorResponse> syncRuleOutcome(@RequestBody Map<String, Object> body) { return notImplemented("syncRuleOutcome"); }
 
     @GetMapping("/ref/products")
     public ResponseEntity<ApiErrorResponse> listRefProducts() { return notImplemented("listRefProducts"); }
