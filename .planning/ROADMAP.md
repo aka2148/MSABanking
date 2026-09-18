@@ -89,7 +89,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Existing FD Baseline | 0/3 | Not started | - |
+| 1. Existing FD Baseline | 1/3 | In Progress | - |
 | 2. Product Booking and Funding | 0/TBD | Not started | - |
 | 3. Interest and Maturity Processing | 0/TBD | Not started | - |
 | 4. Closure and Demonstrable API Workflow | 0/TBD | Not started | - |

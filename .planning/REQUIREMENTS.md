@@ -18,7 +18,7 @@ Requirements for the academic FD demonstration. Each maps to exactly one roadmap
 
 - [ ] **FUND-01**: A newly booked FD starts in a pending/unfunded status and becomes active only after one valid funding operation for the required principal.
 - [ ] **FUND-02**: Repeating a booking or funding request does not create a second FD or duplicate principal transaction for the same operation.
-- [ ] **LIFE-01**: The FD uses clear, validated lifecycle transitions for pending, active, matured, and closed states, and rejects invalid transitions.
+- [x] **LIFE-01**: The FD uses clear, validated lifecycle transitions for pending, active, matured, and closed states, and rejects invalid transitions.
 - [ ] **LIFE-02**: The system can process maturity for an eligible active FD and transition it to matured using the stored term and maturity date.
 - [ ] **LIFE-03**: The system supports normal closure of an eligible matured FD and records the resulting settlement/transaction outcome.
 - [ ] **LIFE-04**: The system supports premature closure where the existing business rule is available, calculates the applicable interest/penalty with `BigDecimal`, and records the outcome; otherwise it returns a clear business error.
@@ -35,7 +35,7 @@ Requirements for the academic FD demonstration. Each maps to exactly one roadmap
 - [ ] **API-01**: REST endpoints expose product lookup, booking, funding, account status, interest/maturity processing, closure, and transaction/history retrieval with understandable request and response DTOs.
 - [ ] **API-02**: Invalid input, missing resources, unauthorized access, invalid lifecycle transitions, and unsupported premature-closure rules return consistent error responses.
 - [ ] **DATA-01**: The implementation reuses and extends the existing Flyway/PostgreSQL schema only where necessary, with database constraints for required relationships, valid amounts, statuses, and duplicate prevention.
-- [ ] **DATA-02**: Existing repositories, entities, services, calculators, authentication mechanisms, and API paths are reused or adapted before new replacements are introduced.
+- [x] **DATA-02**: Existing repositories, entities, services, calculators, authentication mechanisms, and API paths are reused or adapted before new replacements are introduced.
 
 ### Authentication, Authorization, and Tests
 
@@ -86,7 +86,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | BOOK-03 | Phase 2 | Pending |
 | FUND-01 | Phase 2 | Pending |
 | FUND-02 | Phase 5 | Pending |
-| LIFE-01 | Phase 1 | Pending |
+| LIFE-01 | Phase 1 | Complete |
 | LIFE-02 | Phase 3 | Pending |
 | LIFE-03 | Phase 4 | Pending |
 | LIFE-04 | Phase 4 | Pending |
@@ -97,7 +97,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | API-01 | Phase 4 | Pending |
 | API-02 | Phase 4 | Pending |
 | DATA-01 | Phase 1 | Pending |
-| DATA-02 | Phase 1 | Pending |
+| DATA-02 | Phase 1 | Complete |
 | AUTH-01 | Phase 5 | Pending |
 | AUTH-02 | Phase 5 | Pending |
 | TEST-01 | Phase 5 | Pending |

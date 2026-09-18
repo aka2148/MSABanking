@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
-stopped_at: Roadmap and state artifacts created; awaiting phase planning.
-last_updated: "2026-09-18T09:42:54.486Z"
-last_activity: 2026-09-18 — Created the five-phase academic FD roadmap and requirement traceability.
+status: executing
+stopped_at: Completed 01-01-PLAN.md
+last_updated: "2026-09-18T09:58:32.823Z"
+last_activity: 2026-09-18
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 3
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 33
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-18)
 
 **Core value:** Students must be able to demonstrate a complete, understandable fixed-deposit workflow from product selection through booking, funding, interest calculation, maturity, and closure using the existing application.
-**Current focus:** Phase 1 — Existing FD Baseline
+**Current focus:** Phase 01 — Existing FD Baseline
 
 ## Current Position
 
-Phase: 1 of 5 (Existing FD Baseline)
-Plan: TBD in current phase
-Status: Ready to plan
-Last activity: 2026-09-18 — Created the five-phase academic FD roadmap and requirement traceability.
+Phase: 01 (Existing FD Baseline) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-09-18
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [███░░░░░░░] 33%
 
 ## Performance Metrics
 
@@ -55,6 +55,8 @@ Progress: [░░░░░░░░░░] 0%
 - Last 5 plans: None
 - Trend: Not established
 
+| Phase 01 P01 | 12 min | 3 tasks | 13 files |
+
 ## Accumulated Context
 
 ### Decisions
@@ -66,6 +68,15 @@ Recent decisions affecting current work:
 - Existing Spring Boot/Angular modules, services, entities, repositories, calculators, authentication, migrations, `/fd/v1`, and legacy endpoints are compatibility assets.
 - REST/Swagger/Postman is the acceptance surface; a new Angular FD UI is deferred unless existing functionality requires it.
 - Keep lifecycle, decimal money, PostgreSQL/Flyway persistence, basic idempotency, ownership/role checks, and focused tests; avoid enterprise workflow and payment infrastructure.
+- Policy authority: academic fixed policy, not a general production policy engine.
+- Rate unit: decimal fraction (0.0650 represents 6.50% annually).
+- Day count: Actual/365.
+- Date interval: opening date included, maturity date excluded.
+- Business timezone: UTC.
+- Currency/display scale: 2 decimals.
+- Rounding: HALF_UP.
+- Actor authority: local /api/auth identity.
+- Product/rate authority: existing normalized server-owned product/rule tables.
 
 ### Pending Todos
 
@@ -88,7 +99,7 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-09-18
-Stopped at: Roadmap and state artifacts created; awaiting phase planning.
+Stopped at: Completed 01-01-PLAN.md
 Resume file: None
 
 **Planned Phase:** 1 (Existing FD Baseline) — 3 plans — 2026-09-18T09:42:54.479Z
