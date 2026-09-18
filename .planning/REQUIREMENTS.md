@@ -80,34 +80,34 @@ Which phases cover which requirements. Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PROD-01 | Pending | Pending |
-| BOOK-01 | Pending | Pending |
-| BOOK-02 | Pending | Pending |
-| BOOK-03 | Pending | Pending |
-| FUND-01 | Pending | Pending |
-| FUND-02 | Pending | Pending |
-| LIFE-01 | Pending | Pending |
-| LIFE-02 | Pending | Pending |
-| LIFE-03 | Pending | Pending |
-| LIFE-04 | Pending | Pending |
-| CALC-01 | Pending | Pending |
-| CALC-02 | Pending | Pending |
-| HIST-01 | Pending | Pending |
-| HIST-02 | Pending | Pending |
-| API-01 | Pending | Pending |
-| API-02 | Pending | Pending |
-| DATA-01 | Pending | Pending |
-| DATA-02 | Pending | Pending |
-| AUTH-01 | Pending | Pending |
-| AUTH-02 | Pending | Pending |
-| TEST-01 | Pending | Pending |
-| TEST-02 | Pending | Pending |
-| TEST-03 | Pending | Pending |
+| PROD-01 | Phase 2 | Pending |
+| BOOK-01 | Phase 2 | Pending |
+| BOOK-02 | Phase 2 | Pending |
+| BOOK-03 | Phase 2 | Pending |
+| FUND-01 | Phase 2 | Pending |
+| FUND-02 | Phase 5 | Pending |
+| LIFE-01 | Phase 1 | Pending |
+| LIFE-02 | Phase 3 | Pending |
+| LIFE-03 | Phase 4 | Pending |
+| LIFE-04 | Phase 4 | Pending |
+| CALC-01 | Phase 3 | Pending |
+| CALC-02 | Phase 3 | Pending |
+| HIST-01 | Phase 4 | Pending |
+| HIST-02 | Phase 5 | Pending |
+| API-01 | Phase 4 | Pending |
+| API-02 | Phase 4 | Pending |
+| DATA-01 | Phase 1 | Pending |
+| DATA-02 | Phase 1 | Pending |
+| AUTH-01 | Phase 5 | Pending |
+| AUTH-02 | Phase 5 | Pending |
+| TEST-01 | Phase 5 | Pending |
+| TEST-02 | Phase 5 | Pending |
+| TEST-03 | Phase 5 | Pending |
 
 **Coverage:**
 - v1 requirements: 23 total
-- Mapped to phases: 0
-- Unmapped: 23 ⚠️
+- Mapped to phases: 23
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-09-18*
