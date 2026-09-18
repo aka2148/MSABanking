@@ -2,11 +2,11 @@
 
 ## What This Is
 
-Banking Lab is an existing banking system with a Spring Boot backend and Angular frontend in a single repository. The backend provides authentication, customer, fixed-deposit product, calculator, reporting, and scheduled-processing capabilities over PostgreSQL/Supabase persistence; the frontend provides the current landing, authentication, and dashboard shell. This project continues development of that existing system without breaking established functionality.
+Banking Lab is an existing college lab banking system with a Spring Boot backend and Angular frontend in a single repository. The backend provides authentication, customer, fixed-deposit product, calculator, reporting, and scheduled-processing capabilities over PostgreSQL/Supabase persistence; the frontend provides the current landing, authentication, and dashboard shell. This project continues development of that existing system into an understandable, functional FD demonstration without breaking established functionality.
 
 ## Core Value
 
-Customers and banking operations must be able to rely on a persisted, secure, and auditable fixed-deposit lifecycle from product selection through maturity or closure.
+Students must be able to demonstrate a complete, understandable fixed-deposit workflow from product selection through booking, funding, interest calculation, maturity, and closure using the existing application.
 
 ## Requirements
 
@@ -20,20 +20,21 @@ Customers and banking operations must be able to rely on a persisted, secure, an
 
 ### Active
 
-- [ ] Implement the fixed-deposit lifecycle against the existing Flyway schema and `/fd/v1` contract.
-- [ ] Support active product/rate selection, validated account booking and funding state, persisted product snapshots, and customer ownership checks.
-- [ ] Persist idempotent interest accrual and maturity transitions, including safe scheduled processing.
-- [ ] Support eligible account closure and recorded payout/settlement behavior.
-- [ ] Preserve existing authentication, product, calculator, customer, reporting, and other API behavior while the FD implementation is added.
-- [ ] Establish contract, service, PostgreSQL migration, security, scheduler, and regression test coverage for the delivered behavior.
+- [ ] Implement a demonstrable FD lifecycle against the existing Flyway schema and REST contract.
+- [ ] Allow an authenticated customer to view eligible products/terms, associate an account, book an FD, and fund it.
+- [ ] Transition an FD through clear statuses such as pending, active, matured, and closed.
+- [ ] Calculate interest and maturity amounts with `BigDecimal` and persist the resulting transaction/history records.
+- [ ] Support normal maturity closure and a straightforward premature-closure path with the applicable existing penalty/rule behavior.
+- [ ] Preserve existing authentication, product, calculator, customer, reporting, legacy FD, migration, and other API behavior while the FD work is added.
+- [ ] Add focused unit and integration tests for the core business rules, PostgreSQL persistence, validation, basic ownership/role authorization, and duplicate-action protection.
 
 ### Out of Scope
 
-- Customer deposit/withdrawal transaction variants beyond initial booking/funding — defer until the core lifecycle is stable.
-- Statements, notices, event publishing, holders, and reference-data synchronization beyond what is required by the core lifecycle — defer to a later milestone.
-- Angular fixed-deposit screens or end-to-end frontend integration — this milestone is backend API first.
-- Replacing the authoritative Flyway schema or redesigning the `/fd/v1` contract — compatibility with the existing model is required.
-- Removing existing API surfaces before replacement behavior and compatibility tests exist — preserve current functionality during migration.
+- Advanced deposit/withdrawal variants, recurring payouts, auto-renewal, and complex holder/nominee workflows — beyond the core lab demonstration.
+- Real payment-rail integration, tax/regulatory reporting, distributed locking, event/outbox infrastructure, and enterprise reconciliation — not needed for the academic scope.
+- A major authentication rewrite or broad rule-engine redesign — reuse the existing mechanisms and add only what the FD flow needs.
+- Replacing the existing Flyway schema or redesigning the REST contract unnecessarily — compatibility with the current model is required.
+- Removing existing API surfaces before replacement behavior is verified — preserve current functionality during the work.
 
 ## Context
 
@@ -42,27 +43,27 @@ Customers and banking operations must be able to rely on a persisted, secure, an
 - The frontend uses Angular 18 standalone components and TypeScript from `FRONTEND/package.json`, but frontend delivery is not the focus of this milestone.
 - The normalized FD schema is defined by migrations under `BACKEND/src/main/resources/db/migration/`, with the API contract in `BACKEND/src/main/resources/static/openapi/fd-service-openapi.yaml`.
 - `BACKEND/src/main/java/com/bank/fd/api/controller/FdV1ContractController.java` currently exposes many placeholder operations returning `501 NOT_IMPLEMENTED`, while legacy FD services and scheduled jobs also contain intentionally incomplete paths.
-- Existing codebase concerns identify split authentication contracts, tracked build output, static JWT configuration, in-memory session/OTP state, incomplete reports, frontend contract drift, and limited automated coverage. These must not be widened by the FD work.
+- Existing codebase concerns identify split authentication contracts, tracked build output, static JWT configuration, in-memory session/OTP state, incomplete reports, frontend contract drift, and limited automated coverage. The FD work should address only the directly relevant correctness and access-control gaps.
 
 ## Constraints
 
-- **Compatibility**: Treat the existing Flyway schema and `/fd/v1` OpenAPI contract as authoritative — downstream consumers and current migrations must remain supportable.
-- **Security**: Enforce customer ownership, staff authorization, safe public boundaries, and idempotency for financial lifecycle operations.
-- **Financial correctness**: Use persisted monetary and lifecycle state with deterministic, testable calculations and explicit transition rules.
-- **Persistence**: Validate migrations and mappings against PostgreSQL-compatible behavior; do not rely only on H2 or mocks for schema-sensitive work.
-- **Operational safety**: Accrual and maturity jobs must be idempotent, observable, and safe to rerun without duplicate financial effects.
-- **Regression safety**: Existing authentication, customer, product, calculator, reporting, and other established APIs must continue to pass their current tests and compatibility checks.
-- **Delivery order**: Build and verify backend APIs and services before adding frontend FD workflows.
+- **Academic scope**: Prefer simple, explainable service-layer code and minimal dependencies over production-scale infrastructure.
+- **Compatibility**: Treat the existing Flyway schema and REST/OpenAPI contract as the starting point — current functionality and migrations must remain supportable.
+- **Security**: Enforce authenticated customer ownership and basic staff/role authorization, including protection against direct-object-reference access.
+- **Financial correctness**: Use `BigDecimal`, persisted monetary values, validation, and explicit lifecycle transitions.
+- **Persistence**: Validate migrations and mappings against PostgreSQL behavior while reusing existing repositories and entities where practical.
+- **Duplicate safety**: Prevent repeated booking, funding, accrual, maturity, or closure actions from creating incorrect duplicate records without introducing distributed infrastructure.
+- **Regression safety**: Existing authentication, customer, product, calculator, reporting, and other established APIs must continue to pass relevant tests and compatibility checks.
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Make FD lifecycle the next milestone priority | The existing FD contract is broad but most operations are placeholders, blocking core banking value | — Pending |
-| Implement backend API first | The lifecycle needs reliable domain, persistence, authorization, and scheduler behavior before UI integration | — Pending |
-| Preserve the existing Flyway schema and `/fd/v1` contract | They are the repository's current integration boundary and authoritative model | — Pending |
-| Deliver product/rates, booking/funding, accrual/maturity, and closure/payout first | This is the smallest complete core lifecycle; broader transactions and documents can follow | — Pending |
-| Require contract, service, PostgreSQL migration, security, scheduler, and regression tests | Financial behavior and compatibility need verification beyond compilation | — Pending |
+| Make the core FD workflow the next milestone priority | The existing FD implementation is incomplete, while the lifecycle is the central academic demonstration | — Pending |
+| Reuse existing services, entities, repositories, calculators, authentication, and schema | The project is an existing college application and should remain understandable | — Pending |
+| Use `BigDecimal` and focused lifecycle rules | Monetary correctness matters without introducing a production policy engine | — Pending |
+| Deliver REST/API-first end-to-end functionality | It provides a clear demonstrable workflow while keeping the milestone achievable | — Pending |
+| Use focused unit/integration/security/regression tests | The project needs evidence of core behavior, not enterprise infrastructure | — Pending |
 
 ## Evolution
 
@@ -82,4 +83,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-18 after project initialization questioning*
+*Last updated: 2026-09-18 after academic-scope clarification*
