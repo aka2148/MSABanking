@@ -58,3 +58,19 @@ springdoc:
     path: /swagger-ui.html
     url: /openapi/login-service-openapi.yaml
     disable-swagger-default-url: true
+
+fd:
+  policy:
+    authority: "academic fixed policy"
+    version: academic-v1
+    rate-unit: DECIMAL_FRACTION
+    day-count-convention: ACTUAL_365
+    currency-scale: 2
+    display-scale: 2
+    rounding-mode: HALF_UP
+    opening-date-included: true
+    maturity-date-included: false
+    business-zone: UTC
+  integration:
+    actor-authority: "local /api/auth identity"
+    product-terms-authority: "existing normalized server-owned product/rule tables"
