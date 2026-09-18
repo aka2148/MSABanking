@@ -27,11 +27,6 @@ public class CreateAccountContractRequest {
     @JsonProperty("currency_id")
     private Long currencyId;
 
-    @NotNull
-    @Min(1)
-    @JsonProperty("primary_holder_id")
-    private Long primaryHolderId;
-
     @Min(1)
     @JsonProperty("applied_rate_outcome_id")
     private Long appliedRateOutcomeId;
@@ -79,14 +74,6 @@ public class CreateAccountContractRequest {
 
     public void setCurrencyId(Long currencyId) {
         this.currencyId = currencyId;
-    }
-
-    public Long getPrimaryHolderId() {
-        return primaryHolderId;
-    }
-
-    public void setPrimaryHolderId(Long primaryHolderId) {
-        this.primaryHolderId = primaryHolderId;
     }
 
     public Long getAppliedRateOutcomeId() {

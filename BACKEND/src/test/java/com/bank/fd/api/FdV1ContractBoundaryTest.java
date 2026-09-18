@@ -31,7 +31,7 @@ class FdV1ContractBoundaryTest {
         assertTrue(method.getParameters()[0].isAnnotationPresent(Valid.class));
         assertNotNull(field(CreateAccountContractRequest.class, "productId").getAnnotation(NotNull.class));
         assertNotNull(field(CreateAccountContractRequest.class, "currencyId").getAnnotation(NotNull.class));
-        assertNotNull(field(CreateAccountContractRequest.class, "primaryHolderId").getAnnotation(NotNull.class));
+        assertFalse(hasMemberNamed(CreateAccountContractRequest.class, "primaryHolderId"));
         assertEquals(BigDecimal.class, field(CreateAccountContractRequest.class, "principalAmount").getType());
         assertEquals("0.01", field(CreateAccountContractRequest.class, "principalAmount")
                 .getAnnotation(DecimalMin.class).value());
@@ -67,6 +67,10 @@ class FdV1ContractBoundaryTest {
         String updateSchema = openApi.substring(updateStart, accountStart);
         assertTrue(updateSchema.contains("auto_renewal"));
         assertFalse(updateSchema.contains("status"));
+
+        int createStart = openApi.indexOf("CreateAccountRequest:");
+        String createSchema = openApi.substring(createStart, updateStart);
+        assertFalse(createSchema.contains("primary_holder_id"));
     }
 
     @Test

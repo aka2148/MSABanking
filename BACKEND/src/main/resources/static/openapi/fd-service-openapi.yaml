@@ -916,11 +916,10 @@ components:
     # ---------- Accounts ----------
     CreateAccountRequest:
       type: object
-      required: [product_id, currency_id, primary_holder_id, principal_amount, tenure_months, interest_rate]
+      required: [product_id, currency_id, principal_amount, tenure_months, interest_rate]
       properties:
         product_id: { type: integer }
         currency_id: { type: integer }
-        primary_holder_id: { type: integer }
         applied_rate_outcome_id: { type: integer }
         principal_amount: { type: number, format: double }
         tenure_months: { type: integer }
