@@ -41,15 +41,21 @@ export class Login {
     this.authService.login(identifier, password).subscribe({
       next: (res) => {
         this.loading = false;
-        if (res.success) {
+        if (res.token || res.success) {
+          if (res.token) {
+            localStorage.setItem('token', res.token);
+          }
           this.router.navigate(['/dashboard']);
         } else {
           this.errorMessage = res.message ?? 'Unable to sign in.';
         }
       },
-      error: () => {
+      error: (err) => {
         this.loading = false;
-        this.errorMessage = 'Could not reach the server. Try again shortly.';
+        this.errorMessage =
+          err.error?.message ??
+          err.error?.error ??
+          'Invalid username or password.';
       },
     });
   }

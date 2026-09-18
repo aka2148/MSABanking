@@ -17,7 +17,12 @@ export class AuthService {
   constructor(private http: HttpClient) {}
 
   login(identifier: string, password: string): Observable<LoginResponse> {
-    const payload: LoginRequest = { identifier, password, context: this.buildContext() };
+    const payload = {
+      username: identifier,
+      identifier,
+      password,
+      context: this.buildContext(),
+    };
     return this.http.post<LoginResponse>(`${this.baseUrl}/login`, payload);
   }
 
