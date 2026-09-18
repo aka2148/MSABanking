@@ -12,7 +12,7 @@ The roadmap deliberately excludes production banking infrastructure, real paymen
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 1: Existing FD Baseline** - Align the existing FD contract and persistence foundation around simple, explicit lifecycle rules.
+- [x] **Phase 1: Existing FD Baseline** - Align the existing FD contract and persistence foundation around simple, explicit lifecycle rules.
 - [ ] **Phase 2: Product Booking and Funding** - Let an authenticated customer select eligible terms, book an FD, fund it, and reach active status.
 - [ ] **Phase 3: Interest and Maturity Processing** - Apply consistent decimal calculations, store accruals, and move eligible active FDs to matured.
 - [ ] **Phase 4: Closure and Demonstrable API Workflow** - Complete normal/premature closure, settlement/history responses, and the end-to-end REST demonstration.
@@ -33,7 +33,7 @@ The roadmap deliberately excludes production banking infrastructure, real paymen
 Plans:
 - [x] 01-01-PLAN.md — Establish the explicit FD lifecycle and versioned policy/time contracts
 - [x] 01-02-PLAN.md — Add the forward-only PostgreSQL lifecycle baseline and durable operation identity
-- [ ] 01-03-PLAN.md — Type the `/fd/v1` account boundary and verify Flyway against PostgreSQL
+- [x] 01-03-PLAN.md — Type the `/fd/v1` account boundary and verify Flyway against PostgreSQL
 
 ### Phase 2: Product Booking and Funding
 **Goal**: An authenticated customer can select an eligible FD offer, create a correctly associated pending account with locked terms, and fund it once to become active.
@@ -89,7 +89,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Existing FD Baseline | 2/3 | In Progress | - |
+| 1. Existing FD Baseline | 3/3 | Complete | 2026-09-18 |
 | 2. Product Booking and Funding | 0/TBD | Not started | - |
 | 3. Interest and Maturity Processing | 0/TBD | Not started | - |
 | 4. Closure and Demonstrable API Workflow | 0/TBD | Not started | - |
