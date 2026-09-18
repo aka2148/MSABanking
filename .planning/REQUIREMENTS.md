@@ -34,7 +34,7 @@ Requirements for the academic FD demonstration. Each maps to exactly one roadmap
 
 - [ ] **API-01**: REST endpoints expose product lookup, booking, funding, account status, interest/maturity processing, closure, and transaction/history retrieval with understandable request and response DTOs.
 - [ ] **API-02**: Invalid input, missing resources, unauthorized access, invalid lifecycle transitions, and unsupported premature-closure rules return consistent error responses.
-- [ ] **DATA-01**: The implementation reuses and extends the existing Flyway/PostgreSQL schema only where necessary, with database constraints for required relationships, valid amounts, statuses, and duplicate prevention.
+- [x] **DATA-01**: The implementation reuses and extends the existing Flyway/PostgreSQL schema only where necessary, with database constraints for required relationships, valid amounts, statuses, and duplicate prevention.
 - [x] **DATA-02**: Existing repositories, entities, services, calculators, authentication mechanisms, and API paths are reused or adapted before new replacements are introduced.
 
 ### Authentication, Authorization, and Tests
@@ -96,7 +96,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | HIST-02 | Phase 5 | Pending |
 | API-01 | Phase 4 | Pending |
 | API-02 | Phase 4 | Pending |
-| DATA-01 | Phase 1 | Pending |
+| DATA-01 | Phase 1 | Complete |
 | DATA-02 | Phase 1 | Complete |
 | AUTH-01 | Phase 5 | Pending |
 | AUTH-02 | Phase 5 | Pending |

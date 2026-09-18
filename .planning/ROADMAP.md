@@ -31,8 +31,8 @@ The roadmap deliberately excludes production banking infrastructure, real paymen
   4. Existing authentication, customer, product, calculator, reporting, and other established API behavior remains available for the later FD work to build on.
 **Plans**: 3 plans
 Plans:
-- [ ] 01-01-PLAN.md — Establish the explicit FD lifecycle and versioned policy/time contracts
-- [ ] 01-02-PLAN.md — Add the forward-only PostgreSQL lifecycle baseline and durable operation identity
+- [x] 01-01-PLAN.md — Establish the explicit FD lifecycle and versioned policy/time contracts
+- [x] 01-02-PLAN.md — Add the forward-only PostgreSQL lifecycle baseline and durable operation identity
 - [ ] 01-03-PLAN.md — Type the `/fd/v1` account boundary and verify Flyway against PostgreSQL
 
 ### Phase 2: Product Booking and Funding
@@ -89,7 +89,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Existing FD Baseline | 1/3 | In Progress | - |
+| 1. Existing FD Baseline | 2/3 | In Progress | - |
 | 2. Product Booking and Funding | 0/TBD | Not started | - |
 | 3. Interest and Maturity Processing | 0/TBD | Not started | - |
 | 4. Closure and Demonstrable API Workflow | 0/TBD | Not started | - |

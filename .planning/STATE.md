@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-09-18T09:58:32.823Z"
+stopped_at: None
+last_updated: "2026-09-18T10:06:00.630Z"
 last_activity: 2026-09-18
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
-  percent: 33
+  completed_plans: 2
+  percent: 67
 ---
 
 # Project State
@@ -26,25 +26,25 @@ See: .planning/PROJECT.md (updated 2026-09-18)
 ## Current Position
 
 Phase: 01 (Existing FD Baseline) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-09-18
 
-Progress: [███░░░░░░░] 33%
+Progress: [███████░░░] 67%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 1
-- Average duration: 12 min
-- Total execution time: 0.2 hours
+- Total plans completed: 2
+- Average duration: 8 min
+- Total execution time: 0.3 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 1 | 1 | 3 | 12 min |
+| 1 | 2 | 3 | 8 min |
 | 2 | 0 | TBD | N/A |
 | 3 | 0 | TBD | N/A |
 | 4 | 0 | TBD | N/A |
@@ -52,7 +52,7 @@ Progress: [███░░░░░░░] 33%
 
 **Recent Trend:**
 
-- Last 5 plans: 01-01 (12 min)
+- Last 5 plans: 01-01 (12 min), 01-02 (4 min)
 - Trend: Established
 
 ## Accumulated Context
@@ -75,6 +75,9 @@ Recent decisions affecting current work:
 - Rounding: HALF_UP.
 - Actor authority: local /api/auth identity.
 - Product/rate authority: existing normalized server-owned product/rule tables.
+- V6 performs diagnostic legacy-data preflight before applying lifecycle checks and unique indexes.
+- The legacy fa_version mapping remains for compatibility while fa_row_version is the numeric JPA lifecycle version.
+- Operation idempotency status remains a constrained string instead of a global enum.
 
 ### Pending Todos
 
@@ -96,8 +99,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-09-18
-Stopped at: Completed 01-01-PLAN.md
+Last session: Completed 01-02-PLAN.md
+Stopped at: None
 Resume file: None
 
 **Planned Phase:** 1 (Existing FD Baseline) — 3 plans — 2026-09-18T09:42:54.479Z
