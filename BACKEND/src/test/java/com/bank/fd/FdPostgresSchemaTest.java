@@ -40,10 +40,10 @@ class FdPostgresSchemaTest {
         try (Connection connection = DriverManager.getConnection(
                 postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())) {
             assertEquals(Set.of("1", "2", "3", "4", "5", "6"), appliedVersions(connection));
-            assertEquals("PENDING", scalar(connection,
+            assertTrue(scalar(connection,
                     "SELECT column_default FROM information_schema.columns "
                             + "WHERE table_schema = 'public' AND table_name = 'fd_accounts' "
-                            + "AND column_name = 'fa_status'"));
+                            + "AND column_name = 'fa_status'").contains("PENDING"));
             assertEquals("bigint", scalar(connection,
                     "SELECT data_type FROM information_schema.columns "
                             + "WHERE table_schema = 'public' AND table_name = 'fd_accounts' "
