@@ -36,15 +36,15 @@ Progress: [███░░░░░░░] 33%
 
 **Velocity:**
 
-- Total plans completed: 0
-- Average duration: N/A
-- Total execution time: 0.0 hours
+- Total plans completed: 1
+- Average duration: 12 min
+- Total execution time: 0.2 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 1 | 0 | TBD | N/A |
+| 1 | 1 | 3 | 12 min |
 | 2 | 0 | TBD | N/A |
 | 3 | 0 | TBD | N/A |
 | 4 | 0 | TBD | N/A |
@@ -52,10 +52,8 @@ Progress: [███░░░░░░░] 33%
 
 **Recent Trend:**
 
-- Last 5 plans: None
-- Trend: Not established
-
-| Phase 01 P01 | 12 min | 3 tasks | 13 files |
+- Last 5 plans: 01-01 (12 min)
+- Trend: Established
 
 ## Accumulated Context
 
