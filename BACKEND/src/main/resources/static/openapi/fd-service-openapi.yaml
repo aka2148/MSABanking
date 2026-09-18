@@ -106,7 +106,7 @@ paths:
           $ref: '#/components/responses/NotFound'
     patch:
       tags: [Accounts]
-      summary: Update mutable account fields (e.g. auto_renewal, status)
+       summary: Update mutable account instructions (e.g. auto_renewal)
       operationId: updateAccount
       requestBody:
         required: true
@@ -938,9 +938,6 @@ components:
       type: object
       properties:
         auto_renewal: { type: boolean }
-        status:
-          type: string
-          enum: [PENDING, ACTIVE, MATURED, CLOSED, PREMATURELY_CLOSED]
 
     Account:
       type: object

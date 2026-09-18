@@ -1,8 +1,12 @@
 package com.bank.fd.api.controller;
 
 import com.bank.fd.api.dto.ApiErrorResponse;
+import com.bank.fd.api.dto.CreateAccountContractRequest;
+import com.bank.fd.api.dto.UpdateAccountContractRequest;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -13,6 +17,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/fd/v1")
+@PreAuthorize("isAuthenticated()")
 public class FdV1ContractController {
 
     private ResponseEntity<ApiErrorResponse> notImplemented(String operationId) {
@@ -23,7 +28,10 @@ public class FdV1ContractController {
 
     // Accounts
     @PostMapping("/accounts")
-    public ResponseEntity<ApiErrorResponse> createAccount(@RequestBody Map<String, Object> body) { return notImplemented("createAccount"); }
+    public ResponseEntity<ApiErrorResponse> createAccount(
+            @Valid @RequestBody CreateAccountContractRequest request) {
+        return notImplemented("createAccount");
+    }
 
     @GetMapping("/accounts")
     public ResponseEntity<ApiErrorResponse> listAccounts(@RequestParam(required = false, name = "holder_id") Long holderId, @RequestParam(required = false) String status, @RequestParam(required = false, name = "product_id") Long productId, @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "20", name = "page_size") int pageSize) { return notImplemented("listAccounts"); }
@@ -32,7 +40,11 @@ public class FdV1ContractController {
     public ResponseEntity<ApiErrorResponse> getAccount(@PathVariable Long accountId) { return notImplemented("getAccount"); }
 
     @PatchMapping("/accounts/{accountId}")
-    public ResponseEntity<ApiErrorResponse> updateAccount(@PathVariable Long accountId, @RequestBody Map<String, Object> body) { return notImplemented("updateAccount"); }
+    public ResponseEntity<ApiErrorResponse> updateAccount(
+            @PathVariable Long accountId,
+            @Valid @RequestBody UpdateAccountContractRequest request) {
+        return notImplemented("updateAccount");
+    }
 
     @PostMapping("/accounts/{accountId}/activate")
     public ResponseEntity<ApiErrorResponse> activateAccount(@PathVariable Long accountId) { return notImplemented("activateAccount"); }
