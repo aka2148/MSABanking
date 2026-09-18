@@ -106,7 +106,7 @@ paths:
           $ref: '#/components/responses/NotFound'
     patch:
       tags: [Accounts]
-       summary: Update mutable account instructions (e.g. auto_renewal)
+      summary: Update mutable account instructions (e.g. auto_renewal)
       operationId: updateAccount
       requestBody:
         required: true
