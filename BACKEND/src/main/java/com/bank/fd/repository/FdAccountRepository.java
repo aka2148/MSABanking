@@ -2,6 +2,8 @@ package com.bank.fd.repository;
 
 import com.bank.fd.entity.FdAccount;
 import com.bank.fd.entity.FdStatus;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,7 +16,12 @@ import java.util.Optional;
 public interface FdAccountRepository extends JpaRepository<FdAccount, Long> {
     Optional<FdAccount> findByAccountNumber(String accountNumber);
     List<FdAccount> findByPrimaryHolderId(Long primaryHolderId);
+    List<FdAccount> findByPrimaryHolderIdAndStatus(Long primaryHolderId, FdStatus status);
     List<FdAccount> findByStatus(FdStatus status);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM FdAccount a WHERE a.id = :id")
+    Optional<FdAccount> findByIdForUpdate(@Param("id") Long id);
 
     @Query("SELECT MAX(a.accountNumber) FROM FdAccount a WHERE a.accountNumber LIKE :prefix%")
     String findMaxAccountNumberByPrefix(@Param("prefix") String prefix);

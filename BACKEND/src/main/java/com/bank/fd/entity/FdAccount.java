@@ -27,13 +27,14 @@ public class FdAccount {
     @Column(name = "fa_open_date", nullable = false) private OffsetDateTime openDate;
     @Column(name = "fa_maturity_date") private OffsetDateTime maturityDate;
     @Column(name = "fa_maturity_amount", precision = 18, scale = 4) private BigDecimal maturityAmount;
-    @Enumerated(EnumType.STRING) @Column(name = "fa_status", nullable = false, length = 30) private FdStatus status = FdStatus.ACTIVE;
+    @Enumerated(EnumType.STRING) @Column(name = "fa_status", nullable = false, length = 30) private FdStatus status = FdStatus.PENDING;
     @Column(name = "fa_created_by", length = 255) private String createdBy;
     @Column(name = "fa_created_date", nullable = false) private OffsetDateTime createdDate;
     @Column(name = "fa_updated_by", length = 255) private String updatedBy;
     @Column(name = "fa_updated_date") private OffsetDateTime updatedDate;
     @Column(name = "fa_version", length = 50) private String version;
     @Column(name = "fa_uuid", nullable = false, length = 64) private String uuid;
+    @Version @Column(name = "fa_row_version", nullable = false) private Long rowVersion;
 
     /* Accrual entries now live in fd_interest_accrual, not on fd_accounts. */
     @Transient private BigDecimal accruedInterest = BigDecimal.ZERO;
@@ -79,7 +80,7 @@ public class FdAccount {
     public BigDecimal getMaturityAmount() { return maturityAmount; }
     public void setMaturityAmount(BigDecimal maturityAmount) { this.maturityAmount = maturityAmount; }
     public FdStatus getStatus() { return status; }
-    public void setStatus(FdStatus status) { this.status = status; }
+    public Long getRowVersion() { return rowVersion; }
     public BigDecimal getAccruedInterest() { return accruedInterest; }
     public void setAccruedInterest(BigDecimal accruedInterest) { this.accruedInterest = accruedInterest; }
     @PrePersist
