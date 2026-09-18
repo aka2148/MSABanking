@@ -29,7 +29,11 @@ The roadmap deliberately excludes production banking infrastructure, real paymen
   2. The existing Flyway/PostgreSQL schema starts and validates cleanly, with only necessary additive preparation for required relationships, statuses, amounts, and duplicate-sensitive records.
   3. FD DTOs and controller boundaries align with the existing `/fd/v1` and legacy endpoints while application services, entities, repositories, calculators, authentication, and migrations remain the reused implementation base.
   4. Existing authentication, customer, product, calculator, reporting, and other established API behavior remains available for the later FD work to build on.
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 01-01-PLAN.md — Establish the explicit FD lifecycle and versioned policy/time contracts
+- [ ] 01-02-PLAN.md — Add the forward-only PostgreSQL lifecycle baseline and durable operation identity
+- [ ] 01-03-PLAN.md — Type the `/fd/v1` account boundary and verify Flyway against PostgreSQL
 
 ### Phase 2: Product Booking and Funding
 **Goal**: An authenticated customer can select an eligible FD offer, create a correctly associated pending account with locked terms, and fund it once to become active.
@@ -85,7 +89,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Existing FD Baseline | 0/TBD | Not started | - |
+| 1. Existing FD Baseline | 0/3 | Not started | - |
 | 2. Product Booking and Funding | 0/TBD | Not started | - |
 | 3. Interest and Maturity Processing | 0/TBD | Not started | - |
 | 4. Closure and Demonstrable API Workflow | 0/TBD | Not started | - |
