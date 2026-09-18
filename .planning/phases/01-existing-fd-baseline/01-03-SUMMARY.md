@@ -74,7 +74,7 @@ Each implementation task was committed atomically:
 2. **Task 2: Add the PostgreSQL Testcontainers migration gate** - `7860bbc` (feat)
 3. **Task 3: Run the compatibility and regression gate** - `5a168bd` (fix to make PostgreSQL default catalog assertion portable; focused/full verification otherwise required no source change)
 
-**Plan metadata:** pending final docs commit.
+**Plan metadata:** `8c46004` (docs: complete typed FD boundary plan)
 
 ## Files Created/Modified
 
@@ -150,6 +150,7 @@ Phase 1's lifecycle, persistence, typed contract, and migration verification bas
 
 - All listed application, test, OpenAPI, POM, and summary files exist.
 - Task commits `0678c47`, `0206745`, `7860bbc`, and `5a168bd` are present in git history.
+- Plan metadata commit `8c46004` is present in git history.
 - Focused contract, container-gated schema, and full backend verification commands completed with the Docker prerequisite explicitly recorded.
 
 ---
