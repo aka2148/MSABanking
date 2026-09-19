@@ -65,7 +65,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Account'
+                $ref: '#/components/schemas/AccountResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
         '409':
@@ -159,6 +159,37 @@ paths:
                 $ref: '#/components/schemas/Account'
         '409':
           description: Invalid state transition
+
+  /accounts/{accountId}/fund:
+    parameters:
+      - $ref: '#/components/parameters/AccountId'
+    post:
+      tags: [Accounts]
+      summary: Record exact-principal internal funding and activate the FD
+      operationId: fundAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FundingRequest'
+      responses:
+        '200':
+          description: Funding recorded internally and account activated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FundingResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /accounts/{accountId}/mature:
     parameters:

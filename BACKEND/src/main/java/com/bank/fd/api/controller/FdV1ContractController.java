@@ -21,8 +21,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 /**
- * HTTP route skeleton for the FD v1 OpenAPI contract. Business logic is
- * intentionally deferred; each operation is traceable by its operationId.
+ * FD v1 contract boundary: Phase 2 product, booking, and funding routes are
+ * implemented while later lifecycle operations remain explicit placeholders.
  */
 @RestController
 @RequestMapping("/fd/v1")
