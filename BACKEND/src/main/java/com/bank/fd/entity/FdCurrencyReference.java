@@ -29,4 +29,6 @@ public class FdCurrencyReference {
     public String getIsoCode() { return isoCode; }
     public String getCurrencyName() { return currencyName; }
     public Integer getDecimalPlaces() { return decimalPlaces; }
+    public void setId(Long id) { this.id = id; }
+    public void setIsoCode(String isoCode) { this.isoCode = isoCode; }
 }
