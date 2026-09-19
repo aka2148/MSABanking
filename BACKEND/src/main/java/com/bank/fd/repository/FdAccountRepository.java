@@ -23,6 +23,10 @@ public interface FdAccountRepository extends JpaRepository<FdAccount, Long> {
     @Query("SELECT a FROM FdAccount a WHERE a.id = :id")
     Optional<FdAccount> findByIdForUpdate(@Param("id") Long id);
 
+    default Optional<FdAccount> findByIdForUpdateAndHolder(Long id, Long holderId) {
+        return findByIdForUpdate(id).filter(account -> holderId.equals(account.getPrimaryHolderId()));
+    }
+
     @Query("SELECT MAX(a.accountNumber) FROM FdAccount a WHERE a.accountNumber LIKE :prefix%")
     String findMaxAccountNumberByPrefix(@Param("prefix") String prefix);
 }

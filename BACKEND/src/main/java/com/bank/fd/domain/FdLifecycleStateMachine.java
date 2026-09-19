@@ -2,7 +2,9 @@ package com.bank.fd.domain;
 
 import com.bank.fd.entity.FdStatus;
 import com.bank.fd.exception.InvalidFdTransitionException;
+import org.springframework.stereotype.Component;
 
+@Component
 public final class FdLifecycleStateMachine {
 
     public FdTransition transition(FdStatus currentStatus, FdLifecycleCommand command) {

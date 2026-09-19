@@ -2,6 +2,7 @@ package com.bank.fd.application;
 
 import com.bank.fd.api.dto.FundingRequest;
 import com.bank.fd.api.dto.FundingResponse;
+import com.bank.common.exception.InvalidInputException;
 import com.bank.fd.domain.FdLifecycleStateMachine;
 import com.bank.fd.entity.FdAccount;
 import com.bank.fd.entity.FdCurrencyReference;
@@ -18,9 +19,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import com.bank.fd.domain.FdTimePolicy;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -42,7 +44,7 @@ class FundingServiceTest {
     void setUp() {
         service = new FundingService(accountRepository, transactionRepository, transactionTypeRepository,
                 productRepository, currencyRepository, actorResolver, stateMachine,
-                Clock.fixed(Instant.parse("2026-01-15T10:15:30Z"), ZoneOffset.UTC));
+                new FdTimePolicy(Clock.fixed(Instant.parse("2026-01-15T10:15:30Z"), ZoneId.of("UTC")), ZoneId.of("UTC")));
         account = new FdAccount();
         account.setId(11L);
         account.setPrimaryHolderId(41L);
@@ -87,7 +89,7 @@ class FundingServiceTest {
 
     @Test
     void rejectsPartialFundingBeforeWritingTransaction() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(InvalidInputException.class,
                 () -> service.fund(11L, "alice", new FundingRequest(new BigDecimal("999.99"), "USD")));
         assertEquals(FdStatus.PENDING, account.getStatus());
         verify(transactionRepository, never()).save(any());
@@ -97,7 +99,7 @@ class FundingServiceTest {
 
     @Test
     void rejectsWrongCurrencyAndNonOwner() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(InvalidInputException.class,
                 () -> service.fund(11L, "alice", new FundingRequest(new BigDecimal("1000.00"), "EUR")));
         verify(transactionRepository, never()).save(any());
 

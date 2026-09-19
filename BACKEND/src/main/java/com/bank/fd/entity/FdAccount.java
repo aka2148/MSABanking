@@ -92,6 +92,7 @@ public class FdAccount {
     public String getPolicyVersion() { return policyVersion; }
     public void setPolicyVersion(String policyVersion) { this.policyVersion = policyVersion; }
     public FdStatus getStatus() { return status; }
+    public void setStatus(FdStatus status) { this.status = status; }
     public Long getRowVersion() { return rowVersion; }
     public BigDecimal getAccruedInterest() { return accruedInterest; }
     public void setAccruedInterest(BigDecimal accruedInterest) { this.accruedInterest = accruedInterest; }
