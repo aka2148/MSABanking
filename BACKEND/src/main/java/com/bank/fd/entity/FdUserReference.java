@@ -33,4 +33,8 @@ public class FdUserReference {
     public String getCustomerNumber() { return customerNumber; }
     public String getFullName() { return fullName; }
     public String getStatus() { return status; }
+    public void setUserUuid(String userUuid) { this.userUuid = userUuid; }
+    public void setCustomerNumber(String customerNumber) { this.customerNumber = customerNumber; }
+    public void setFullName(String fullName) { this.fullName = fullName; }
+    public void setStatus(String status) { this.status = status; }
 }

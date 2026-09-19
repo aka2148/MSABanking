@@ -67,9 +67,29 @@ public class NormalizedProductTermsAdapter implements ProductTermsPort {
         }
     }
 
+    @Override
+    public List<ProductTerms> listEligibleTerms(LocalDate effectiveDate) {
+        if (effectiveDate == null) throw new ProductTermsResolutionException("Effective date is required");
+        return dataSource.findEligible(effectiveDate).stream().filter(NormalizedOffer::active)
+                .map(this::toTerms).toList();
+    }
+
+    private ProductTerms toTerms(NormalizedOffer offer) {
+        try {
+            return new ProductTerms(offer.productId(), offer.productCode(), offer.productName(),
+                    offer.currencyCode().toUpperCase(Locale.ROOT), offer.minimumAmount(), offer.maximumAmount(),
+                    offer.minimumTenureMonths(), offer.maximumTenureMonths(), offer.annualRate(),
+                    offer.compoundingFrequency(), offer.payoutFrequency(), offer.appliedRateOutcomeId(),
+                    offer.closurePenaltyRule());
+        } catch (RuntimeException exception) {
+            throw new ProductTermsResolutionException("FD normalized terms are malformed", exception);
+        }
+    }
+
     @FunctionalInterface
     public interface NormalizedTermsDataSource {
         List<NormalizedOffer> find(Long productId, String currencyCode, LocalDate effectiveDate);
+        default List<NormalizedOffer> findEligible(LocalDate effectiveDate) { return List.of(); }
     }
 
     public record NormalizedOffer(
@@ -140,6 +160,12 @@ public class NormalizedProductTermsAdapter implements ProductTermsPort {
         @Override
         public List<NormalizedOffer> find(Long productId, String currencyCode, LocalDate effectiveDate) {
             return jdbcTemplate.query(SQL, this::map, productId, currencyCode);
+        }
+
+        @Override
+        public List<NormalizedOffer> findEligible(LocalDate effectiveDate) {
+            return jdbcTemplate.query(SQL.replace("fpr.fpr_product_id = ? AND upper(c.cur_iso_code) = upper(?)", "1 = 1"),
+                    this::map);
         }
 
         private NormalizedOffer map(ResultSet result, int row) throws SQLException {

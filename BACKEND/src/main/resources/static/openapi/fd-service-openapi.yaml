@@ -30,6 +30,23 @@ tags:
 
 paths:
 
+  /products:
+    get:
+      tags: [Accounts]
+      summary: List active eligible FD offers
+      operationId: listProducts
+      responses:
+        '200':
+          description: Active server-resolved offers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductOffer'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   # ============ ACCOUNTS ============
   /accounts:
     post:
@@ -41,7 +58,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateAccountRequest'
+              $ref: '#/components/schemas/BookingRequest'
       responses:
         '201':
           description: Account created
@@ -51,6 +68,8 @@ paths:
                 $ref: '#/components/schemas/Account'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
     get:
       tags: [Accounts]
       summary: Search / list FD accounts
@@ -918,6 +937,18 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Booking conflicts with the current resource state
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication is required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
 
   schemas:
     Error:
@@ -934,6 +965,53 @@ components:
         total_records: { type: integer }
 
     # ---------- Accounts ----------
+    BookingRequest:
+      type: object
+      required: [product_id, principal_amount, tenure_months, currency_code]
+      properties:
+        product_id: { type: integer, minimum: 1 }
+        principal_amount: { type: number, format: decimal, minimum: 0.01 }
+        tenure_months: { type: integer, minimum: 1 }
+        currency_code: { type: string, minLength: 1 }
+
+    ProductOffer:
+      type: object
+      required: [product_id, product_code, product_name, currency_code, minimum_amount, maximum_amount, annual_rate]
+      properties:
+        product_id: { type: integer }
+        product_code: { type: string }
+        product_name: { type: string }
+        currency_code: { type: string }
+        minimum_amount: { type: number, format: decimal }
+        maximum_amount: { type: number, format: decimal }
+        minimum_tenure_months: { type: integer }
+        maximum_tenure_months: { type: integer }
+        annual_rate: { type: number, format: decimal }
+        compounding_frequency: { type: string }
+        payout_frequency: { type: string }
+        closure_penalty_rule: { type: string }
+        maturity_estimate_basis: { type: string }
+
+    AccountResponse:
+      type: object
+      properties:
+        account_id: { type: integer }
+        account_number: { type: string }
+        product_id: { type: integer }
+        product_code: { type: string }
+        currency_code: { type: string }
+        principal_amount: { type: number, format: decimal }
+        tenure_months: { type: integer }
+        annual_rate: { type: number, format: decimal }
+        compounding_frequency: { type: string }
+        payout_frequency: { type: string }
+        open_date: { type: string, format: date }
+        maturity_date: { type: string, format: date }
+        maturity_amount: { type: number, format: decimal }
+        policy_version: { type: string }
+        status: { type: string, enum: [PENDING, ACTIVE, MATURED, CLOSED] }
+        funding_recorded: { type: boolean }
+
     CreateAccountRequest:
       type: object
       required: [product_id, currency_id, principal_amount, tenure_months, interest_rate]

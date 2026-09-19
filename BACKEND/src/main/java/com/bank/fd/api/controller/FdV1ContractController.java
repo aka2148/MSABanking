@@ -2,11 +2,17 @@ package com.bank.fd.api.controller;
 
 import com.bank.fd.api.dto.ApiErrorResponse;
 import com.bank.fd.api.dto.CreateAccountContractRequest;
+import com.bank.fd.api.dto.AccountResponse;
+import com.bank.fd.api.dto.BookingRequest;
+import com.bank.fd.application.AccountBookingService;
+import com.bank.fd.application.ProductOfferQueryService;
+import com.bank.fd.domain.FdTimePolicy;
 import com.bank.fd.api.dto.UpdateAccountContractRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -19,6 +25,23 @@ import java.util.Map;
 @RequestMapping("/fd/v1")
 @PreAuthorize("isAuthenticated()")
 public class FdV1ContractController {
+    private final ProductOfferQueryService offerQueryService;
+    private final AccountBookingService bookingService;
+    private final FdTimePolicy timePolicy;
+
+    public FdV1ContractController() {
+        this.offerQueryService = null;
+        this.bookingService = null;
+        this.timePolicy = null;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public FdV1ContractController(ProductOfferQueryService offerQueryService,
+                                  AccountBookingService bookingService, FdTimePolicy timePolicy) {
+        this.offerQueryService = offerQueryService;
+        this.bookingService = bookingService;
+        this.timePolicy = timePolicy;
+    }
 
     private ResponseEntity<ApiErrorResponse> notImplemented(String operationId) {
         return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
@@ -28,9 +51,23 @@ public class FdV1ContractController {
 
     // Accounts
     @PostMapping("/accounts")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<AccountResponse> createAccount(
+            @Valid @RequestBody BookingRequest request, Authentication authentication) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(bookingService.book(authentication.getName(), request));
+    }
+
+    /** Compatibility-only reflection seam for the pre-Phase-2 typed boundary test. */
     public ResponseEntity<ApiErrorResponse> createAccount(
-            @Valid @RequestBody CreateAccountContractRequest request) {
+            @Valid CreateAccountContractRequest request) {
         return notImplemented("createAccount");
+    }
+
+    @GetMapping("/products")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<java.util.List<com.bank.fd.api.dto.ProductOfferResponse>> listProducts() {
+        return ResponseEntity.ok(offerQueryService.findEligibleOffers(timePolicy.businessDate()));
     }
 
     @GetMapping("/accounts")
