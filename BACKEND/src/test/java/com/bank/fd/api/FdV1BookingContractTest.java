@@ -2,6 +2,8 @@ package com.bank.fd.api;
 
 import com.bank.fd.api.controller.FdV1ContractController;
 import com.bank.fd.api.dto.BookingRequest;
+import com.bank.fd.api.dto.FundingRequest;
+import com.bank.fd.api.dto.FundingResponse;
 import com.bank.fd.application.FdActorResolver;
 import com.bank.fd.application.ProductOfferQueryService;
 import com.bank.fd.application.ProductTerms;
@@ -9,6 +11,7 @@ import com.bank.fd.application.ProductTermsPort;
 import com.bank.fd.domain.FdTimePolicy;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.PostMapping;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -43,5 +46,14 @@ class FdV1BookingContractTest {
         assertEquals("isAuthenticated()", FdV1ContractController.class
                 .getAnnotation(PreAuthorize.class).value());
         assertNotNull(FdActorResolver.class.getAnnotation(org.springframework.stereotype.Service.class));
+    }
+
+    @Test
+    void fundingRouteIsAuthenticatedAndTyped() throws Exception {
+        var method = FdV1ContractController.class.getDeclaredMethod("fundAccount", Long.class,
+                FundingRequest.class, org.springframework.security.core.Authentication.class);
+        assertEquals("/accounts/{accountId}/fund", method.getAnnotation(PostMapping.class).value()[0]);
+        assertEquals("hasRole('CUSTOMER')", method.getAnnotation(PreAuthorize.class).value());
+        assertEquals(2, FundingResponse.class.getRecordComponents().length - 15);
     }
 }

@@ -992,6 +992,25 @@ components:
         closure_penalty_rule: { type: string }
         maturity_estimate_basis: { type: string }
 
+    FundingRequest:
+      type: object
+      required: [amount, currency_code]
+      properties:
+        amount: { type: number, format: decimal, minimum: 0.01 }
+        currency_code: { type: string, minLength: 1 }
+
+    FundingResponse:
+      allOf:
+        - $ref: '#/components/schemas/AccountResponse'
+        - type: object
+          required: [funding_recorded, funding_description]
+          properties:
+            status: { type: string, enum: [ACTIVE] }
+            funding_recorded: { type: boolean, enum: [true] }
+            funding_description:
+              type: string
+              description: Internal academic record; no external payment rail is called.
+
     AccountResponse:
       type: object
       properties:

@@ -4,7 +4,10 @@ import com.bank.fd.api.dto.ApiErrorResponse;
 import com.bank.fd.api.dto.CreateAccountContractRequest;
 import com.bank.fd.api.dto.AccountResponse;
 import com.bank.fd.api.dto.BookingRequest;
+import com.bank.fd.api.dto.FundingRequest;
+import com.bank.fd.api.dto.FundingResponse;
 import com.bank.fd.application.AccountBookingService;
+import com.bank.fd.application.FundingService;
 import com.bank.fd.application.ProductOfferQueryService;
 import com.bank.fd.domain.FdTimePolicy;
 import com.bank.fd.api.dto.UpdateAccountContractRequest;
@@ -27,19 +30,22 @@ import java.util.Map;
 public class FdV1ContractController {
     private final ProductOfferQueryService offerQueryService;
     private final AccountBookingService bookingService;
+    private final FundingService fundingService;
     private final FdTimePolicy timePolicy;
 
     public FdV1ContractController() {
         this.offerQueryService = null;
         this.bookingService = null;
+        this.fundingService = null;
         this.timePolicy = null;
     }
 
     @org.springframework.beans.factory.annotation.Autowired
     public FdV1ContractController(ProductOfferQueryService offerQueryService,
-                                  AccountBookingService bookingService, FdTimePolicy timePolicy) {
+                                  AccountBookingService bookingService, FundingService fundingService, FdTimePolicy timePolicy) {
         this.offerQueryService = offerQueryService;
         this.bookingService = bookingService;
+        this.fundingService = fundingService;
         this.timePolicy = timePolicy;
     }
 
@@ -56,6 +62,14 @@ public class FdV1ContractController {
             @Valid @RequestBody BookingRequest request, Authentication authentication) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(bookingService.book(authentication.getName(), request));
+    }
+
+    @PostMapping("/accounts/{accountId}/fund")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<FundingResponse> fundAccount(@PathVariable Long accountId,
+                                                       @Valid @RequestBody FundingRequest request,
+                                                       Authentication authentication) {
+        return ResponseEntity.ok(fundingService.fund(accountId, authentication.getName(), request));
     }
 
     /** Compatibility-only reflection seam for the pre-Phase-2 typed boundary test. */
