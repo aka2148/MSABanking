@@ -23,7 +23,7 @@ class NormalizedProductTermsAdapterTest {
 
     @Test
     void mapsOneActiveNormalizedOfferToValidatedProductTerms() {
-        var adapter = new NormalizedProductTermsAdapter(product -> List.of(VALID_OFFER));
+        var adapter = new NormalizedProductTermsAdapter((product, currency, date) -> List.of(VALID_OFFER));
 
         ProductTerms terms = adapter.resolveActiveTerms(
                 new ProductTermsQuery(7L, new BigDecimal("1000.00"), 12, "usd"),
@@ -63,6 +63,6 @@ class NormalizedProductTermsAdapterTest {
 
     private static NormalizedProductTermsAdapter adapter(
             List<NormalizedProductTermsAdapter.NormalizedOffer> offers) {
-        return new NormalizedProductTermsAdapter(product -> offers);
+        return new NormalizedProductTermsAdapter((product, currency, date) -> offers);
     }
 }
