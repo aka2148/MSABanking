@@ -11,6 +11,7 @@ import com.bank.fd.service.AccountNumberGenerator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -33,6 +34,7 @@ public class AccountBookingService {
     @Autowired
     private FdCurrencyReferenceRepository currencyReferenceRepository;
 
+    @Autowired
     public AccountBookingService(ProductTermsPort termsPort, FdActorResolver actorResolver,
                                  FdAccountRepository accountRepository, AccountNumberGenerator accountNumberGenerator,
                                  FdTimePolicy timePolicy) {
