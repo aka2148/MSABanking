@@ -1,9 +1,9 @@
 ---
 phase: 02-product-booking-and-funding
 verified: 2026-09-19T15:35:00Z
-status: human_needed
+status: passed
 score: 5/5 must-haves verified
-overrides_applied: 0
+overrides_applied: 1
 re_verification:
   previous_status: gaps_found
   previous_score: 4/5
@@ -11,17 +11,14 @@ re_verification:
     - "The booking 201 response now documents AccountResponse, and the funding route is documented with FundingResponse."
   gaps_remaining: []
   regressions: []
-human_verification:
-  - test: "Run the PostgreSQL/Testcontainers application-flow tests with Docker enabled."
-    expected: "Flyway V1-V7 apply on PostgreSQL; the real booking/funding application path persists PENDING, then exactly one DEPOSIT and ACTIVE atomically, and invalid funding leaves no orphan transaction."
-    why_human: "Docker Desktop is installed but its daemon is unavailable in this environment; Maven skips the Testcontainers class, so PostgreSQL persistence and application-flow behavior cannot be observed locally."
+human_verification: []
 ---
 
 # Phase 2: Product Booking and Funding Verification Report
 
 **Phase Goal:** An authenticated customer can select an eligible FD offer, create a correctly associated pending account with locked terms, and fund it once to become active.
 **Verified:** 2026-09-19
-**Status:** human_needed
+**Status:** passed with environment-specific Docker verification waived
 **Re-verification:** Yes — after commit `bb56d1d` fixed the OpenAPI contract mismatch.
 
 ## Goal Achievement
@@ -36,7 +33,7 @@ human_verification:
 | 4 | Principal, rate, term, dates, maturity estimate, and policy version remain an agreed booking snapshot. | ✓ VERIFIED | `FdAccount` stores the resolved values; `V7__fd_booking_snapshot.sql` adds `fa_policy_version`; booking derives dates/estimate with the explicit BigDecimal Actual/365 policy. Schema and booking tests pass. |
 | 5 | Exact-principal funding records internal DEPOSIT and transitions PENDING to ACTIVE through the lifecycle boundary. | ✓ VERIFIED (application/unit evidence; PostgreSQL pending) | `POST /fd/v1/accounts/{accountId}/fund` calls `FundingService.fund`; it locks the row, checks holder/exact amount/currency, resolves DEPOSIT, saves the transaction, and applies `FdLifecycleCommand.FUND`. `FundingServiceTest` passes. The Docker-backed persistence/application-flow assertion remains human-needed. |
 
-**Score:** 5/5 truths verified from source and executable JVM tests; PostgreSQL/Testcontainers execution is pending human-environment verification.
+**Score:** 5/5 truths verified from source and executable JVM tests. Docker/Testcontainers execution was intentionally waived because the runtime database is hosted Supabase PostgreSQL.
 
 ## Required Artifacts
 
@@ -49,7 +46,7 @@ human_verification:
 | `BACKEND/src/main/java/com/bank/fd/api/controller/FdV1ContractController.java` | Products, booking, and funding routes | ✓ VERIFIED | `/products`, `/accounts`, and `/accounts/{accountId}/fund` are typed and customer-protected; later lifecycle placeholders remain intentional. |
 | `BACKEND/src/main/java/com/bank/fd/api/dto/AccountResponse.java` | Runtime booking response | ✓ VERIFIED | Explicit DTO returned by the 201 booking method. |
 | `BACKEND/src/main/java/com/bank/fd/api/dto/FundingResponse.java` | Runtime funding response | ✓ VERIFIED | Explicit ACTIVE response with truthful internal-record/no-external-rail wording. |
-| `BACKEND/src/test/java/com/bank/fd/FdBookingFundingIntegrationTest.java` | PostgreSQL booking/funding proof | ⚠️ PENDING | Test class exists, but all 3 tests were skipped because Docker is unavailable; its SQL assertions do not substitute for an executed application-flow test. |
+| `BACKEND/src/test/java/com/bank/fd/FdBookingFundingIntegrationTest.java` | PostgreSQL booking/funding proof | ⚠️ WAIVED | Test class exists, but Docker/Testcontainers execution was intentionally waived; runtime verification should use the configured Supabase environment separately. |
 
 ## OpenAPI Contract Confirmation
 
@@ -88,7 +85,7 @@ Commit `bb56d1d` closes the former booking-schema mismatch. `FdV1BookingContract
 | Focused Phase 2 tests | `mvn -q "-Dtest=FdBookingSchemaTest,NormalizedProductTermsAdapterTest,AccountBookingServiceTest,FundingServiceTest,FdV1BookingContractTest,FdV1ContractBoundaryTest,FdBookingFundingIntegrationTest" test` | 19 non-PostgreSQL tests passed; 3 Testcontainers tests skipped; no failures | ✓ PASS (Docker limitation) |
 | Full backend Maven suite | `mvn -q test` | 32 tests passed; 5 PostgreSQL/Testcontainers tests skipped; no failures | ✓ PASS (Docker limitation) |
 | OpenAPI/runtime wiring | source inspection plus contract tests | Booking 201 → `AccountResponse`; funding 200 → `FundingResponse`; route and schema assertions pass | ✓ PASS |
-| Docker-backed PostgreSQL application flow | `docker info` / Testcontainers | Docker CLI present, daemon unavailable at `dockerDesktopLinuxEngine`; integration class reports 3/3 skipped | ? PENDING HUMAN |
+| Docker-backed PostgreSQL application flow | `docker info` / Testcontainers | Docker unavailable; runtime database is hosted Supabase PostgreSQL and this local container gate was waived | ⚠️ WAIVED |
 
 ## Requirements Coverage
 
@@ -115,13 +112,13 @@ No blocker anti-pattern was found in the Phase 2 implementation. Generated `BACK
 
 ### 1. Docker-backed PostgreSQL application-flow verification
 
-**Test:** Start Docker Desktop and run `mvn -q "-Dtest=FdBookingFundingIntegrationTest" test` from `BACKEND`; verify the real service/HTTP path, not only direct SQL setup, for list offers → book → PENDING/unfunded → exact fund → ACTIVE/one DEPOSIT.
-**Expected:** Flyway V1-V7 apply successfully on PostgreSQL; valid booking/funding persists the expected account and transaction atomically, while invalid funding creates no orphan transaction or false activation.
-**Why human:** The Docker daemon is unavailable in this environment, and the current integration class was skipped. This is an Escalation Gate for developer/environment action, not a resolved local test result.
+**Test:** Not run locally. The application runtime uses hosted Supabase PostgreSQL rather than a local Docker database.
+**Expected:** The same Flyway V1-V7 and booking/funding behavior is exercised against the configured Supabase environment during normal deployment/demo setup.
+**Why waived:** The user explicitly confirmed that Docker verification is unnecessary for this hosted-database setup. No Supabase credentials were accessed or logged.
 
 ## Gaps Summary
 
-The previous OpenAPI gap is closed by `bb56d1d`: the booking 201 response now references `AccountResponse`, and the documented funding route is present and references `FundingResponse`, matching the controller return types. PROD-01, BOOK-01, BOOK-02, BOOK-03, and FUND-01 are supported by current source, focused tests, and a passing full Maven suite. The only outstanding verification is Docker-backed PostgreSQL/Testcontainers application-flow execution; it is explicitly marked human-needed because the Docker daemon is unavailable and the integration tests are skipped.
+The previous OpenAPI gap is closed by `bb56d1d`: the booking 201 response now references `AccountResponse`, and the documented funding route is present and references `FundingResponse`, matching the controller return types. PROD-01, BOOK-01, BOOK-02, BOOK-03, and FUND-01 are supported by current source, focused tests, and a passing full Maven suite. Docker-backed Testcontainers execution is intentionally waived for the hosted Supabase environment.
 
 ---
 
