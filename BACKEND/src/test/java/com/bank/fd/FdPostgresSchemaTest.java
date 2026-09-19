@@ -39,7 +39,7 @@ class FdPostgresSchemaTest {
     void appliesAllMigrationsAndExposesTheLifecycleBaseline() throws SQLException {
         try (Connection connection = DriverManager.getConnection(
                 postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())) {
-            assertEquals(Set.of("1", "2", "3", "4", "5", "6"), appliedVersions(connection));
+            assertEquals(Set.of("1", "2", "3", "4", "5", "6", "7"), appliedVersions(connection));
             assertTrue(scalar(connection,
                     "SELECT column_default FROM information_schema.columns "
                             + "WHERE table_schema = 'public' AND table_name = 'fd_accounts' "
@@ -52,6 +52,14 @@ class FdPostgresSchemaTest {
                     "SELECT is_nullable FROM information_schema.columns "
                             + "WHERE table_schema = 'public' AND table_name = 'fd_accounts' "
                             + "AND column_name = 'fa_row_version'"));
+            assertTrue(scalar(connection,
+                    "SELECT column_default FROM information_schema.columns "
+                            + "WHERE table_schema = 'public' AND table_name = 'fd_accounts' "
+                            + "AND column_name = 'fa_policy_version'").contains("academic-v1"));
+            assertTrue(indexExists(connection, "uq_fd_user_ref_user_uuid"));
+            assertEquals("DEPOSIT", scalar(connection,
+                    "SELECT tt_txn_type_code FROM public.transaction_types "
+                            + "WHERE tt_txn_type_code = 'DEPOSIT'"));
 
             assertTrue(constraintExists(connection, "fd_accounts", "ck_fd_accounts_status"));
             assertTrue(constraintExists(connection, "fd_accounts", "ck_fd_accounts_principal_positive"));

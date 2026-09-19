@@ -27,6 +27,7 @@ public class FdAccount {
     @Column(name = "fa_open_date", nullable = false) private OffsetDateTime openDate;
     @Column(name = "fa_maturity_date") private OffsetDateTime maturityDate;
     @Column(name = "fa_maturity_amount", precision = 18, scale = 4) private BigDecimal maturityAmount;
+    @Column(name = "fa_policy_version", nullable = false, length = 50) private String policyVersion = "academic-v1";
     @Enumerated(EnumType.STRING) @Column(name = "fa_status", nullable = false, length = 30) private FdStatus status = FdStatus.PENDING;
     @Column(name = "fa_created_by", length = 255) private String createdBy;
     @Column(name = "fa_created_date", nullable = false) private OffsetDateTime createdDate;
@@ -88,6 +89,8 @@ public class FdAccount {
     public void setMaturityDateTime(OffsetDateTime maturityDate) { this.maturityDate = maturityDate; }
     public BigDecimal getMaturityAmount() { return maturityAmount; }
     public void setMaturityAmount(BigDecimal maturityAmount) { this.maturityAmount = maturityAmount; }
+    public String getPolicyVersion() { return policyVersion; }
+    public void setPolicyVersion(String policyVersion) { this.policyVersion = policyVersion; }
     public FdStatus getStatus() { return status; }
     public Long getRowVersion() { return rowVersion; }
     public BigDecimal getAccruedInterest() { return accruedInterest; }
