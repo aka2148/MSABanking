@@ -9,9 +9,9 @@ Requirements for the academic FD demonstration. Each maps to exactly one roadmap
 
 ### Product and Booking
 
-- [ ] **PROD-01**: An authenticated customer can view active FD products and the supported term, rate, amount, and maturity information needed to choose one.
+- [x] **PROD-01**: An authenticated customer can view active FD products and the supported term, rate, amount, and maturity information needed to choose one.
 - [ ] **BOOK-01**: An authenticated customer can book an FD associated with their customer/account identity using a valid product, principal, currency, and term.
-- [ ] **BOOK-02**: The server validates product eligibility, positive amount, supported term/currency, required fields, and customer association before saving a booking.
+- [x] **BOOK-02**: The server validates product eligibility, positive amount, supported term/currency, required fields, and customer association before saving a booking.
 - [ ] **BOOK-03**: The booking stores the agreed principal, rate, term, open date, maturity date, and maturity estimate so later product changes do not unexpectedly rewrite the demonstration account.
 
 ### Funding and Lifecycle
@@ -80,9 +80,9 @@ Which phases cover which requirements. Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PROD-01 | Phase 2 | Pending |
+| PROD-01 | Phase 2 | Complete |
 | BOOK-01 | Phase 2 | Pending |
-| BOOK-02 | Phase 2 | Pending |
+| BOOK-02 | Phase 2 | Complete |
 | BOOK-03 | Phase 2 | Pending |
 | FUND-01 | Phase 2 | Pending |
 | FUND-02 | Phase 5 | Pending |

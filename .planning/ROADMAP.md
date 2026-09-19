@@ -45,7 +45,11 @@ Plans:
   3. Invalid product, amount, currency, term, required-field, or customer-association combinations are rejected before an account is saved.
   4. The booked principal, rate, term, dates, and maturity estimate remain the agreed values even if the source product is later changed.
   5. One valid funding operation for the required principal records the funding and changes the FD from pending to active; an unfunded booking does not accrue or appear active.
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [x] 02-01-PLAN.md — Establish authoritative product terms, booking DTOs, and reference persistence
+- [ ] 02-02-PLAN.md — Implement eligible offers and authenticated pending FD booking
+- [ ] 02-03-PLAN.md — Implement exact-principal funding and pending-to-active flow
 
 ### Phase 3: Interest and Maturity Processing
 **Goal**: An active FD can be processed with one consistent, explainable money policy through interest accrual and maturity.
@@ -90,7 +94,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Existing FD Baseline | 3/3 | Complete | 2026-09-18 |
-| 2. Product Booking and Funding | 0/TBD | Not started | - |
+| 2. Product Booking and Funding | 1/3 | In Progress | - |
 | 3. Interest and Maturity Processing | 0/TBD | Not started | - |
 | 4. Closure and Demonstrable API Workflow | 0/TBD | Not started | - |
 | 5. Protection, Tests, and Regression Gate | 0/TBD | Not started | - |

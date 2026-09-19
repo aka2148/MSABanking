@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Phase 2 context gathered
-last_updated: "2026-09-19T08:37:50.499Z"
-last_activity: 2026-09-18
+status: executing
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-09-19T09:15:34.874Z"
+last_activity: 2026-09-19 -- Phase 02 plan 01 completed
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
-  percent: 100
+  total_plans: 6
+  completed_plans: 4
+  percent: 67
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-18)
 
 **Core value:** Students must be able to demonstrate a complete, understandable fixed-deposit workflow from product selection through booking, funding, interest calculation, maturity, and closure using the existing application.
-**Current focus:** Phase 01 — Existing FD Baseline
+**Current focus:** Phase 02 — product-booking-and-funding
 
 ## Current Position
 
-Phase: 01 (Existing FD Baseline) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
-Last activity: 2026-09-18
+Phase: 02 (product-booking-and-funding) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-09-19
 
-Progress: [██████████] 100%
+Progress: [███████░░░] 67%
 
 ## Performance Metrics
 
@@ -45,7 +45,7 @@ Progress: [██████████] 100%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1 | 3 | 3 | 9 min |
-| 2 | 0 | TBD | N/A |
+| 2 | 1 | 18 min | 18 min |
 | 3 | 0 | TBD | N/A |
 | 4 | 0 | TBD | N/A |
 | 5 | 0 | TBD | N/A |
@@ -56,6 +56,7 @@ Progress: [██████████] 100%
 - Trend: Established
 
 | Phase 01 P03 | 12 min | 3 tasks | 7 files |
+| Phase 02 P01 | 18 min | 2 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -83,6 +84,8 @@ Recent decisions affecting current work:
 - Typed authenticated /fd/v1 account boundary retains explicit 501 placeholders until later lifecycle services
 - PostgreSQL 16 Alpine Testcontainers gate uses Boot-managed test dependencies and generated credentials
 - Testcontainers schema tests skip only when Docker is unavailable locally
+- V7 stores an independent academic-v1 policy snapshot and diagnostic local-reference prerequisites.
+- Normalized terms resolution returns local fd_*_ref identities and fails closed for missing or ambiguous authority data.
 
 ### Pending Todos
 
@@ -104,8 +107,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: --stopped-at
-Stopped at: Phase 2 context gathered
-Resume file: --resume-file
+Last session: Completed 02-01-PLAN.md
+Stopped at: Completed 02-01-PLAN.md
+Resume file: None
 
-**Planned Phase:** 1 (Existing FD Baseline) — 3 plans — 2026-09-18T09:42:54.479Z
+**Planned Phase:** 2 (Product Booking and Funding) — 3 plans — 2026-09-19
