@@ -49,7 +49,7 @@ Plans:
 Plans:
 - [x] 02-01-PLAN.md — Establish authoritative product terms, booking DTOs, and reference persistence
 - [x] 02-02-PLAN.md — Implement eligible offers and authenticated pending FD booking
-- [ ] 02-03-PLAN.md — Implement exact-principal funding and pending-to-active flow
+- [x] 02-03-PLAN.md — Implement exact-principal funding and pending-to-active flow
 
 ### Phase 3: Interest and Maturity Processing
 **Goal**: An active FD can be processed with one consistent, explainable money policy through interest accrual and maturity.
@@ -94,7 +94,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Existing FD Baseline | 3/3 | Complete | 2026-09-18 |
-| 2. Product Booking and Funding | 2/3 | In Progress | - |
+| 2. Product Booking and Funding | 3/3 | Complete | 2026-09-19 |
 | 3. Interest and Maturity Processing | 0/TBD | Not started | - |
 | 4. Closure and Demonstrable API Workflow | 0/TBD | Not started | - |
 | 5. Protection, Tests, and Regression Gate | 0/TBD | Not started | - |

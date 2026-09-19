@@ -18,7 +18,8 @@ Requirements for the academic FD demonstration. Each maps to exactly one roadmap
 
 ### Funding and Lifecycle
 
-- [ ] **FUND-01**: A newly booked FD starts in a pending/unfunded status and becomes active only after one valid funding operation for the required principal.
+- [x] **FUND-01
+**: A newly booked FD starts in a pending/unfunded status and becomes active only after one valid funding operation for the required principal.
 - [ ] **FUND-02**: Repeating a booking or funding request does not create a second FD or duplicate principal transaction for the same operation.
 - [x] **LIFE-01**: The FD uses clear, validated lifecycle transitions for pending, active, matured, and closed states, and rejects invalid transitions.
 - [ ] **LIFE-02**: The system can process maturity for an eligible active FD and transition it to matured using the stored term and maturity date.
@@ -86,7 +87,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | BOOK-01 | Phase 2 | Pending |
 | BOOK-02 | Phase 2 | Complete |
 | BOOK-03 | Phase 2 | Pending |
-| FUND-01 | Phase 2 | Pending |
+| FUND-01 | Phase 2 | Complete |
 | FUND-02 | Phase 5 | Pending |
 | LIFE-01 | Phase 1 | Complete |
 | LIFE-02 | Phase 3 | Pending |
