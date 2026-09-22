@@ -16,7 +16,7 @@ The roadmap deliberately excludes production banking infrastructure, real paymen
 - [ ] **Phase 2: Product Booking and Funding** - Let an authenticated customer select eligible terms, book an FD, fund it, and reach active status.
 - [ ] **Phase 3: Interest and Maturity Processing** - Apply consistent decimal calculations, store accruals, and move eligible active FDs to matured.
 - [ ] **Phase 4: Closure and Demonstrable API Workflow** - Complete normal/premature closure, settlement/history responses, and the end-to-end REST demonstration.
-- [ ] **Phase 5: Protection, Tests, and Regression Gate** - Add basic ownership/role protection, duplicate safety, focused tests, and regression verification.
+- [x] **Phase 5: Protection, Tests, and Regression Gate** - Add basic ownership/role protection, duplicate safety, focused tests, and regression verification.
 
 ## Phase Details
 
