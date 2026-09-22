@@ -200,11 +200,23 @@ paths:
       operationId: matureAccount
       responses:
         '200':
-          description: Maturity processed
+          description: Maturity processed with final through-end-date calculation
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Account'
+                $ref: '#/components/schemas/AccrualResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: Caller does not own this FD account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /accounts/{accountId}/renew:
     parameters:
@@ -383,6 +395,7 @@ paths:
             schema:
               type: object
               properties:
+                business_date: { type: string, format: date }
                 accrual_date: { type: string, format: date }
       responses:
         '200':
@@ -390,7 +403,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/InterestAccrual'
+                $ref: '#/components/schemas/AccrualResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: Caller does not own this FD account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /accounts/{accountId}/accrual:
     parameters:
@@ -407,7 +432,15 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/InterestAccrual'
+                  $ref: '#/components/schemas/AccrualResponse'
+        '403':
+          description: Caller does not own this FD account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /accounts/{accountId}/accrual/cumulative:
     parameters:
@@ -422,11 +455,15 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  account_id: { type: integer }
-                  cumulative_accrued: { type: number, format: double }
-                  as_of_date: { type: string, format: date }
+                $ref: '#/components/schemas/AccrualResponse'
+        '403':
+          description: Caller does not own this FD account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   # ============ PAYOUT ACCOUNTS ============
   /accounts/{accountId}/payout-accounts:
@@ -1176,6 +1213,19 @@ components:
         requires_approval: { type: boolean }
 
     # ---------- Interest Accrual ----------
+    AccrualResponse:
+      type: object
+      properties:
+        account_id: { type: integer }
+        account_number: { type: string }
+        accrual_date: { type: string, format: date }
+        accrued_amount: { type: number, format: double }
+        cumulative_accrued: { type: number, format: double }
+        currency_code: { type: string }
+        maturity_amount: { type: number, format: double }
+        policy_version: { type: string }
+        status: { type: string }
+
     InterestAccrual:
       type: object
       properties:

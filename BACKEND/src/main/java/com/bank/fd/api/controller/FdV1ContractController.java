@@ -1,13 +1,16 @@
 package com.bank.fd.api.controller;
 
 import com.bank.fd.api.dto.ApiErrorResponse;
+import com.bank.fd.api.dto.AccrualResponse;
 import com.bank.fd.api.dto.CreateAccountContractRequest;
 import com.bank.fd.api.dto.AccountResponse;
 import com.bank.fd.api.dto.BookingRequest;
 import com.bank.fd.api.dto.FundingRequest;
 import com.bank.fd.api.dto.FundingResponse;
+import com.bank.fd.application.AccrualService;
 import com.bank.fd.application.AccountBookingService;
 import com.bank.fd.application.FundingService;
+import com.bank.fd.application.MaturityService;
 import com.bank.fd.application.ProductOfferQueryService;
 import com.bank.fd.domain.FdTimePolicy;
 import com.bank.fd.api.dto.UpdateAccountContractRequest;
@@ -31,21 +34,29 @@ public class FdV1ContractController {
     private final ProductOfferQueryService offerQueryService;
     private final AccountBookingService bookingService;
     private final FundingService fundingService;
+    private final AccrualService accrualService;
+    private final MaturityService maturityService;
     private final FdTimePolicy timePolicy;
 
     public FdV1ContractController() {
         this.offerQueryService = null;
         this.bookingService = null;
         this.fundingService = null;
+        this.accrualService = null;
+        this.maturityService = null;
         this.timePolicy = null;
     }
 
     @org.springframework.beans.factory.annotation.Autowired
     public FdV1ContractController(ProductOfferQueryService offerQueryService,
-                                  AccountBookingService bookingService, FundingService fundingService, FdTimePolicy timePolicy) {
+                                  AccountBookingService bookingService, FundingService fundingService,
+                                  AccrualService accrualService, MaturityService maturityService,
+                                  FdTimePolicy timePolicy) {
         this.offerQueryService = offerQueryService;
         this.bookingService = bookingService;
         this.fundingService = fundingService;
+        this.accrualService = accrualService;
+        this.maturityService = maturityService;
         this.timePolicy = timePolicy;
     }
 
@@ -101,7 +112,11 @@ public class FdV1ContractController {
     public ResponseEntity<ApiErrorResponse> activateAccount(@PathVariable Long accountId) { return notImplemented("activateAccount"); }
 
     @PostMapping("/accounts/{accountId}/mature")
-    public ResponseEntity<ApiErrorResponse> matureAccount(@PathVariable Long accountId) { return notImplemented("matureAccount"); }
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<AccrualResponse> matureAccount(@PathVariable Long accountId,
+                                                         Authentication authentication) {
+        return ResponseEntity.ok(maturityService.processMaturity(accountId, authentication.getName()));
+    }
 
     @PostMapping("/accounts/{accountId}/renew")
     public ResponseEntity<ApiErrorResponse> renewAccount(@PathVariable Long accountId, @RequestBody(required = false) Map<String, Object> body) { return notImplemented("renewAccount"); }
@@ -133,13 +148,37 @@ public class FdV1ContractController {
     public ResponseEntity<ApiErrorResponse> listTransactionTypes() { return notImplemented("listTransactionTypes"); }
 
     @PostMapping("/accounts/{accountId}/accrual/run")
-    public ResponseEntity<ApiErrorResponse> runAccrual(@PathVariable Long accountId, @RequestBody(required = false) Map<String, Object> body) { return notImplemented("runAccrual"); }
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<AccrualResponse> runAccrual(@PathVariable Long accountId,
+                                                      @RequestBody(required = false) Map<String, Object> body,
+                                                      Authentication authentication) {
+        return ResponseEntity.ok(accrualService.runAccrual(accountId, authentication.getName(),
+                extractBusinessDate(body)));
+    }
 
     @GetMapping("/accounts/{accountId}/accrual")
-    public ResponseEntity<ApiErrorResponse> listAccrual(@PathVariable Long accountId) { return notImplemented("listAccrual"); }
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<java.util.List<AccrualResponse>> listAccrual(@PathVariable Long accountId,
+                                                                       Authentication authentication) {
+        return ResponseEntity.ok(accrualService.listAccruals(accountId, authentication.getName()));
+    }
 
     @GetMapping("/accounts/{accountId}/accrual/cumulative")
-    public ResponseEntity<ApiErrorResponse> getCumulativeAccrual(@PathVariable Long accountId) { return notImplemented("getCumulativeAccrual"); }
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<AccrualResponse> getCumulativeAccrual(@PathVariable Long accountId,
+                                                                Authentication authentication) {
+        return ResponseEntity.ok(accrualService.cumulative(accountId, authentication.getName()));
+    }
+
+    private java.time.LocalDate extractBusinessDate(Map<String, Object> body) {
+        if (body != null) {
+            Object raw = body.containsKey("business_date") ? body.get("business_date") : body.get("accrual_date");
+            if (raw instanceof String text && !text.isBlank()) {
+                return java.time.LocalDate.parse(text.trim());
+            }
+        }
+        return timePolicy.businessDate();
+    }
 
     // Payout accounts and payouts
     @GetMapping("/accounts/{accountId}/payout-accounts")
