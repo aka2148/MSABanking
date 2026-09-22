@@ -17,7 +17,7 @@ The roadmap deliberately excludes production banking infrastructure, real paymen
 - [ ] **Phase 3: Interest and Maturity Processing** - Apply consistent decimal calculations, store accruals, and move eligible active FDs to matured.
 - [ ] **Phase 4: Closure and Demonstrable API Workflow** - Complete normal/premature closure, settlement/history responses, and the end-to-end REST demonstration.
 - [x] **Phase 5: Protection, Tests, and Regression Gate** - Add basic ownership/role protection, duplicate safety, focused tests, and regression verification.
-- [ ] **Phase 6: Angular FD Frontend** - Add a responsive Angular interface for the complete FD workflow using the existing login/dashboard visual language.
+- [x] **Phase 6: Angular FD Frontend** - Add a responsive Angular interface for the complete FD workflow using the existing login/dashboard visual language.
 
 ## Phase Details
 
@@ -119,7 +119,7 @@ Plans:
 - [x] 06-01-PLAN.md — Create typed authenticated FD transport and idempotent frontend writes
 - [x] 06-02-PLAN.md — Build eligible product browsing and three-step booking
 - [x] 06-03-PLAN.md — Build status-aware account lifecycle hub and unified history
-- [ ] 06-04-PLAN.md — Wire protected routes and complete frontend verification
+- [x] 06-04-PLAN.md — Wire protected routes and complete frontend verification
 
 ## Progress
 
@@ -133,7 +133,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 3. Interest and Maturity Processing | 2/2 | Complete | 2026-09-22 |
 | 4. Closure and Demonstrable API Workflow | 4/4 | Complete | 2026-09-22 |
 | 5. Protection, Tests, and Regression Gate | 5/5 | Complete | 2026-09-22 |
-| 6. Angular FD Frontend | 3/4 | In Progress | - |
+| 6. Angular FD Frontend | 4/4 | Complete | 2026-09-22 |
 
 ## Coverage
 
