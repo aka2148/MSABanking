@@ -129,7 +129,7 @@ export class FdService {
   private write<T>(path: string, body?: object): Observable<T> {
     const key = this.startSubmission();
     return this.http.post<T>(this.path(path), body, {
-      setHeaders: { 'Idempotency-Key': key },
+      headers: { 'Idempotency-Key': key },
     });
   }
 

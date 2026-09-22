@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { GlassShell } from '../../../shared/components/glass-shell/glass-shell';
 
@@ -14,14 +14,16 @@ import { GlassShell } from '../../../shared/components/glass-shell/glass-shell';
 export class FdAccountLookup {
   loading = false;
   errorMessage = '';
-  form = this.fb.nonNullable.group({
-    accountId: ['', [Validators.required, Validators.pattern(/^[1-9][0-9]*$/)]],
-  });
+  form: FormGroup<{ accountId: FormControl<string> }>;
 
   constructor(
     private readonly fb: FormBuilder,
     private readonly router: Router
-  ) {}
+  ) {
+    this.form = this.fb.nonNullable.group({
+      accountId: ['', [Validators.required, Validators.pattern(/^[1-9][0-9]*$/)]],
+    });
+  }
 
   openAccount(): void {
     if (this.form.invalid) {

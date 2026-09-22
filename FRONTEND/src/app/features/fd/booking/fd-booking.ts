@@ -1,7 +1,15 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, ValidatorFn } from '@angular/forms';
+import {
+  AbstractControl,
+  FormBuilder,
+  FormControl,
+  FormGroup,
+  ReactiveFormsModule,
+  ValidationErrors,
+  ValidatorFn,
+} from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   AccountResponse,
@@ -30,18 +38,24 @@ export class FdBooking implements OnInit {
   submittedAccount: AccountResponse | null = null;
   tenureOptions: GlassSelectOption[] = [];
   readonly currencyOptions: GlassSelectOption[] = [];
-  readonly bookingForm = this.fb.nonNullable.group({
-    principalAmount: ['', [this.requiredValue()]],
-    tenureMonths: ['', [this.requiredValue()]],
-    currencyCode: ['', [this.requiredValue()]],
-  });
+  readonly bookingForm: FormGroup<{
+    principalAmount: FormControl<string>;
+    tenureMonths: FormControl<string>;
+    currencyCode: FormControl<string>;
+  }>;
 
   constructor(
     private readonly fdService: FdService,
     private readonly router: Router,
     private readonly route: ActivatedRoute,
     private readonly fb: FormBuilder
-  ) {}
+  ) {
+    this.bookingForm = this.fb.nonNullable.group({
+      principalAmount: ['', [this.requiredValue()]],
+      tenureMonths: ['', [this.requiredValue()]],
+      currencyCode: ['', [this.requiredValue()]],
+    });
+  }
 
   ngOnInit(): void {
     const productId = Number(this.route.snapshot.paramMap.get('productId'));
