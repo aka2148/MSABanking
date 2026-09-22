@@ -49,6 +49,12 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
     }
 
+    @ExceptionHandler(com.bank.fd.exception.FdDuplicateOperationException.class)
+    public ResponseEntity<Map<String, Object>> handleFdDuplicateOperation(
+            com.bank.fd.exception.FdDuplicateOperationException ex) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleAccessDeniedException(AccessDeniedException ex) {
         return buildResponse(HttpStatus.FORBIDDEN, "Access Denied: " + ex.getMessage());
