@@ -10,8 +10,8 @@ progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 17
-  completed_plans: 16
-  percent: 94
+  completed_plans: 17
+  percent: 100
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-09-18)
 
 ## Current Position
 
-Phase: 05 (protection-tests-and-regression-gate) — EXECUTING
-Plan: 5 of 5 (05-04 complete)
-Status: Ready to execute
+Phase: 05 (protection-tests-and-regression-gate) — COMPLETE
+Plan: 5 of 5 (05-05 complete)
+Status: Phase complete — human follow-ups: live-PG run of FdPhase5ProtectionIT, live Supabase REST demo
 Last activity: 2026-09-22
 
-Progress: [█████████░] 94%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -101,6 +101,10 @@ Recent decisions affecting current work:
 - 05-03 closure/history idempotency: same-key replays rebuild stored DTOs with zero new rows; key-less CLOSED repeat is 409 referencing the existing settlement
 - 05-03 controller contract: seven FD mutating endpoints forward Idempotency-Key and admit CUSTOMER/BANK_OFFICER/ADMIN; cross-customer reads 404 via FdAccessPolicy
 - 05-04 unit layer: 4 new test classes (guard replay/mismatch, ownership matrix, 409/409/422/404/400 mapping, gap-only boundaries incl. one-day 17.81 and 100-point penalty floor); 37/37 green with existing domain tests untouched, no Spring or Docker
+- 05-05 integration gate: FdOwnershipContractTest 5/5 green on H2 without Docker (404 ownership probes x4, staff BANK_OFFICER read, 409/422/400 contract, byte-identical fund replay); FdPhase5ProtectionIT created per plan with verbatim Docker-skip guard (2 skipped, exit 0 without Docker); full mvn test BUILD SUCCESS — 132 run, 0 failures, 5 pre-existing Docker skips
+- getAccount read path uses findById (FOR UPDATE outside TX 500s on H2); write-path locking untouched
+- Anonymous FD reads pin 403 per SecurityFlowTest; 401 pinned on failed login, not on anonymous GET
+- Test JVMs require process-local JWT_SECRET >= 64 bytes (HS512); never stored in repo
 
 ### Pending Todos
 
@@ -122,7 +126,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: Completed 05-04-PLAN.md
+Last session: Completed 05-05-PLAN.md (Phase 5 complete)
 Stopped at: None
 Resume file: None
 
