@@ -66,8 +66,14 @@ export interface LoginRequest {
 export interface LoginResponse {
   success: boolean;
   token?: string;
-  role?: string; // from user_roles/roles — used for future route guards
+  role?: string;
   message?: string;
+}
+
+export interface AuthSession {
+  authenticated: boolean;
+  token: string | null;
+  role: string | null;
 }
 
 export interface KycDocument {

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { BehaviorSubject, Observable, tap } from 'rxjs';
 import {
   LoginRequest,
   LoginResponse,
@@ -8,11 +8,17 @@ import {
   SignupResponse,
   RequestContext,
   Channel,
+  AuthSession,
 } from '../models/auth.models';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly baseUrl = 'http://localhost:8080/api/auth'; // update once backend confirms port
+  private readonly tokenKey = 'token';
+  private readonly roleKey = 'role';
+  private readonly sessionSubject = new BehaviorSubject<AuthSession>(this.readSession());
+
+  readonly session$ = this.sessionSubject.asObservable();
 
   constructor(private http: HttpClient) {}
 
@@ -23,7 +29,13 @@ export class AuthService {
       password,
       context: this.buildContext(),
     };
-    return this.http.post<LoginResponse>(`${this.baseUrl}/login`, payload);
+    return this.http.post<LoginResponse>(`${this.baseUrl}/login`, payload).pipe(
+      tap((response) => {
+        if (response.token) {
+          this.setSession(response.token, response.role ?? null);
+        }
+      })
+    );
   }
 
   signup(form: Omit<SignupRequest, 'context'>): Observable<SignupResponse> {
@@ -40,8 +52,44 @@ export class AuthService {
     };
   }
 
+  getToken(): string | null {
+    return this.sessionSubject.value.token;
+  }
+
+  currentRole(): string | null {
+    return this.sessionSubject.value.role;
+  }
+
+  isAuthenticated(): boolean {
+    return this.getToken() !== null;
+  }
+
+  logout(): void {
+    localStorage.removeItem(this.tokenKey);
+    localStorage.removeItem(this.roleKey);
+    this.sessionSubject.next({ authenticated: false, token: null, role: null });
+  }
+
+  private setSession(token: string, role: string | null): void {
+    localStorage.setItem(this.tokenKey, token);
+    if (role) {
+      localStorage.setItem(this.roleKey, role);
+    } else {
+      localStorage.removeItem(this.roleKey);
+    }
+    this.sessionSubject.next({ authenticated: true, token, role });
+  }
+
+  private readSession(): AuthSession {
+    const token = localStorage.getItem(this.tokenKey);
+    const role = localStorage.getItem(this.roleKey);
+    return { authenticated: token !== null, token, role };
+  }
+
   private detectChannel(): Channel {
-    return /Android|iPhone|iPad/i.test(navigator.userAgent) ? 'MOBILE' : 'WEB';
+    return typeof navigator !== 'undefined' && /Android|iPhone|iPad/i.test(navigator.userAgent)
+      ? 'MOBILE'
+      : 'WEB';
   }
 
   private generateRequestId(): string {
