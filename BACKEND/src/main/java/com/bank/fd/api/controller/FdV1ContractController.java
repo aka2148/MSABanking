@@ -165,8 +165,11 @@ public class FdV1ContractController {
     @GetMapping("/accounts/{accountId}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<AccountResponse> getAccount(@PathVariable Long accountId,
-                                                      Authentication authentication) {
-        FdAccount account = accountRepository.findByIdForUpdate(accountId)
+                                                       Authentication authentication) {
+        // Read-only snapshot: never take the pessimistic write lock here.
+        // findByIdForUpdate outside a transaction is rejected by strict
+        // databases (H2) and the lock serves no purpose for a snapshot read.
+        FdAccount account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new ResourceNotFoundException("FD account not found"));
         accessPolicy.requireOwned(authentication.getName(), account, authentication);
         String productCode = productRepository.findById(account.getProductId())

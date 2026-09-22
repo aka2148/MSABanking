@@ -233,7 +233,7 @@ class FdV1ClosureHistoryContractTest {
     void getAccountReturnsStatusSnapshot() throws Exception {
         FdAccount active = account(FdStatus.ACTIVE);
         stubOwnership(active);
-        when(accountRepository.findByIdForUpdate(11L)).thenReturn(Optional.of(active));
+        when(accountRepository.findById(11L)).thenReturn(Optional.of(active));
 
         mockMvc.perform(get("/fd/v1/accounts/11").principal(authentication))
                 .andExpect(status().isOk())
