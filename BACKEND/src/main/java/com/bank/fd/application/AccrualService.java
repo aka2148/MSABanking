@@ -7,12 +7,13 @@ import com.bank.fd.domain.FdInterestCalculator;
 import com.bank.fd.domain.FdTimePolicy;
 import com.bank.fd.entity.FdAccount;
 import com.bank.fd.entity.FdInterestAccrual;
+import com.bank.fd.entity.FdOperationIdempotency;
 import com.bank.fd.entity.FdStatus;
 import com.bank.fd.repository.FdAccountRepository;
 import com.bank.fd.repository.FdCurrencyReferenceRepository;
 import com.bank.fd.repository.FdInterestAccrualRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,29 +34,39 @@ public class AccrualService {
     private final FdCurrencyReferenceRepository currencyRepository;
     private final FdActorResolver actorResolver;
     private final FdTimePolicy timePolicy;
+    private final FdIdempotencyGuard idempotencyGuard;
+    private final FdAccessPolicy accessPolicy;
 
     @Autowired
     public AccrualService(FdAccountRepository accountRepository,
                           FdInterestAccrualRepository accrualRepository,
                           FdCurrencyReferenceRepository currencyRepository,
                           FdActorResolver actorResolver,
-                          FdTimePolicy timePolicy) {
+                          FdTimePolicy timePolicy,
+                          FdIdempotencyGuard idempotencyGuard,
+                          FdAccessPolicy accessPolicy) {
         this.accountRepository = accountRepository;
         this.accrualRepository = accrualRepository;
         this.currencyRepository = currencyRepository;
         this.actorResolver = actorResolver;
         this.timePolicy = timePolicy;
+        this.idempotencyGuard = idempotencyGuard;
+        this.accessPolicy = accessPolicy;
     }
 
     @Transactional
     public AccrualResponse runAccrual(Long accountId, String username, LocalDate businessDate) {
+        return runAccrual(accountId, username, businessDate, null);
+    }
+
+    @Transactional
+    public AccrualResponse runAccrual(Long accountId, String username, LocalDate businessDate, String idempotencyKey) {
         LocalDate effectiveBusinessDate = businessDate == null ? timePolicy.businessDate() : businessDate;
         FdAccount account = accountRepository.findByIdForUpdate(accountId)
                 .orElseThrow(() -> new ResourceNotFoundException("FD account not found"));
         var holder = actorResolver.resolve(username);
-        if (!holder.getId().equals(account.getPrimaryHolderId())) {
-            throw new AccessDeniedException("Authenticated customer does not own this FD account");
-        }
+        accessPolicy.requireOwned(username, account,
+                SecurityContextHolder.getContext().getAuthentication());
         if (account.getStatus() != FdStatus.ACTIVE) {
             throw new InvalidInputException("Only ACTIVE FD accounts can accrue interest");
         }
@@ -63,6 +74,24 @@ public class AccrualService {
         LocalDate endDate = effectiveBusinessDate;
         if (account.getMaturityDate() != null && endDate.isAfter(account.getMaturityDate())) {
             endDate = account.getMaturityDate();
+        }
+
+        String canonical = accountId + "|" + effectiveBusinessDate;
+        FdOperationIdempotency claim = idempotencyGuard.claim("ACCRUAL", "fd-user-" + holder.getId(), idempotencyKey,
+                FdIdempotencyGuard.sha256Hex(canonical));
+        if (claim != null && claim.getAggregateId() != null) {
+            FdAccount stored = accountRepository.findById(claim.getAggregateId())
+                    .orElseThrow(() -> new ResourceNotFoundException("FD account not found"));
+            LocalDate replayEnd = effectiveBusinessDate;
+            if (stored.getMaturityDate() != null && replayEnd.isAfter(stored.getMaturityDate())) {
+                replayEnd = stored.getMaturityDate();
+            }
+            OffsetDateTime replayDate = replayEnd.atStartOfDay().atOffset(ZoneOffset.UTC);
+            FdInterestAccrual replayed = accrualRepository.findByAccountIdAndAccrualDate(stored.getId(), replayDate)
+                    .orElseThrow(() -> new ResourceNotFoundException("FD interest accrual not found"));
+            BigDecimal replayedCumulative = replayed.getCumulativeAccrued() == null
+                    ? replayed.getAccruedAmount() : replayed.getCumulativeAccrued();
+            return AccrualResponse.accrued(stored, replayed, replayedCumulative, resolveCurrencyCode(stored));
         }
 
         BigDecimal interest = FdInterestCalculator.interestForPeriod(
@@ -87,6 +116,7 @@ public class AccrualService {
         row.setCurrencyId(account.getCurrencyId());
         row.setUuid(UUID.randomUUID().toString());
         FdInterestAccrual saved = accrualRepository.save(row);
+        idempotencyGuard.complete(claim, account.getId(), "accrual:" + account.getId() + ":" + accrualDate.toLocalDate());
         return AccrualResponse.accrued(account, saved, saved.getCumulativeAccrued(), currencyCode);
     }
 
@@ -126,10 +156,8 @@ public class AccrualService {
     private FdAccount loadOwnedAccount(Long accountId, String username) {
         FdAccount account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new ResourceNotFoundException("FD account not found"));
-        var holder = actorResolver.resolve(username);
-        if (!holder.getId().equals(account.getPrimaryHolderId())) {
-            throw new AccessDeniedException("Authenticated customer does not own this FD account");
-        }
+        accessPolicy.requireOwned(username, account,
+                SecurityContextHolder.getContext().getAuthentication());
         return account;
     }
 

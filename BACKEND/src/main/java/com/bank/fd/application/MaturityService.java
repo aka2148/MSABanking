@@ -9,6 +9,7 @@ import com.bank.fd.domain.FdLifecycleStateMachine;
 import com.bank.fd.domain.FdTimePolicy;
 import com.bank.fd.entity.FdAccount;
 import com.bank.fd.entity.FdInterestAccrual;
+import com.bank.fd.entity.FdOperationIdempotency;
 import com.bank.fd.entity.FdStatus;
 import com.bank.fd.entity.FdTransaction;
 import com.bank.fd.exception.InvalidFdTransitionException;
@@ -18,7 +19,7 @@ import com.bank.fd.repository.FdInterestAccrualRepository;
 import com.bank.fd.repository.FdTransactionRepository;
 import com.bank.fd.repository.TransactionTypeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,6 +46,8 @@ public class MaturityService {
     private final FdActorResolver actorResolver;
     private final FdLifecycleStateMachine stateMachine;
     private final FdTimePolicy timePolicy;
+    private final FdIdempotencyGuard idempotencyGuard;
+    private final FdAccessPolicy accessPolicy;
 
     @Autowired
     public MaturityService(FdAccountRepository accountRepository,
@@ -54,7 +57,9 @@ public class MaturityService {
                            FdTransactionRepository transactionRepository,
                            FdActorResolver actorResolver,
                            FdLifecycleStateMachine stateMachine,
-                           FdTimePolicy timePolicy) {
+                           FdTimePolicy timePolicy,
+                           FdIdempotencyGuard idempotencyGuard,
+                           FdAccessPolicy accessPolicy) {
         this.accountRepository = accountRepository;
         this.accrualRepository = accrualRepository;
         this.currencyRepository = currencyRepository;
@@ -63,17 +68,42 @@ public class MaturityService {
         this.actorResolver = actorResolver;
         this.stateMachine = stateMachine;
         this.timePolicy = timePolicy;
+        this.idempotencyGuard = idempotencyGuard;
+        this.accessPolicy = accessPolicy;
     }
 
     @Transactional
     public AccrualResponse processMaturity(Long accountId, String username) {
+        return processMaturity(accountId, username, null);
+    }
+
+    @Transactional
+    public AccrualResponse processMaturity(Long accountId, String username, String idempotencyKey) {
         FdAccount account = accountRepository.findByIdForUpdate(accountId)
                 .orElseThrow(() -> new ResourceNotFoundException("FD account not found"));
         var holder = actorResolver.resolve(username);
-        if (!holder.getId().equals(account.getPrimaryHolderId())) {
-            throw new AccessDeniedException("Authenticated customer does not own this FD account");
+        accessPolicy.requireOwned(username, account,
+                SecurityContextHolder.getContext().getAuthentication());
+
+        FdOperationIdempotency claim = idempotencyGuard.claim("MATURITY", "fd-user-" + holder.getId(), idempotencyKey,
+                FdIdempotencyGuard.sha256Hex(accountId + "|MATURITY"));
+        if (claim != null && claim.getAggregateId() != null) {
+            FdAccount stored = accountRepository.findById(claim.getAggregateId())
+                    .orElseThrow(() -> new ResourceNotFoundException("FD account not found"));
+            BigDecimal replayedInterest = FdInterestCalculator.interestForPeriod(
+                    stored.getPrincipalAmount(), stored.getInterestRate(),
+                    stored.getBookingDate(), stored.getMaturityDate());
+            String replayedCurrency = currencyRepository.findById(stored.getCurrencyId())
+                    .orElseThrow(() -> new ResourceNotFoundException("FD account currency not found"))
+                    .getIsoCode();
+            return AccrualResponse.matured(stored, replayedInterest, replayedInterest,
+                    stored.getMaturityAmount(), replayedCurrency, stored.getMaturityDate());
         }
         if (account.getStatus() != FdStatus.ACTIVE) {
+            if (account.getStatus() == FdStatus.MATURED && (idempotencyKey == null || idempotencyKey.isBlank())) {
+                throw new InvalidFdTransitionException("FD account is already MATURED; existing maturity transaction recorded for account: "
+                        + account.getAccountNumber());
+            }
             throw new InvalidFdTransitionException(account.getStatus(), FdLifecycleCommand.MATURE);
         }
 
@@ -117,6 +147,7 @@ public class MaturityService {
         account.setStatus(transition.to());
         account.setMaturityAmount(finalMaturity);
         accountRepository.save(account);
+        idempotencyGuard.complete(claim, account.getId(), account.getAccountNumber());
 
         String currencyCode = currencyRepository.findById(account.getCurrencyId())
                 .orElseThrow(() -> new ResourceNotFoundException("FD account currency not found"))

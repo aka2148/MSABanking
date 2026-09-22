@@ -50,10 +50,11 @@ class AccrualMaturityServiceTest {
         FdTimePolicy timePolicy = new FdTimePolicy(
                 Clock.fixed(Instant.parse("2026-01-01T10:00:00Z"), ZoneId.of("UTC")), ZoneId.of("UTC"));
         accrualService = new AccrualService(accountRepository, accrualRepository, currencyRepository,
-                actorResolver, timePolicy);
+                actorResolver, timePolicy, mock(FdIdempotencyGuard.class), new FdAccessPolicy(actorResolver));
         maturityService = new MaturityService(accountRepository, accrualRepository, currencyRepository,
                 transactionTypeRepository, transactionRepository, actorResolver,
-                new FdLifecycleStateMachine(), timePolicy);
+                new FdLifecycleStateMachine(), timePolicy,
+                mock(FdIdempotencyGuard.class), new FdAccessPolicy(actorResolver));
 
         account = new FdAccount();
         account.setId(11L);
