@@ -118,7 +118,7 @@ Plans:
 Plans:
 - [x] 06-01-PLAN.md — Create typed authenticated FD transport and idempotent frontend writes
 - [x] 06-02-PLAN.md — Build eligible product browsing and three-step booking
-- [ ] 06-03-PLAN.md — Build status-aware account lifecycle hub and unified history
+- [x] 06-03-PLAN.md — Build status-aware account lifecycle hub and unified history
 - [ ] 06-04-PLAN.md — Wire protected routes and complete frontend verification
 
 ## Progress
@@ -133,7 +133,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 3. Interest and Maturity Processing | 2/2 | Complete | 2026-09-22 |
 | 4. Closure and Demonstrable API Workflow | 4/4 | Complete | 2026-09-22 |
 | 5. Protection, Tests, and Regression Gate | 5/5 | Complete | 2026-09-22 |
-| 6. Angular FD Frontend | 2/4 | In Progress | - |
+| 6. Angular FD Frontend | 3/4 | In Progress | - |
 
 ## Coverage
 

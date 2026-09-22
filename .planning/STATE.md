@@ -4,14 +4,14 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: None
-last_updated: "2026-09-22T14:38:54.706Z"
+last_updated: "2026-09-22T14:44:50.247Z"
 last_activity: 2026-09-22
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 21
-  completed_plans: 19
-  percent: 90
+  completed_plans: 20
+  percent: 95
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-09-18)
 ## Current Position
 
 Phase: 06 (angular-fd-frontend)
-Plan: 02 complete; next 03
+Plan: 03 complete; next 04
 Status: In Progress
 Last activity: 2026-09-22
 
-Progress: [█████████░] 90%
+Progress: [██████████] 95%
 
 ## Performance Metrics
 
@@ -65,6 +65,7 @@ Progress: [█████████░] 90%
 | Phase 05 P05-03 | 20min | 2 tasks | 10 files |
 | Phase 06 P01 | 25 | 2 tasks | 9 files |
 | Phase 06 P02 | 16 | 2 tasks | 11 files |
+| Phase 06 P03 | 12 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -114,6 +115,9 @@ Recent decisions affecting current work:
 - FD landing and booking keep product and final terms server-authoritative; browser performs UX bounds validation only.
 - FD booking retries retain the existing FdService-managed idempotency key.
 - Protected lazy route wiring remains owned by Plan 06-04.
+- Derive lifecycle controls from the five backend account statuses and never expose an unconditional mutating action.
+- Keep final-action confirmation local while retaining FdService idempotency keys for safe retries.
+- Display backend financial responses and history directly; the component performs no interest, penalty, or settlement calculation.
 
 ### Pending Todos
 
@@ -135,7 +139,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: Completed 06-02-PLAN.md
+Last session: Completed 06-03-PLAN.md
 Stopped at: None
 Resume file: None
 
