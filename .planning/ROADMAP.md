@@ -75,7 +75,12 @@ Plans:
   3. A premature-closure request either applies the existing available rule with `BigDecimal` interest/penalty and records the outcome, or returns a clear unsupported business error without closing the FD.
   4. Invalid input, missing resources, unauthorized access, invalid transitions, and unsupported premature closure produce consistent REST error responses rather than placeholder success.
   5. The account history demonstrates the funding, accrual, maturity, closure, and settlement records linked to the FD without claiming an external payment rail succeeded when only an internal record exists.
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+- [ ] 04-01-PLAN.md — V9 closure/history migration, premature-closure entity, and BigDecimal penalty policy
+- [ ] 04-02-PLAN.md — Normal closure, two-step premature-closure, and unified history services
+- [ ] 04-03-PLAN.md — Closure/status/history endpoint wiring, consistent errors, OpenAPI, contract tests
+- [ ] 04-04-PLAN.md — Postman end-to-end demo collection with contract-consistency test
 
 ### Phase 5: Protection, Tests, and Regression Gate
 **Goal**: The demonstrable FD workflow is safe for ordinary retries and basic customer/staff use, and evidence exists that it did not regress the existing college lab application.
