@@ -114,7 +114,12 @@ Plans:
   6. The FD screens reuse the existing `GlassShell`, glass cards, shared tokens, typography, controls, and responsive patterns; desktop and mobile layouts remain usable without introducing an unrelated visual system.
   7. Placeholder `501 NOT_IMPLEMENTED` backend operations are not exposed in the v1 frontend; loading, empty, error, success, and disabled-action states are covered for the supported journeys.
   8. Angular build and focused frontend tests pass, and the complete REST-driven workflow is manually verified against the configured Supabase-backed environment without committing credentials.
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+- [x] 06-01-PLAN.md — Create typed authenticated FD transport and idempotent frontend writes
+- [ ] 06-02-PLAN.md — Build eligible product browsing and three-step booking
+- [ ] 06-03-PLAN.md — Build status-aware account lifecycle hub and unified history
+- [ ] 06-04-PLAN.md — Wire protected routes and complete frontend verification
 
 ## Progress
 
@@ -128,7 +133,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 3. Interest and Maturity Processing | 2/2 | Complete | 2026-09-22 |
 | 4. Closure and Demonstrable API Workflow | 4/4 | Complete | 2026-09-22 |
 | 5. Protection, Tests, and Regression Gate | 5/5 | Complete | 2026-09-22 |
-| 6. Angular FD Frontend | 0/TBD | Not started | - |
+| 6. Angular FD Frontend | 1/4 | In Progress | - |
 
 ## Coverage
 

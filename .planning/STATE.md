@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Phase 6 context gathered
-last_updated: "2026-09-22T12:53:07.012Z"
+stopped_at: None
+last_updated: "2026-09-22T14:27:37.049Z"
 last_activity: 2026-09-22
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 17
-  completed_plans: 17
-  percent: 100
+  total_plans: 21
+  completed_plans: 18
+  percent: 86
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-09-18)
 ## Current Position
 
 Phase: 06 (angular-fd-frontend)
-Plan: Not started
-Status: Ready to plan
+Plan: 01 complete; next 02
+Status: In Progress
 Last activity: 2026-09-22
 
-Progress: [██████████] 100% (Phase 5 complete; Phase 6 added)
+Progress: [█████████░] 86%
 
 ## Performance Metrics
 
@@ -63,6 +63,7 @@ Progress: [██████████] 100% (Phase 5 complete; Phase 6 added
 | Phase 02 P03 | 25 min | 2 tasks | 10 files |
 | Phase 05 P02 | 6min | 2 tasks | 8 files |
 | Phase 05 P05-03 | 20min | 2 tasks | 10 files |
+| Phase 06 P01 | 25 | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -106,6 +107,9 @@ Recent decisions affecting current work:
 - getAccount read path uses findById (FOR UPDATE outside TX 500s on H2); write-path locking untouched
 - Anonymous FD reads pin 403 per SecurityFlowTest; 401 pinned on failed login, not on anonymous GET
 - Test JVMs require process-local JWT_SECRET >= 64 bytes (HS512); never stored in repo
+- Preserved existing token localStorage key and auth payloads while adding role/session state.
+- Kept active FD idempotency keys in FdService memory with explicit submission lifecycle.
+- Scoped Angular FD transport to implemented /fd/v1 endpoints only.
 
 ### Pending Todos
 
@@ -127,11 +131,11 @@ None yet.
 
 ## Session Continuity
 
-Last session: --stopped-at
-Stopped at: Phase 6 context gathered
-Resume file: --resume-file
+Last session: Completed 06-01-PLAN.md
+Stopped at: None
+Resume file: None
 
-**Planned Phase:** 2 (Product Booking and Funding) — 3 plans — 2026-09-19
+**Planned Phase:** 06 (angular-fd-frontend) — 4 plans — 2026-09-22T13:13:07.043Z
 **Completed Phase:** 3 (Interest and Maturity Processing) — 2 plans — 2026-09-22 (4/4 must-haves verified; human-needed: live REST book→fund→accrue→mature demo against Supabase)
 **Completed Phase:** 4 (Closure and Demonstrable API Workflow) — 4 plans — 2026-09-22 (5/5 must-haves verified; review HI-01+MED-03 fixed in f5e1fd5; human-needed: live Postman demo against Supabase)
 **Completed Phase:** 5 (Protection, Tests, and Regression Gate) — 5 plans — 2026-09-22 (5/5 must-haves verified; 3 MED + 4 LOW advisories, none goal-blocking; human-needed: live Supabase REST demo + live-PG FdPhase5ProtectionIT run)
