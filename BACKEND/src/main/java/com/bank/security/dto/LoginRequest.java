@@ -1,10 +1,12 @@
 package com.bank.security.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.NotBlank;
 
 public class LoginRequest {
 
     @NotBlank
+    @JsonAlias({"identifier", "email"})
     private String username;
 
     @NotBlank

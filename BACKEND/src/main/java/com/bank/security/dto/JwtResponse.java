@@ -3,6 +3,7 @@ package com.bank.security.dto;
 import java.util.List;
 
 public class JwtResponse {
+    private boolean success = true;
     private String token;
     private String type = "Bearer";
     private String username;
@@ -21,6 +22,14 @@ public class JwtResponse {
     }
 
     // Getters and Setters
+    public boolean isSuccess() {
+        return success;
+    }
+
+    public void setSuccess(boolean success) {
+        this.success = success;
+    }
+
     public String getToken() {
         return token;
     }
