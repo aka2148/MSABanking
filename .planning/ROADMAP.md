@@ -95,7 +95,7 @@ Plans:
 **Plans**: 5 plans
 Plans:
 - [x] 05-01-PLAN.md — Guard foundation: idempotency guard, ownership policy, error mapping, CORS
-- [ ] 05-02-PLAN.md — Wire duplicate safety and ownership into booking/funding/accrual/maturity
+- [x] 05-02-PLAN.md — Wire duplicate safety and ownership into booking/funding/accrual/maturity
 - [ ] 05-03-PLAN.md — Wire closure/premature/history plus /fd/v1 key threading and staff roles
 - [ ] 05-04-PLAN.md — Unit tests for math, lifecycle, guard, policy, and error mapping
 - [ ] 05-05-PLAN.md — PostgreSQL/MockMvc integration proof and full-suite regression gate

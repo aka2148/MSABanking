@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 5 plan 01 complete
-last_updated: "2026-09-22T10:30:00.000Z"
-last_activity: 2026-09-22 -- Phase 05 plan 01 complete (guard foundation)
+stopped_at: None
+last_updated: "2026-09-22T10:38:40.515Z"
+last_activity: 2026-09-22 -- Phase 05 plan 02 complete (booking/funding/accrual/maturity idempotency + ownership)
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 17
-  completed_plans: 13
-  percent: 76
+  completed_plans: 14
+  percent: 82
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-09-18)
 ## Current Position
 
 Phase: 05 (protection-tests-and-regression-gate) — EXECUTING
-Plan: 2 of 5 (05-01 complete)
-Status: Executing Phase 05
-Last activity: 2026-09-22 -- Phase 05 plan 01 complete (guard foundation)
+Plan: 3 of 5 (05-02 complete)
+Status: Ready to execute
+Last activity: 2026-09-22 -- Phase 05 plan 02 complete (booking/funding/accrual/maturity idempotency + ownership)
 
-Progress: [██████████] 100%
+Progress: [████████░░] 82%
 
 ## Performance Metrics
 
@@ -60,6 +60,7 @@ Progress: [██████████] 100%
 | Phase 02 P01 | 18 min | 2 tasks | 18 files |
 | Phase 02 P02 | 12min | 2 tasks | 14 files |
 | Phase 02 P03 | 25 min | 2 tasks | 10 files |
+| Phase 05 P02 | 6min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -94,6 +95,8 @@ Recent decisions affecting current work:
 - Funding uses an authenticated exact-principal pessimistic-lock transaction with an internal DEPOSIT and the Phase 1 FUND transition.
 - Funding responses explicitly describe internal academic recordkeeping without claiming external payment settlement.
 - 05-01 guard foundation: durable idempotency claim/replay (same key+hash replays, mismatch 409 with existing-record reference); ownership via FdActorResolver holder-match or ROLE_BANK_OFFICER/ROLE_ADMIN else 404; duplicate errors map to 409; CORS allows Idempotency-Key.
+- 05-02 service wiring: booking/funding/accrual/maturity claim guard scopes and replay the stored aggregate with zero new rows; authorities for requireOwned come from SecurityContextHolder (staff bypass live, controller still key-less); key-less double funding/maturity 409 referencing the existing record; key-less booking still creates a new pending FD.
+- 05-02: authorities for requireOwned come from SecurityContextHolder so staff bypass works without changing service signatures ahead of Plan 03
 
 ### Pending Todos
 
@@ -115,9 +118,9 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-09-22 -- Phase 05 plan 01 complete
-Stopped at: Phase 5 plan 01 complete (guard foundation committed; next: 05-02 service wiring)
-Resume file: --resume-file
+Last session: Completed 05-02-PLAN.md
+Stopped at: None
+Resume file: None
 
 **Planned Phase:** 2 (Product Booking and Funding) — 3 plans — 2026-09-19
 **Completed Phase:** 3 (Interest and Maturity Processing) — 2 plans — 2026-09-22 (4/4 must-haves verified; human-needed: live REST book→fund→accrue→mature demo against Supabase)
