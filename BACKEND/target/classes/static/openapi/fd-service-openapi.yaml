@@ -30,6 +30,23 @@ tags:
 
 paths:
 
+  /products:
+    get:
+      tags: [Accounts]
+      summary: List active eligible FD offers
+      operationId: listProducts
+      responses:
+        '200':
+          description: Active server-resolved offers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductOffer'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   # ============ ACCOUNTS ============
   /accounts:
     post:
@@ -41,16 +58,18 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateAccountRequest'
+              $ref: '#/components/schemas/BookingRequest'
       responses:
         '201':
           description: Account created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Account'
+                $ref: '#/components/schemas/AccountResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
     get:
       tags: [Accounts]
       summary: Search / list FD accounts
@@ -101,12 +120,20 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Account'
+                $ref: '#/components/schemas/AccountResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: Caller does not own this FD account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
           $ref: '#/components/responses/NotFound'
     patch:
       tags: [Accounts]
-      summary: Update mutable account fields (e.g. auto_renewal, status)
+      summary: Update mutable account instructions (e.g. auto_renewal)
       operationId: updateAccount
       requestBody:
         required: true
@@ -141,6 +168,37 @@ paths:
         '409':
           description: Invalid state transition
 
+  /accounts/{accountId}/fund:
+    parameters:
+      - $ref: '#/components/parameters/AccountId'
+    post:
+      tags: [Accounts]
+      summary: Record exact-principal internal funding and activate the FD
+      operationId: fundAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FundingRequest'
+      responses:
+        '200':
+          description: Funding recorded internally and account activated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FundingResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
   /accounts/{accountId}/mature:
     parameters:
       - $ref: '#/components/parameters/AccountId'
@@ -150,11 +208,23 @@ paths:
       operationId: matureAccount
       responses:
         '200':
-          description: Maturity processed
+          description: Maturity processed with final through-end-date calculation
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Account'
+                $ref: '#/components/schemas/AccrualResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: Caller does not own this FD account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /accounts/{accountId}/renew:
     parameters:
@@ -187,11 +257,23 @@ paths:
       operationId: closeAccount
       responses:
         '200':
-          description: Account closed
+          description: Account closed with internal settlement
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Account'
+                $ref: '#/components/schemas/ClosureResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: Caller does not own this FD account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   # ============ HOLDERS ============
   /accounts/{accountId}/holders:
@@ -282,7 +364,7 @@ paths:
                 $ref: '#/components/schemas/Transaction'
     get:
       tags: [Transactions]
-      summary: Get transaction history for account
+      summary: Get unified closure/history timeline for account
       operationId: listTransactions
       parameters:
         - name: from_date
@@ -296,13 +378,23 @@ paths:
           schema: { type: integer }
       responses:
         '200':
-          description: Transaction list
+          description: Unified timeline merging transactions with interest accruals
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Transaction'
+                  $ref: '#/components/schemas/HistoryEntry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: Caller does not own this FD account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /transaction-types:
     get:
@@ -333,6 +425,7 @@ paths:
             schema:
               type: object
               properties:
+                business_date: { type: string, format: date }
                 accrual_date: { type: string, format: date }
       responses:
         '200':
@@ -340,7 +433,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/InterestAccrual'
+                $ref: '#/components/schemas/AccrualResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: Caller does not own this FD account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /accounts/{accountId}/accrual:
     parameters:
@@ -357,7 +462,15 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/InterestAccrual'
+                  $ref: '#/components/schemas/AccrualResponse'
+        '403':
+          description: Caller does not own this FD account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /accounts/{accountId}/accrual/cumulative:
     parameters:
@@ -372,11 +485,15 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  account_id: { type: integer }
-                  cumulative_accrued: { type: number, format: double }
-                  as_of_date: { type: string, format: date }
+                $ref: '#/components/schemas/AccrualResponse'
+        '403':
+          description: Caller does not own this FD account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   # ============ PAYOUT ACCOUNTS ============
   /accounts/{accountId}/payout-accounts:
@@ -489,18 +606,39 @@ paths:
       summary: Request premature closure (computes penalty via rule engine)
       operationId: requestPrematureClosure
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreatePrematureClosureRequest'
+              type: object
+              properties:
+                reason: { type: string }
+                business_date: { type: string, format: date }
       responses:
         '201':
           description: Premature closure request created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PrematureClosure'
+                $ref: '#/components/schemas/PrematureClosureResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: Caller does not own this FD account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          description: Premature closure not supported for this product (no usable CLOSURE_PENALTY rule)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     get:
       tags: [Premature Closure]
       summary: Get premature closure request(s) for account
@@ -513,7 +651,17 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/PrematureClosure'
+                  $ref: '#/components/schemas/PrematureClosureResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: Caller does not own this FD account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /accounts/{accountId}/premature-closure/{closureId}/approve:
     parameters:
@@ -533,13 +681,26 @@ paths:
               type: object
               properties:
                 approved_by: { type: string }
+                business_date: { type: string, format: date }
       responses:
         '200':
           description: Premature closure approved
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PrematureClosure'
+                $ref: '#/components/schemas/PrematureClosureResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: Caller does not own this FD account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   # ============ MATURITY INSTRUCTIONS ============
   /accounts/{accountId}/maturity-instructions:
@@ -735,8 +896,12 @@ paths:
             schema:
               $ref: '#/components/schemas/ProductRefSyncEvent'
       responses:
-        '204':
-          description: Synced
+        '501':
+          description: Synchronization not implemented
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /internal/sync/currency:
     post:
@@ -750,8 +915,12 @@ paths:
             schema:
               $ref: '#/components/schemas/CurrencyRefSyncEvent'
       responses:
-        '204':
-          description: Synced
+        '501':
+          description: Synchronization not implemented
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /internal/sync/user:
     post:
@@ -765,8 +934,12 @@ paths:
             schema:
               $ref: '#/components/schemas/UserRefSyncEvent'
       responses:
-        '204':
-          description: Synced
+        '501':
+          description: Synchronization not implemented
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /internal/sync/role-type:
     post:
@@ -780,8 +953,12 @@ paths:
             schema:
               $ref: '#/components/schemas/RoleTypeRefSyncEvent'
       responses:
-        '204':
-          description: Synced
+        '501':
+          description: Synchronization not implemented
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /internal/sync/rule-outcome:
     post:
@@ -795,8 +972,12 @@ paths:
             schema:
               $ref: '#/components/schemas/RuleOutcomeRefSyncEvent'
       responses:
-        '204':
-          description: Synced
+        '501':
+          description: Synchronization not implemented
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /ref/products:
     get:
@@ -898,6 +1079,18 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Booking conflicts with the current resource state
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication is required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
 
   schemas:
     Error:
@@ -914,13 +1107,78 @@ components:
         total_records: { type: integer }
 
     # ---------- Accounts ----------
+    BookingRequest:
+      type: object
+      required: [product_id, principal_amount, tenure_months, currency_code]
+      properties:
+        product_id: { type: integer, minimum: 1 }
+        principal_amount: { type: number, format: decimal, minimum: 0.01 }
+        tenure_months: { type: integer, minimum: 1 }
+        currency_code: { type: string, minLength: 1 }
+
+    ProductOffer:
+      type: object
+      required: [product_id, product_code, product_name, currency_code, minimum_amount, maximum_amount, annual_rate]
+      properties:
+        product_id: { type: integer }
+        product_code: { type: string }
+        product_name: { type: string }
+        currency_code: { type: string }
+        minimum_amount: { type: number, format: decimal }
+        maximum_amount: { type: number, format: decimal }
+        minimum_tenure_months: { type: integer }
+        maximum_tenure_months: { type: integer }
+        annual_rate: { type: number, format: decimal }
+        compounding_frequency: { type: string }
+        payout_frequency: { type: string }
+        closure_penalty_rule: { type: string }
+        maturity_estimate_basis: { type: string }
+
+    FundingRequest:
+      type: object
+      required: [amount, currency_code]
+      properties:
+        amount: { type: number, format: decimal, minimum: 0.01 }
+        currency_code: { type: string, minLength: 1 }
+
+    FundingResponse:
+      allOf:
+        - $ref: '#/components/schemas/AccountResponse'
+        - type: object
+          required: [funding_recorded, funding_description]
+          properties:
+            status: { type: string, enum: [ACTIVE] }
+            funding_recorded: { type: boolean, enum: [true] }
+            funding_description:
+              type: string
+              description: Internal academic record; no external payment rail is called.
+
+    AccountResponse:
+      type: object
+      properties:
+        account_id: { type: integer }
+        account_number: { type: string }
+        product_id: { type: integer }
+        product_code: { type: string }
+        currency_code: { type: string }
+        principal_amount: { type: number, format: decimal }
+        tenure_months: { type: integer }
+        annual_rate: { type: number, format: decimal }
+        compounding_frequency: { type: string }
+        payout_frequency: { type: string }
+        open_date: { type: string, format: date }
+        maturity_date: { type: string, format: date }
+        maturity_amount: { type: number, format: decimal }
+        policy_version: { type: string }
+        status: { type: string, enum: [PENDING, ACTIVE, MATURED, CLOSED, PREMATURELY_CLOSED] }
+        funding_recorded: { type: boolean }
+
     CreateAccountRequest:
       type: object
-      required: [product_id, currency_id, primary_holder_id, principal_amount, tenure_months, interest_rate]
+      required: [product_id, currency_id, principal_amount, tenure_months, interest_rate]
       properties:
         product_id: { type: integer }
         currency_id: { type: integer }
-        primary_holder_id: { type: integer }
         applied_rate_outcome_id: { type: integer }
         principal_amount: { type: number, format: double }
         tenure_months: { type: integer }
@@ -938,9 +1196,6 @@ components:
       type: object
       properties:
         auto_renewal: { type: boolean }
-        status:
-          type: string
-          enum: [PENDING, ACTIVE, MATURED, CLOSED, PREMATURELY_CLOSED]
 
     Account:
       type: object
@@ -1032,6 +1287,19 @@ components:
         requires_approval: { type: boolean }
 
     # ---------- Interest Accrual ----------
+    AccrualResponse:
+      type: object
+      properties:
+        account_id: { type: integer }
+        account_number: { type: string }
+        accrual_date: { type: string, format: date }
+        accrued_amount: { type: number, format: double }
+        cumulative_accrued: { type: number, format: double }
+        currency_code: { type: string }
+        maturity_amount: { type: number, format: double }
+        policy_version: { type: string }
+        status: { type: string }
+
     InterestAccrual:
       type: object
       properties:
@@ -1042,6 +1310,44 @@ components:
         cumulative_accrued: { type: number, format: double }
         currency_id: { type: integer }
         created_date: { type: string, format: date-time }
+
+    # ---------- Closure and History (Phase 4 typed DTOs) ----------
+    ClosureResponse:
+      type: object
+      properties:
+        account_id: { type: integer }
+        account_number: { type: string }
+        status: { type: string, enum: [CLOSED] }
+        closed_date: { type: string, format: date }
+        settlement_amount: { type: number, format: double }
+        currency_code: { type: string }
+        policy_version: { type: string }
+        remark: { type: string }
+
+    PrematureClosureResponse:
+      type: object
+      properties:
+        closure_id: { type: integer }
+        account_id: { type: integer }
+        status: { type: string, enum: [PENDING, APPROVED] }
+        requested_date: { type: string, format: date-time }
+        penalty_points: { type: number, format: double }
+        penalized_rate: { type: number, format: double }
+        penalty_amount: { type: number, format: double }
+        net_payable_amount: { type: number, format: double }
+        currency_code: { type: string }
+        approved_by: { type: integer, nullable: true }
+
+    HistoryEntry:
+      type: object
+      properties:
+        entry_type: { type: string }
+        entry_date: { type: string, format: date-time }
+        amount: { type: number, format: double }
+        currency_code: { type: string }
+        running_balance: { type: number, format: double, nullable: true }
+        source: { type: string, enum: [TRANSACTION, ACCRUAL] }
+        description: { type: string }
 
     # ---------- Payout Accounts ----------
     CreatePayoutAccountRequest:

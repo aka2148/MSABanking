@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.2" name="com.bank.fd.FdPhase5ProtectionIT" time="0.0" tests="2" errors="0" skipped="2" failures="0">
+  <properties/>
+  <testcase name="flywayMigrationsAppliedTheLifecycleBaseline" classname="com.bank.fd.FdPhase5ProtectionIT" time="0.0">
+    <skipped message="disabledWithoutDocker is true and Docker is not available"/>
+    <system-out><![CDATA[17:06:19.703 [main] INFO org.testcontainers.DockerClientFactory -- Testcontainers version: 1.21.3
+17:06:19.963 [main] INFO org.testcontainers.dockerclient.DockerMachineClientProviderStrategy -- docker-machine executable was not found on PATH ([C:\Program Files\Eclipse Adoptium\jdk-17.0.20.8-hotspot\bin, C:\Program Files (x86)\Microsoft SDKs\Azure\CLI2\wbin, C:\Users\ak200\Downloads\WINDOWS.X64_193000_db_home\bin, C:\app\ak200\product\23ai\dbhomeFree\bin, C:\Program Files\Eclipse Adoptium\jdk-11.0.27.6-hotspot\bin, C:\Windows\system32, C:\Windows, C:\Windows\System32\Wbem, C:\Windows\System32\WindowsPowerShell\v1.0\, C:\Windows\System32\OpenSSH\, C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common, C:\Program Files\NVIDIA Corporation\NVIDIA NvDLISR, C:\Windows\system32, C:\Windows, C:\Windows\System32\Wbem, C:\Windows\System32\WindowsPowerShell\v1.0\, C:\Windows\System32\OpenSSH\, C:\Program Files\dotnet\, C:\Users\ak200\Downloads\netcat-win32-1.11, C:\Users\ak200\Downloads\yafu-1.34, C:\Program Files\VSCodium\bin, C:\Users\ak200\AppData\Local\Muse Hub\lib, C:\Program Files\cursor\resources\app\bin, C:\Program Files\Cloudflare\Cloudflare WARP\, C:\ProgramData\chocolatey\bin, C:\Users\ak200\AppData\Local\nvm, C:\nvm4w\nodejs, C:\Program Files\Eclipse Adoptium\jdk-17.0.17.10-hotspot\bin, C:\ffmpeg\bin, C:\Program Files\Git\cmd, C:\Program Files\Go\bin, C:\Program Files\Eclipse Adoptium\jdk-17.0.20.8-hotspot\bin, C:\Program Files\Docker\Docker\resources\bin, C:\Program Files\MySQL\MySQL Shell 8.0\bin\, C:\Users\ak200\AppData\Local\Microsoft\WindowsApps, C:\MinGW\bin, C:\Users\ak200\AppData\Local\Programs\Microsoft VS Code\bin, C:\Users\ak200\AppData\Local\Muse Hub\lib, C:\Users\ak200\AppData\Local\Python\bin, C:\Users\ak200\AppData\Local\nvm, C:\nvm4w\nodejs, C:\Program Files\Apache\maven\apache-maven-3.9.12\bin, C:\Users\ak200\AppData\Local\Programs\Antigravity\bin, C:\Users\ak200\AppData\Local\Microsoft\WinGet\Links, C:\Users\ak200\AppData\Local\Microsoft\WinGet\Packages\yt-dlp.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-N-124279-g0f6ba39122-win64-gpl\bin, C:\Users\ak200\go\bin])
+17:06:19.963 [main] ERROR org.testcontainers.dockerclient.DockerClientProviderStrategy -- Could not find a valid Docker environment. Please check configuration. Attempted configurations were:
+As no valid configuration was found, execution cannot continue.
+See https://java.testcontainers.org/on_failure.html for more details.
+]]></system-out>
+  </testcase>
+  <testcase name="fullLifecycleWithFiveOperationDuplicateSafety" classname="com.bank.fd.FdPhase5ProtectionIT" time="0.0">
+    <skipped message="disabledWithoutDocker is true and Docker is not available"/>
+  </testcase>
+</testsuite>
