@@ -1,5 +1,6 @@
 package com.bank.fd.application;
 
+import com.bank.common.exception.InvalidInputException;
 import com.bank.common.exception.ResourceNotFoundException;
 import com.bank.fd.api.dto.PrematureClosureResponse;
 import com.bank.fd.domain.FdLifecycleStateMachine;
@@ -32,7 +33,6 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -64,7 +64,7 @@ class PrematureClosureServiceTest {
         account.setAccountNumber("FD000011");
         account.setPrimaryHolderId(41L);
         account.setProductId(7L);
-        account.setAppliedRateOutcomeId(55L);
+        account.setAppliedRateOutcomeId(77L);
         account.setCurrencyId(3L);
         account.setPrincipalAmount(new BigDecimal("100000.0000"));
         account.setInterestRate(new BigDecimal("0.0650"));
@@ -80,7 +80,7 @@ class PrematureClosureServiceTest {
         when(penaltyOutcome.getId()).thenReturn(77L);
         when(penaltyOutcome.getOutcomeType()).thenReturn("CLOSURE_PENALTY");
         when(penaltyOutcome.getOutcomeValue()).thenReturn("1.00");
-        when(ruleOutcomeRepository.findAll()).thenReturn(List.of(penaltyOutcome));
+        when(ruleOutcomeRepository.findById(77L)).thenReturn(Optional.of(penaltyOutcome));
         FdCurrencyReference currency = new FdCurrencyReference();
         currency.setId(3L);
         currency.setIsoCode("USD");
@@ -126,7 +126,7 @@ class PrematureClosureServiceTest {
 
     @Test
     void requestWithoutUsableRuleWritesNothing() {
-        when(ruleOutcomeRepository.findAll()).thenReturn(List.of());
+        when(ruleOutcomeRepository.findById(77L)).thenReturn(Optional.empty());
 
         PrematureClosureNotSupportedException failure = assertThrows(
                 PrematureClosureNotSupportedException.class,
@@ -144,12 +144,49 @@ class PrematureClosureServiceTest {
         FdRuleOutcomeReference badOutcome = mock(FdRuleOutcomeReference.class);
         when(badOutcome.getOutcomeType()).thenReturn("CLOSURE_PENALTY");
         when(badOutcome.getOutcomeValue()).thenReturn("waived");
-        when(ruleOutcomeRepository.findAll()).thenReturn(List.of(badOutcome));
+        when(ruleOutcomeRepository.findById(77L)).thenReturn(Optional.of(badOutcome));
 
         assertThrows(PrematureClosureNotSupportedException.class,
                 () -> service.requestPrematureClosure(11L, "alice", null));
         verify(closureRepository, never()).save(any());
         verify(transactionRepository, never()).save(any());
+    }
+
+    @Test
+    void requestWithSecondProductPenaltyRowStillResolvesOwnProduct() {
+        // A second product's CLOSURE_PENALTY row must not break this account:
+        // resolution follows the booked outcome reference, never a global scan.
+        FdRuleOutcomeReference otherProductPenalty = mock(FdRuleOutcomeReference.class);
+        when(otherProductPenalty.getId()).thenReturn(99L);
+        when(otherProductPenalty.getOutcomeType()).thenReturn("CLOSURE_PENALTY");
+        when(otherProductPenalty.getOutcomeValue()).thenReturn("2.00");
+        when(ruleOutcomeRepository.findById(99L)).thenReturn(Optional.of(otherProductPenalty));
+
+        PrematureClosureResponse response = service.requestPrematureClosure(11L, "alice", null);
+
+        assertEquals(0, new BigDecimal("1.00").compareTo(response.penaltyPoints()));
+        assertEquals(0, new BigDecimal("0.0550").compareTo(response.penalizedRate()));
+        assertEquals(0, new BigDecimal("498.63").compareTo(response.penaltyAmount()));
+        assertEquals(0, new BigDecimal("102742.47").compareTo(response.netPayableAmount()));
+        ArgumentCaptor<FdPrematureClosure> captor = ArgumentCaptor.forClass(FdPrematureClosure.class);
+        verify(closureRepository).save(captor.capture());
+        assertEquals(77L, captor.getValue().getAppliedRuleOutcomeId());
+    }
+
+    @Test
+    void requestWithNonPenaltyBookedOutcomeWritesNothing() {
+        FdRuleOutcomeReference rateOutcome = mock(FdRuleOutcomeReference.class);
+        when(rateOutcome.getOutcomeType()).thenReturn("INTEREST_RATE");
+        when(rateOutcome.getOutcomeValue()).thenReturn("0.0650");
+        when(ruleOutcomeRepository.findById(77L)).thenReturn(Optional.of(rateOutcome));
+
+        assertThrows(PrematureClosureNotSupportedException.class,
+                () -> service.requestPrematureClosure(11L, "alice", null));
+        assertEquals(FdStatus.ACTIVE, account.getStatus());
+        verify(closureRepository, never()).save(any());
+        verify(transactionRepository, never()).save(any());
+        verify(accrualRepository, never()).save(any());
+        verify(accountRepository, never()).save(any());
     }
 
     @Test
@@ -238,6 +275,38 @@ class PrematureClosureServiceTest {
         assertThrows(ResourceNotFoundException.class,
                 () -> service.approvePrematureClosure(11L, 99L, "alice"));
         verify(transactionRepository, never()).save(any());
+    }
+
+    @Test
+    void approveWithNullSnapshotThrowsBadRequestBeforeWrites() {
+        FdPrematureClosure corrupt = pendingClosure();
+        corrupt.setPenaltyAmount(null);
+        corrupt.setNetPayableAmount(null);
+        corrupt.setPenaltyPctApplied(null);
+        when(closureRepository.findById(21L)).thenReturn(Optional.of(corrupt));
+
+        assertThrows(InvalidInputException.class,
+                () -> service.approvePrematureClosure(11L, 21L, "alice"));
+        assertEquals(FdStatus.ACTIVE, account.getStatus());
+        assertEquals("PENDING", corrupt.getStatus());
+        verify(transactionRepository, never()).save(any());
+        verify(accrualRepository, never()).save(any());
+        verify(closureRepository, never()).save(any());
+        verify(accountRepository, never()).save(any());
+    }
+
+    @Test
+    void approveWithNullPrincipalThrowsBadRequestBeforeWrites() {
+        account.setPrincipalAmount(null);
+        when(closureRepository.findById(21L)).thenReturn(Optional.of(pendingClosure()));
+
+        assertThrows(InvalidInputException.class,
+                () -> service.approvePrematureClosure(11L, 21L, "alice"));
+        assertEquals(FdStatus.ACTIVE, account.getStatus());
+        verify(transactionRepository, never()).save(any());
+        verify(accrualRepository, never()).save(any());
+        verify(closureRepository, never()).save(any());
+        verify(accountRepository, never()).save(any());
     }
 
     private static FdPrematureClosure pendingClosure() {

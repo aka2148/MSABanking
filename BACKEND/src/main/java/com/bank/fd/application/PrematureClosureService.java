@@ -33,7 +33,6 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -98,9 +97,9 @@ public class PrematureClosureService {
             throw new InvalidFdTransitionException(account.getStatus(), FdLifecycleCommand.PREMATURE_CLOSE);
         }
 
-        // Stored-snapshot penalty: exactly one local CLOSURE_PENALTY outcome row
-        // with a parseable non-negative value, resolved before any write (D-02).
-        FdRuleOutcomeReference penaltyOutcome = resolvePenaltyOutcome(accountId);
+        // Stored-snapshot penalty: the booked CLOSURE_PENALTY outcome row for
+        // THIS account, resolved before any write (D-02).
+        FdRuleOutcomeReference penaltyOutcome = resolvePenaltyOutcome(account);
         BigDecimal penaltyPoints = PrematurePenalty.parsePenaltyPoints(penaltyOutcome.getOutcomeValue())
                 .orElseThrow(() -> new PrematureClosureNotSupportedException(
                         "Premature closure is not supported for FD account " + accountId
@@ -155,6 +154,23 @@ public class PrematureClosureService {
         }
         if (account.getStatus() != FdStatus.ACTIVE) {
             throw new InvalidFdTransitionException(account.getStatus(), FdLifecycleCommand.PREMATURE_CLOSE);
+        }
+
+        // Corrupt-row guards: the request path rejects a null booking
+        // date/rate with 400, so approve holds the same bar for the stored
+        // snapshot and live account before writing anything (never 500).
+        if (account.getPrincipalAmount() == null) {
+            throw new InvalidInputException(
+                    "FD account has no principal amount for premature-closure approval");
+        }
+        if (account.getInterestRate() == null) {
+            throw new InvalidInputException(
+                    "FD account has no contracted rate for premature-closure approval");
+        }
+        if (closure.getPenaltyAmount() == null || closure.getNetPayableAmount() == null
+                || closure.getPenaltyPctApplied() == null) {
+            throw new InvalidInputException(
+                    "Premature closure request has no usable quoted amounts for approval");
         }
 
         Long penaltyTypeId = transactionTypeRepository.findIdByCode(PENALTY)
@@ -231,20 +247,23 @@ public class PrematureClosureService {
     }
 
     /**
-     * Resolves the stored {@code CLOSURE_PENALTY} outcome from the local
-     * reference table (never live product tables). Missing or ambiguous rows
-     * fail closed with the D-02 unsupported error.
+     * Resolves the stored {@code CLOSURE_PENALTY} outcome for THIS account via
+     * its booked outcome reference (never live product tables, never a global
+     * scan). A missing reference, or one that is not a penalty rule, fails
+     * closed with the D-02 unsupported error, so a second product's penalty
+     * row can never break this account's closure.
      */
-    private FdRuleOutcomeReference resolvePenaltyOutcome(Long accountId) {
-        List<FdRuleOutcomeReference> candidates = ruleOutcomeRepository.findAll().stream()
-                .filter(outcome -> CLOSURE_PENALTY_RULE.equalsIgnoreCase(outcome.getOutcomeType()))
-                .toList();
-        if (candidates.size() != 1) {
+    private FdRuleOutcomeReference resolvePenaltyOutcome(FdAccount account) {
+        Long bookedOutcomeId = account.getAppliedRateOutcomeId();
+        FdRuleOutcomeReference outcome = (bookedOutcomeId != null)
+                ? ruleOutcomeRepository.findById(bookedOutcomeId).orElse(null)
+                : null;
+        if (outcome == null || !CLOSURE_PENALTY_RULE.equalsIgnoreCase(outcome.getOutcomeType())) {
             throw new PrematureClosureNotSupportedException(
-                    "Premature closure is not supported for FD account " + accountId
+                    "Premature closure is not supported for FD account " + account.getId()
                             + ": no usable CLOSURE_PENALTY rule is stored for this product");
         }
-        return candidates.get(0);
+        return outcome;
     }
 
     /** Elapsed end clamped to min(businessDate, maturityDate), floored at the booking date. */
