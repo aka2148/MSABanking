@@ -40,7 +40,7 @@ export class FdBooking implements OnInit {
     private readonly fdService: FdService,
     private readonly router: Router,
     private readonly route: ActivatedRoute,
-    private readonly fb: FormBuilder = new FormBuilder()
+    private readonly fb: FormBuilder
   ) {}
 
   ngOnInit(): void {
