@@ -1,0 +1,115 @@
+<app-glass-shell align="center" [focalX]="50" [focalY]="40" [zoom]="1.12">
+  <main class="glass-card glass-card--wide fd-account-card">
+    <a routerLink="/fd" class="glass-link fd-back-link">← FD home</a>
+    <p class="fd-eyebrow">Account detail hub</p>
+    <p class="glass-error" *ngIf="errorMessage" role="alert">{{ errorMessage }}</p>
+    <p class="fd-success" *ngIf="successMessage" role="status">{{ successMessage }}</p>
+
+    <ng-container *ngIf="loading">
+      <p class="fd-state" role="status">Loading account status and locked terms…</p>
+      <div class="fd-skeleton" aria-hidden="true"></div>
+    </ng-container>
+
+    <ng-container *ngIf="!loading && account as currentAccount">
+      <header class="fd-account-heading">
+        <div>
+          <p class="fd-eyebrow">Account number</p>
+          <h2 class="fd-account-number">{{ currentAccount.account_number }}</h2>
+        </div>
+        <span class="fd-status" [attr.data-status]="currentAccount.status">{{ currentAccount.status }}</span>
+      </header>
+
+      <section class="fd-section fd-next-action" aria-labelledby="next-action-heading">
+        <div class="fd-section-heading">
+          <div>
+            <p class="fd-eyebrow">Next valid action</p>
+            <h3 id="next-action-heading">Move this account forward</h3>
+          </div>
+          <span class="fd-lock-note">Server state is authoritative</span>
+        </div>
+        <div class="fd-action-grid" *ngIf="actions.length > 0; else noActions">
+          <button type="button" class="glass-btn" *ngIf="actions.includes('FUND')" (click)="fund()" [disabled]="!!busyAction">
+            {{ busyAction === 'FUND' ? 'Recording…' : 'Fund exact principal' }}
+          </button>
+          <button type="button" class="glass-btn" *ngIf="actions.includes('ACCRUE')" (click)="runAccrual()" [disabled]="!!busyAction">
+            {{ busyAction === 'ACCRUE' ? 'Running…' : 'Run accrual' }}
+          </button>
+          <button type="button" class="glass-btn" *ngIf="actions.includes('MATURE')" (click)="mature()" [disabled]="!!busyAction">
+            {{ busyAction === 'MATURE' ? 'Processing…' : 'Process maturity' }}
+          </button>
+          <button type="button" class="glass-btn" *ngIf="actions.includes('CLOSE')" (click)="close()" [disabled]="!!busyAction">
+            {{ busyAction === 'CLOSE' ? 'Closing…' : 'Close at maturity' }}
+          </button>
+          <button type="button" class="glass-btn glass-btn--ghost" *ngIf="actions.includes('REQUEST_PREMATURE')" (click)="requestPrematureClosure()" [disabled]="!!busyAction">
+            {{ busyAction === 'REQUEST_PREMATURE' ? 'Requesting…' : 'Request premature closure' }}
+          </button>
+        </div>
+        <ng-template #noActions>
+          <p class="fd-muted">This account is complete. Review its locked terms and history below.</p>
+        </ng-template>
+        <div class="fd-confirmation" *ngIf="pendingConfirmation as confirmation" role="alertdialog" aria-label="Confirm FD action">
+          <strong>Confirm {{ confirmation | lowercase }}?</strong>
+          <p *ngIf="confirmation === 'FUND'">This records the exact principal shown below as an internal academic funding record. No external payment rail will be called.</p>
+          <p *ngIf="confirmation === 'CLOSE'">This records the server-returned closure settlement as an internal academic record. No external payment rail will be called.</p>
+          <p *ngIf="confirmation === 'REQUEST_PREMATURE'">This submits a premature-closure request for server review.</p>
+          <p *ngIf="confirmation === 'APPROVE_PREMATURE'">This approves the selected premature-closure request using server-calculated penalty and net payable values.</p>
+          <div class="fd-confirmation-actions">
+            <button type="button" class="glass-btn glass-btn--ghost" (click)="cancelConfirmation()" [disabled]="!!busyAction">Cancel</button>
+            <button type="button" class="glass-btn" (click)="confirmPendingAction()" [disabled]="!!busyAction">Confirm action</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="fd-section" aria-labelledby="terms-heading">
+        <div class="fd-section-heading">
+          <div><p class="fd-eyebrow">Locked terms</p><h3 id="terms-heading">Server-owned account details</h3></div>
+        </div>
+        <dl class="fd-terms-grid">
+          <div><dt>Principal</dt><dd>{{ currentAccount.principal_amount | number:'1.2-2' }} {{ currentAccount.currency_code }}</dd></div>
+          <div><dt>Annual rate</dt><dd>{{ currentAccount.annual_rate }}</dd></div>
+          <div><dt>Tenure</dt><dd>{{ currentAccount.tenure_months }} months</dd></div>
+          <div><dt>Open date</dt><dd>{{ currentAccount.open_date }}</dd></div>
+          <div><dt>Maturity date</dt><dd>{{ currentAccount.maturity_date }}</dd></div>
+          <div><dt>Maturity amount</dt><dd>{{ currentAccount.maturity_amount | number:'1.2-2' }} {{ currentAccount.currency_code }}</dd></div>
+          <div><dt>Policy version</dt><dd>{{ currentAccount.policy_version }}</dd></div>
+          <div><dt>Funding record</dt><dd>{{ currentAccount.funding_recorded ? 'Recorded' : 'Not recorded' }}</dd></div>
+        </dl>
+      </section>
+
+      <section class="fd-section" *ngIf="prematureClosures.length > 0" aria-labelledby="premature-heading">
+        <div class="fd-section-heading"><div><p class="fd-eyebrow">Premature closure</p><h3 id="premature-heading">Requests and server outcomes</h3></div></div>
+        <div class="fd-premature-list">
+          <article class="fd-premature-row" *ngFor="let closure of prematureClosures">
+            <div><strong>Request #{{ closure.closure_id }}</strong><span>{{ closure.status }} · {{ closure.requested_date | date:'medium' }}</span></div>
+            <dl><div><dt>Penalty</dt><dd>{{ closure.penalty_amount | number:'1.2-2' }} {{ closure.currency_code }}</dd></div><div><dt>Net payable</dt><dd>{{ closure.net_payable_amount | number:'1.2-2' }} {{ closure.currency_code }}</dd></div></dl>
+            <button type="button" class="glass-btn glass-btn--ghost" *ngIf="closure.status === 'PENDING'" (click)="selectPrematureClosure(closure); approvePrematureClosure()" [disabled]="!!busyAction">Approve request</button>
+          </article>
+        </div>
+      </section>
+
+      <section class="fd-result" *ngIf="result as currentResult" aria-live="polite">
+        <p class="fd-eyebrow">Latest server result</p>
+        <h3>{{ currentResult.kind | titlecase }}</h3>
+        <ng-container [ngSwitch]="currentResult.kind">
+          <p *ngSwitchCase="'funding'">{{ fundingResult?.funding_description }}</p>
+          <p *ngSwitchCase="'accrual'">Accrued {{ accrualResult?.accrued_amount | number:'1.2-2' }} {{ accrualResult?.currency_code }}; cumulative {{ accrualResult?.cumulative_accrued | number:'1.2-2' }}. Maturity amount: {{ accrualResult?.maturity_amount | number:'1.2-2' }} {{ accrualResult?.currency_code }}.</p>
+          <p *ngSwitchCase="'closure'">Settlement: {{ closureResult?.settlement_amount | number:'1.2-2' }} {{ closureResult?.currency_code }}. {{ closureResult?.remark }}</p>
+          <p *ngSwitchCase="'premature'">Status {{ prematureResult?.status }}; penalty {{ prematureResult?.penalty_amount | number:'1.2-2' }} {{ prematureResult?.currency_code }}, net payable {{ prematureResult?.net_payable_amount | number:'1.2-2' }} {{ prematureResult?.currency_code }}.</p>
+        </ng-container>
+      </section>
+
+      <section class="fd-section fd-history" aria-labelledby="history-heading">
+        <div class="fd-section-heading"><div><p class="fd-eyebrow">Activity</p><h3 id="history-heading">History</h3></div><span class="fd-lock-note">Chronological server history</span></div>
+        <p class="fd-state" *ngIf="historyLoading" role="status">Loading history…</p>
+        <p class="fd-muted" *ngIf="!historyLoading && sortedHistory.length === 0">No history entries have been returned for this account yet.</p>
+        <ol class="fd-timeline" *ngIf="!historyLoading && sortedHistory.length > 0">
+          <li *ngFor="let entry of sortedHistory" [attr.data-entry-type]="entry.entry_type">
+            <span class="fd-timeline-marker" aria-hidden="true"></span>
+            <div class="fd-timeline-main"><div><strong>{{ entryLabel(entry.entry_type) }}</strong><span>{{ entry.entry_date | date:'medium' }}</span></div><p>{{ entry.description }}</p></div>
+            <div class="fd-timeline-value"><strong>{{ entry.amount | number:'1.2-2' }} {{ entry.currency_code }}</strong><span *ngIf="entry.running_balance !== null">Balance {{ entry.running_balance | number:'1.2-2' }}</span><span>{{ entry.source }}</span></div>
+          </li>
+        </ol>
+      </section>
+    </ng-container>
+  </main>
+</app-glass-shell>
