@@ -10,6 +10,7 @@ import com.bank.fd.domain.FdTimePolicy;
 import com.bank.fd.domain.PrematurePenalty;
 import com.bank.fd.entity.FdAccount;
 import com.bank.fd.entity.FdInterestAccrual;
+import com.bank.fd.entity.FdOperationIdempotency;
 import com.bank.fd.entity.FdPrematureClosure;
 import com.bank.fd.entity.FdRuleOutcomeReference;
 import com.bank.fd.entity.FdStatus;
@@ -24,7 +25,7 @@ import com.bank.fd.repository.FdRuleOutcomeReferenceRepository;
 import com.bank.fd.repository.FdTransactionRepository;
 import com.bank.fd.repository.TransactionTypeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -66,6 +67,8 @@ public class PrematureClosureService {
     private final FdActorResolver actorResolver;
     private final FdLifecycleStateMachine stateMachine;
     private final FdTimePolicy timePolicy;
+    private final FdIdempotencyGuard idempotencyGuard;
+    private final FdAccessPolicy accessPolicy;
 
     @Autowired
     public PrematureClosureService(FdAccountRepository accountRepository,
@@ -77,7 +80,9 @@ public class PrematureClosureService {
                                    FdRuleOutcomeReferenceRepository ruleOutcomeRepository,
                                    FdActorResolver actorResolver,
                                    FdLifecycleStateMachine stateMachine,
-                                   FdTimePolicy timePolicy) {
+                                   FdTimePolicy timePolicy,
+                                   FdIdempotencyGuard idempotencyGuard,
+                                   FdAccessPolicy accessPolicy) {
         this.accountRepository = accountRepository;
         this.closureRepository = closureRepository;
         this.transactionRepository = transactionRepository;
@@ -88,11 +93,27 @@ public class PrematureClosureService {
         this.actorResolver = actorResolver;
         this.stateMachine = stateMachine;
         this.timePolicy = timePolicy;
+        this.idempotencyGuard = idempotencyGuard;
+        this.accessPolicy = accessPolicy;
     }
 
     @Transactional
     public PrematureClosureResponse requestPrematureClosure(Long accountId, String username, String reason) {
+        return requestPrematureClosure(accountId, username, reason, null);
+    }
+
+    @Transactional
+    public PrematureClosureResponse requestPrematureClosure(Long accountId, String username, String reason,
+                                                            String idempotencyKey) {
         FdAccount account = loadOwnedAccount(accountId, username);
+        var holder = actorResolver.resolve(username);
+        FdOperationIdempotency claim = idempotencyGuard.claim("PREMATURE_REQUEST", "fd-user-" + holder.getId(),
+                idempotencyKey, FdIdempotencyGuard.sha256Hex(accountId + "|" + (reason == null ? "" : reason)));
+        if (claim != null && claim.getAggregateId() != null) {
+            FdPrematureClosure stored = closureRepository.findById(claim.getAggregateId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Premature closure request not found"));
+            return toStoredResponse(account, stored);
+        }
         if (account.getStatus() != FdStatus.ACTIVE) {
             throw new InvalidFdTransitionException(account.getStatus(), FdLifecycleCommand.PREMATURE_CLOSE);
         }
@@ -140,13 +161,28 @@ public class PrematureClosureService {
         closure.setStatus(STATUS_PENDING);
         closure.setUuid(UUID.randomUUID().toString());
         FdPrematureClosure saved = closureRepository.save(closure);
+        idempotencyGuard.complete(claim, saved.getId(), "premature-request:" + saved.getId());
 
         return PrematureClosureResponse.requested(saved, penalizedRate, currencyCode);
     }
 
     @Transactional
     public PrematureClosureResponse approvePrematureClosure(Long accountId, Long closureId, String username) {
+        return approvePrematureClosure(accountId, closureId, username, null);
+    }
+
+    @Transactional
+    public PrematureClosureResponse approvePrematureClosure(Long accountId, Long closureId, String username,
+                                                            String idempotencyKey) {
         FdAccount account = loadOwnedAccount(accountId, username);
+        var holder = actorResolver.resolve(username);
+        FdOperationIdempotency claim = idempotencyGuard.claim("PREMATURE_APPROVE", "fd-user-" + holder.getId(),
+                idempotencyKey, FdIdempotencyGuard.sha256Hex(accountId + "|" + closureId));
+        if (claim != null && claim.getAggregateId() != null) {
+            FdPrematureClosure stored = closureRepository.findById(claim.getAggregateId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Premature closure request not found"));
+            return toStoredResponse(account, stored);
+        }
         FdPrematureClosure closure = closureRepository.findById(closureId)
                 .orElseThrow(() -> new ResourceNotFoundException("Premature closure request not found"));
         if (!accountId.equals(closure.getAccountId()) || !STATUS_PENDING.equalsIgnoreCase(closure.getStatus())) {
@@ -222,27 +258,39 @@ public class PrematureClosureService {
             accrualRepository.save(closing);
         }
 
-        var holder = actorResolver.resolve(username);
+        var approver = actorResolver.resolve(username);
         closure.setStatus(STATUS_APPROVED);
-        closure.setApprovedBy(holder.getId());
+        closure.setApprovedBy(approver.getId());
         closureRepository.save(closure);
 
         var transition = stateMachine.transition(FdStatus.ACTIVE, FdLifecycleCommand.PREMATURE_CLOSE);
         account.setStatus(transition.to());
         accountRepository.save(account);
+        idempotencyGuard.complete(claim, closure.getId(), "premature-approve:" + closure.getId());
 
         BigDecimal penalizedRate = PrematurePenalty.penalizedRate(
                 account.getInterestRate(), closure.getPenaltyPctApplied());
         return PrematureClosureResponse.approved(closure, penalizedRate, currencyCode);
     }
 
+    private PrematureClosureResponse toStoredResponse(FdAccount account, FdPrematureClosure stored) {
+        String currencyCode = resolveCurrencyCode(account);
+        BigDecimal penalizedRate = null;
+        if (account.getInterestRate() != null && stored.getPenaltyPctApplied() != null) {
+            penalizedRate = PrematurePenalty.penalizedRate(
+                    account.getInterestRate(), stored.getPenaltyPctApplied());
+        }
+        if (STATUS_PENDING.equalsIgnoreCase(stored.getStatus())) {
+            return PrematureClosureResponse.requested(stored, penalizedRate, currencyCode);
+        }
+        return PrematureClosureResponse.approved(stored, penalizedRate, currencyCode);
+    }
+
     private FdAccount loadOwnedAccount(Long accountId, String username) {
         FdAccount account = accountRepository.findByIdForUpdate(accountId)
                 .orElseThrow(() -> new ResourceNotFoundException("FD account not found"));
-        var holder = actorResolver.resolve(username);
-        if (!holder.getId().equals(account.getPrimaryHolderId())) {
-            throw new AccessDeniedException("Authenticated customer does not own this FD account");
-        }
+        accessPolicy.requireOwned(username, account,
+                SecurityContextHolder.getContext().getAuthentication());
         return account;
     }
 

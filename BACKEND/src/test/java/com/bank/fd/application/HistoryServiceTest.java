@@ -38,7 +38,8 @@ class HistoryServiceTest {
     @BeforeEach
     void setUp() {
         service = new HistoryService(accountRepository, transactionRepository, accrualRepository,
-                transactionTypeRepository, currencyRepository, actorResolver);
+                transactionTypeRepository, currencyRepository, actorResolver,
+                new FdAccessPolicy(actorResolver));
         FdAccount account = new FdAccount();
         account.setId(11L);
         account.setAccountNumber("FD000011");

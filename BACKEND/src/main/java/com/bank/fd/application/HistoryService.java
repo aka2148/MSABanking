@@ -11,7 +11,7 @@ import com.bank.fd.repository.FdInterestAccrualRepository;
 import com.bank.fd.repository.FdTransactionRepository;
 import com.bank.fd.repository.TransactionTypeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +43,7 @@ public class HistoryService {
     private final TransactionTypeRepository transactionTypeRepository;
     private final FdCurrencyReferenceRepository currencyRepository;
     private final FdActorResolver actorResolver;
+    private final FdAccessPolicy accessPolicy;
 
     @Autowired
     public HistoryService(FdAccountRepository accountRepository,
@@ -50,23 +51,23 @@ public class HistoryService {
                           FdInterestAccrualRepository accrualRepository,
                           TransactionTypeRepository transactionTypeRepository,
                           FdCurrencyReferenceRepository currencyRepository,
-                          FdActorResolver actorResolver) {
+                          FdActorResolver actorResolver,
+                          FdAccessPolicy accessPolicy) {
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
         this.accrualRepository = accrualRepository;
         this.transactionTypeRepository = transactionTypeRepository;
         this.currencyRepository = currencyRepository;
         this.actorResolver = actorResolver;
+        this.accessPolicy = accessPolicy;
     }
 
     @Transactional(readOnly = true)
     public List<HistoryEntry> timeline(Long accountId, String username) {
         FdAccount account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new ResourceNotFoundException("FD account not found"));
-        var holder = actorResolver.resolve(username);
-        if (!holder.getId().equals(account.getPrimaryHolderId())) {
-            throw new AccessDeniedException("Authenticated customer does not own this FD account");
-        }
+        accessPolicy.requireOwned(username, account,
+                SecurityContextHolder.getContext().getAuthentication());
         String currencyCode = currencyRepository.findById(account.getCurrencyId())
                 .orElseThrow(() -> new ResourceNotFoundException("FD account currency not found"))
                 .getIsoCode();

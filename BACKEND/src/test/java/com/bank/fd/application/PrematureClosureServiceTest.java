@@ -58,7 +58,8 @@ class PrematureClosureServiceTest {
                 accrualRepository, transactionTypeRepository, currencyRepository, ruleOutcomeRepository,
                 actorResolver, new FdLifecycleStateMachine(),
                 new FdTimePolicy(Clock.fixed(Instant.parse("2026-01-01T10:00:00Z"), ZoneId.of("UTC")),
-                        ZoneId.of("UTC")));
+                        ZoneId.of("UTC")),
+                mock(FdIdempotencyGuard.class), new FdAccessPolicy(actorResolver));
         account = new FdAccount();
         account.setId(11L);
         account.setAccountNumber("FD000011");

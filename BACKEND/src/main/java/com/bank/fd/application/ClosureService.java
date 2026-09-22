@@ -7,13 +7,16 @@ import com.bank.fd.domain.FdLifecycleCommand;
 import com.bank.fd.domain.FdLifecycleStateMachine;
 import com.bank.fd.domain.FdTimePolicy;
 import com.bank.fd.entity.FdAccount;
+import com.bank.fd.entity.FdOperationIdempotency;
+import com.bank.fd.entity.FdStatus;
 import com.bank.fd.entity.FdTransaction;
+import com.bank.fd.exception.InvalidFdTransitionException;
 import com.bank.fd.repository.FdAccountRepository;
 import com.bank.fd.repository.FdCurrencyReferenceRepository;
 import com.bank.fd.repository.FdTransactionRepository;
 import com.bank.fd.repository.TransactionTypeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +41,8 @@ public class ClosureService {
     private final FdActorResolver actorResolver;
     private final FdLifecycleStateMachine stateMachine;
     private final FdTimePolicy timePolicy;
+    private final FdIdempotencyGuard idempotencyGuard;
+    private final FdAccessPolicy accessPolicy;
 
     @Autowired
     public ClosureService(FdAccountRepository accountRepository,
@@ -46,7 +51,9 @@ public class ClosureService {
                           FdCurrencyReferenceRepository currencyRepository,
                           FdActorResolver actorResolver,
                           FdLifecycleStateMachine stateMachine,
-                          FdTimePolicy timePolicy) {
+                          FdTimePolicy timePolicy,
+                          FdIdempotencyGuard idempotencyGuard,
+                          FdAccessPolicy accessPolicy) {
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
         this.transactionTypeRepository = transactionTypeRepository;
@@ -54,15 +61,40 @@ public class ClosureService {
         this.actorResolver = actorResolver;
         this.stateMachine = stateMachine;
         this.timePolicy = timePolicy;
+        this.idempotencyGuard = idempotencyGuard;
+        this.accessPolicy = accessPolicy;
     }
 
     @Transactional
     public ClosureResponse close(Long accountId, String username) {
+        return close(accountId, username, null);
+    }
+
+    @Transactional
+    public ClosureResponse close(Long accountId, String username, String idempotencyKey) {
         FdAccount account = accountRepository.findByIdForUpdate(accountId)
                 .orElseThrow(() -> new ResourceNotFoundException("FD account not found"));
         var holder = actorResolver.resolve(username);
-        if (!holder.getId().equals(account.getPrimaryHolderId())) {
-            throw new AccessDeniedException("Authenticated customer does not own this FD account");
+        accessPolicy.requireOwned(username, account,
+                SecurityContextHolder.getContext().getAuthentication());
+
+        FdOperationIdempotency claim = idempotencyGuard.claim("CLOSURE", "fd-user-" + holder.getId(),
+                idempotencyKey, FdIdempotencyGuard.sha256Hex(String.valueOf(accountId)));
+        if (claim != null && claim.getAggregateId() != null) {
+            FdAccount stored = accountRepository.findById(claim.getAggregateId())
+                    .orElseThrow(() -> new ResourceNotFoundException("FD account not found"));
+            BigDecimal settlement = stored.getMaturityAmount();
+            if (settlement == null) {
+                throw new InvalidInputException("Matured FD has no computed maturity amount to settle");
+            }
+            String currencyCode = currencyRepository.findById(stored.getCurrencyId())
+                    .orElseThrow(() -> new ResourceNotFoundException("FD account currency not found"))
+                    .getIsoCode();
+            return ClosureResponse.closed(stored, settlement, currencyCode, timePolicy.businessDate());
+        }
+        if (account.getStatus() == FdStatus.CLOSED && (idempotencyKey == null || idempotencyKey.isBlank())) {
+            throw new InvalidFdTransitionException("FD account is already CLOSED; existing settlement recorded for account: "
+                    + account.getAccountNumber());
         }
 
         // Pure transition check first: only MATURED accepts CLOSE, and this
@@ -94,6 +126,7 @@ public class ClosureService {
 
         account.setStatus(transition.to());
         accountRepository.save(account);
+        idempotencyGuard.complete(claim, account.getId(), account.getAccountNumber());
 
         return ClosureResponse.closed(account, settlement, currencyCode, closedDate);
     }
