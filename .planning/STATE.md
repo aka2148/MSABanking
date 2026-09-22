@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
+status: executing
 stopped_at: None
-last_updated: "2026-09-22T14:27:37.049Z"
+last_updated: "2026-09-22T14:38:54.706Z"
 last_activity: 2026-09-22
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 21
-  completed_plans: 18
-  percent: 86
+  completed_plans: 19
+  percent: 90
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-09-18)
 ## Current Position
 
 Phase: 06 (angular-fd-frontend)
-Plan: 01 complete; next 02
+Plan: 02 complete; next 03
 Status: In Progress
 Last activity: 2026-09-22
 
-Progress: [█████████░] 86%
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
@@ -64,6 +64,7 @@ Progress: [█████████░] 86%
 | Phase 05 P02 | 6min | 2 tasks | 8 files |
 | Phase 05 P05-03 | 20min | 2 tasks | 10 files |
 | Phase 06 P01 | 25 | 2 tasks | 9 files |
+| Phase 06 P02 | 16 | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -110,6 +111,9 @@ Recent decisions affecting current work:
 - Preserved existing token localStorage key and auth payloads while adding role/session state.
 - Kept active FD idempotency keys in FdService memory with explicit submission lifecycle.
 - Scoped Angular FD transport to implemented /fd/v1 endpoints only.
+- FD landing and booking keep product and final terms server-authoritative; browser performs UX bounds validation only.
+- FD booking retries retain the existing FdService-managed idempotency key.
+- Protected lazy route wiring remains owned by Plan 06-04.
 
 ### Pending Todos
 
@@ -131,7 +135,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: Completed 06-01-PLAN.md
+Last session: Completed 06-02-PLAN.md
 Stopped at: None
 Resume file: None
 
