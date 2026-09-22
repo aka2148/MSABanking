@@ -1,0 +1,39 @@
+.fd-booking-card { max-width: 720px; margin: 24px; }
+.fd-back-link { display: inline-block; margin-bottom: 18px; }
+.fd-eyebrow, .fd-product-code {
+  color: var(--gold-500);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0 0 6px;
+}
+.fd-step-labels {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: var(--fs-xs);
+}
+.fd-step-label--active { color: white; }
+.fd-step-panel { min-height: 210px; }
+.fd-offer-summary { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.fd-offer-summary h3 { font-family: var(--font-display); font-size: var(--fs-xl); margin: 0; }
+.fd-currency { color: var(--mint-500); font-family: var(--font-mono); }
+.fd-step-copy, .fd-range-note, .fd-state { color: rgba(255, 255, 255, 0.72); line-height: 1.55; }
+.fd-range-note { font-size: var(--fs-xs); margin-top: -4px; }
+.fd-review-list { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; margin: 20px 0; }
+.fd-review-list div { border-bottom: 1px solid rgba(255, 255, 255, 0.12); padding-bottom: 10px; }
+.fd-review-list dt { color: rgba(255, 255, 255, 0.58); font-size: var(--fs-xs); }
+.fd-review-list dd { margin: 5px 0 0; font-size: var(--fs-sm); }
+
+@media (max-width: 480px) {
+  .fd-booking-card { margin: 8px; padding: 28px 20px; }
+  .fd-step-labels { grid-template-columns: 1fr; gap: 5px; }
+  .fd-review-list { grid-template-columns: 1fr; }
+  .stepper-actions { gap: 10px; }
+  .stepper-actions .glass-btn { flex: 1; }
+}

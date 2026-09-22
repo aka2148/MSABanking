@@ -1,0 +1,85 @@
+<app-glass-shell align="center" [focalX]="50" [focalY]="42" [zoom]="1.15">
+  <main class="glass-card glass-card--wide fd-booking-card">
+    <a routerLink="/fd" class="glass-link fd-back-link">← Back to products</a>
+    <p class="fd-eyebrow">Guided booking</p>
+    <h2>Book a fixed deposit</h2>
+
+    <div class="stepper-progress" aria-label="Booking progress">
+      <div class="stepper-progress__bar" [class.stepper-progress__bar--done]="step >= 1"></div>
+      <div class="stepper-progress__bar" [class.stepper-progress__bar--done]="step >= 2"></div>
+      <div class="stepper-progress__bar" [class.stepper-progress__bar--done]="step >= 3"></div>
+    </div>
+    <ol class="fd-step-labels">
+      <li [class.fd-step-label--active]="step === 1">1. Offer confirmation</li>
+      <li [class.fd-step-label--active]="step === 2">2. Amount, term, and currency</li>
+      <li [class.fd-step-label--active]="step === 3">3. Review and confirm</li>
+    </ol>
+
+    <p class="glass-error" *ngIf="errorMessage" role="alert">{{ errorMessage }}</p>
+    <p class="glass-error" *ngIf="bookingError" role="alert">{{ bookingError }}</p>
+    <p class="fd-state" *ngIf="loading" role="status">Loading the selected server offer…</p>
+
+    <ng-container *ngIf="!loading && selectedProduct as product">
+      <section *ngIf="step === 1" class="fd-step-panel">
+        <p class="fd-eyebrow">Selected offer</p>
+        <div class="fd-offer-summary">
+          <div>
+            <span class="fd-product-code">{{ product.product_code }}</span>
+            <h3>{{ product.product_name }}</h3>
+          </div>
+          <span class="fd-currency">{{ product.currency_code }}</span>
+        </div>
+        <p class="fd-step-copy">Confirm this eligible server-owned offer to enter the amount and term.</p>
+      </section>
+
+      <form *ngIf="step === 2" [formGroup]="bookingForm" class="fd-step-panel" novalidate>
+        <div class="glass-field-row">
+          <label class="glass-field">
+            <span class="glass-field__label">Principal amount <small>{{ product.currency_code }}</small></span>
+            <input type="number" min="0.01" step="0.01" formControlName="principalAmount" placeholder="Enter amount" />
+            <span class="glass-field__error" *ngIf="fieldError('principalAmount')">{{ fieldError('principalAmount') }}</span>
+          </label>
+          <label class="glass-field">
+            <span class="glass-field__label">Tenure</span>
+            <app-glass-select formControlName="tenureMonths" [options]="tenureOptions" placeholder="Choose tenure"></app-glass-select>
+            <span class="glass-field__error" *ngIf="fieldError('tenureMonths')">{{ fieldError('tenureMonths') }}</span>
+          </label>
+        </div>
+        <label class="glass-field">
+          <span class="glass-field__label">Currency</span>
+          <app-glass-select formControlName="currencyCode" [options]="currencyOptions" placeholder="Choose currency"></app-glass-select>
+          <span class="glass-field__error" *ngIf="fieldError('currencyCode')">{{ fieldError('currencyCode') }}</span>
+        </label>
+        <p class="fd-range-note">Offer range: {{ product.minimum_amount }}–{{ product.maximum_amount }} {{ product.currency_code }}, {{ product.minimum_tenure_months }}–{{ product.maximum_tenure_months }} months.</p>
+      </form>
+
+      <section *ngIf="step === 3" class="fd-step-panel">
+        <p class="fd-eyebrow">Server-backed review</p>
+        <p class="fd-step-copy">Confirming sends only the selected product and your entered amount, tenure, and currency to the FD service.</p>
+        <dl class="fd-review-list" *ngIf="!submittedAccount">
+          <div><dt>Product</dt><dd>{{ product.product_name }} ({{ product.product_code }})</dd></div>
+          <div><dt>Principal</dt><dd>{{ bookingForm.controls.principalAmount.value }} {{ bookingForm.controls.currencyCode.value }}</dd></div>
+          <div><dt>Tenure</dt><dd>{{ bookingForm.controls.tenureMonths.value }} months</dd></div>
+          <div><dt>Offer annual rate</dt><dd>{{ product.annual_rate }}</dd></div>
+        </dl>
+        <dl class="fd-review-list" *ngIf="submittedAccount as account">
+          <div><dt>Status</dt><dd>{{ account.status }}</dd></div>
+          <div><dt>Annual rate</dt><dd>{{ account.annual_rate }}</dd></div>
+          <div><dt>Open date</dt><dd>{{ account.open_date }}</dd></div>
+          <div><dt>Maturity date</dt><dd>{{ account.maturity_date }}</dd></div>
+          <div><dt>Maturity amount</dt><dd>{{ account.maturity_amount }} {{ account.currency_code }}</dd></div>
+          <div><dt>Policy version</dt><dd>{{ account.policy_version }}</dd></div>
+        </dl>
+      </section>
+
+      <div class="stepper-actions">
+        <button type="button" class="glass-btn glass-btn--ghost" *ngIf="step > 1" (click)="previousStep()" [disabled]="submitting">Back</button>
+        <span *ngIf="step === 1"></span>
+        <button type="button" class="glass-btn" *ngIf="step < 3" (click)="nextStep()" [disabled]="submitting">Continue</button>
+        <button type="button" class="glass-btn" *ngIf="step === 3" (click)="submitBooking()" [disabled]="submitting || submittedAccount">
+          {{ submitting ? 'Submitting…' : 'Confirm booking' }}
+        </button>
+      </div>
+    </ng-container>
+  </main>
+</app-glass-shell>
