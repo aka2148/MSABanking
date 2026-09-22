@@ -92,7 +92,13 @@ Plans:
   3. Focused unit tests cover decimal interest, maturity, penalty/unsupported-premature cases, validation, lifecycle boundaries, and invalid transitions.
   4. PostgreSQL-backed integration tests cover Flyway persistence, REST booking/funding/lifecycle flows, ownership failures, transaction history, and duplicate-action protection.
   5. Existing authentication, customer, product, calculator, reporting, migration, and relevant non-FD regression tests remain passing after the FD changes.
-**Plans**: TBD
+**Plans**: 5 plans
+Plans:
+- [ ] 05-01-PLAN.md — Guard foundation: idempotency guard, ownership policy, error mapping, CORS
+- [ ] 05-02-PLAN.md — Wire duplicate safety and ownership into booking/funding/accrual/maturity
+- [ ] 05-03-PLAN.md — Wire closure/premature/history plus /fd/v1 key threading and staff roles
+- [ ] 05-04-PLAN.md — Unit tests for math, lifecycle, guard, policy, and error mapping
+- [ ] 05-05-PLAN.md — PostgreSQL/MockMvc integration proof and full-suite regression gate
 
 ## Progress
 
