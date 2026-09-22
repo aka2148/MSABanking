@@ -8,13 +8,16 @@ import com.bank.fd.domain.FdLifecycleCommand;
 import com.bank.fd.domain.FdLifecycleStateMachine;
 import com.bank.fd.domain.FdTimePolicy;
 import com.bank.fd.entity.FdAccount;
+import com.bank.fd.entity.FdOperationIdempotency;
+import com.bank.fd.entity.FdStatus;
 import com.bank.fd.entity.FdTransaction;
+import com.bank.fd.exception.InvalidFdTransitionException;
 import com.bank.fd.repository.FdAccountRepository;
 import com.bank.fd.repository.FdCurrencyReferenceRepository;
 import com.bank.fd.repository.FdProductReferenceRepository;
 import com.bank.fd.repository.FdTransactionRepository;
 import com.bank.fd.repository.TransactionTypeRepository;
-import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,13 +41,16 @@ public class FundingService {
     private final FdActorResolver actorResolver;
     private final FdLifecycleStateMachine stateMachine;
     private final FdTimePolicy timePolicy;
+    private final FdIdempotencyGuard idempotencyGuard;
+    private final FdAccessPolicy accessPolicy;
 
     @Autowired
     public FundingService(FdAccountRepository accountRepository, FdTransactionRepository transactionRepository,
                           TransactionTypeRepository transactionTypeRepository,
                           FdProductReferenceRepository productRepository,
                           FdCurrencyReferenceRepository currencyRepository,
-                          FdActorResolver actorResolver, FdLifecycleStateMachine stateMachine, FdTimePolicy timePolicy) {
+                          FdActorResolver actorResolver, FdLifecycleStateMachine stateMachine, FdTimePolicy timePolicy,
+                          FdIdempotencyGuard idempotencyGuard, FdAccessPolicy accessPolicy) {
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
         this.transactionTypeRepository = transactionTypeRepository;
@@ -53,10 +59,17 @@ public class FundingService {
         this.actorResolver = actorResolver;
         this.stateMachine = stateMachine;
         this.timePolicy = timePolicy;
+        this.idempotencyGuard = idempotencyGuard;
+        this.accessPolicy = accessPolicy;
     }
 
     @Transactional
     public FundingResponse fund(Long accountId, String username, FundingRequest request) {
+        return fund(accountId, username, request, null);
+    }
+
+    @Transactional
+    public FundingResponse fund(Long accountId, String username, FundingRequest request, String idempotencyKey) {
         if (request == null || request.amount() == null || request.currencyCode() == null
                 || request.currencyCode().isBlank()) {
             throw new InvalidInputException("Funding amount and currency are required");
@@ -65,9 +78,8 @@ public class FundingService {
         FdAccount account = accountRepository.findByIdForUpdate(accountId)
                 .orElseThrow(() -> new ResourceNotFoundException("FD account not found"));
         var holder = actorResolver.resolve(username);
-        if (!holder.getId().equals(account.getPrimaryHolderId())) {
-            throw new AccessDeniedException("Authenticated customer does not own this FD account");
-        }
+        accessPolicy.requireOwned(username, account,
+                SecurityContextHolder.getContext().getAuthentication());
 
         String requestedCurrency = request.currencyCode().trim().toUpperCase();
         String accountCurrency = currencyRepository.findById(account.getCurrencyId())
@@ -78,6 +90,26 @@ public class FundingService {
         }
         if (request.amount().compareTo(account.getPrincipalAmount()) != 0) {
             throw new InvalidInputException("Funding amount must equal the booked principal exactly");
+        }
+
+        String canonical = accountId + "|" + request.amount().stripTrailingZeros().toPlainString()
+                + "|" + requestedCurrency;
+        FdOperationIdempotency claim = idempotencyGuard.claim("FUNDING", "fd-user-" + holder.getId(),
+                idempotencyKey, FdIdempotencyGuard.sha256Hex(canonical));
+        if (claim != null && claim.getAggregateId() != null) {
+            FdAccount stored = accountRepository.findById(claim.getAggregateId())
+                    .orElseThrow(() -> new ResourceNotFoundException("FD account not found"));
+            String productCode = productRepository.findById(stored.getProductId())
+                    .orElseThrow(() -> new ResourceNotFoundException("FD product reference not found"))
+                    .getProductCode();
+            String currencyCode = currencyRepository.findById(stored.getCurrencyId())
+                    .orElseThrow(() -> new ResourceNotFoundException("FD account currency not found"))
+                    .getIsoCode();
+            return FundingResponse.active(stored, productCode, currencyCode);
+        }
+        if (account.getStatus() == FdStatus.ACTIVE) {
+            throw new InvalidFdTransitionException("FD account is already ACTIVE; existing funding transaction recorded for account: "
+                    + account.getAccountNumber());
         }
 
         var transition = stateMachine.transition(account.getStatus(), FdLifecycleCommand.FUND);
@@ -97,6 +129,7 @@ public class FundingService {
 
         account.setStatus(transition.to());
         accountRepository.save(account);
+        idempotencyGuard.complete(claim, account.getId(), account.getAccountNumber());
 
         String productCode = productRepository.findById(account.getProductId())
                 .orElseThrow(() -> new ResourceNotFoundException("FD product reference not found"))

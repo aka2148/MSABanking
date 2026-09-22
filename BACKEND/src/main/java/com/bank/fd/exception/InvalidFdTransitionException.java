@@ -10,4 +10,8 @@ public class InvalidFdTransitionException extends BankingException {
         super("Invalid FD transition: current status='" + currentStatus
                 + "', command='" + command + "'");
     }
+
+    public InvalidFdTransitionException(String message) {
+        super(message);
+    }
 }

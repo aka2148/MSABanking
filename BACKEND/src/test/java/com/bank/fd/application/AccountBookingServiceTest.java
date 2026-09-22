@@ -33,7 +33,8 @@ class AccountBookingServiceTest {
     @BeforeEach
     void setUp() throws Exception {
         var time = new FdTimePolicy(Clock.fixed(Instant.parse("2026-01-15T00:00:00Z"), ZoneId.of("UTC")), ZoneId.of("UTC"));
-        service = new AccountBookingService(termsPort, actorResolver, accountRepository, accountNumberGenerator, time);
+        service = new AccountBookingService(termsPort, actorResolver, accountRepository, accountNumberGenerator, time,
+                mock(FdIdempotencyGuard.class));
         Field field = AccountBookingService.class.getDeclaredField("currencyReferenceRepository");
         field.setAccessible(true);
         field.set(service, currencyRepository);

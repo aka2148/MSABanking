@@ -1,10 +1,12 @@
 package com.bank.fd.application;
 
+import com.bank.common.exception.ResourceNotFoundException;
 import com.bank.fd.api.dto.AccountResponse;
 import com.bank.fd.api.dto.BookingRequest;
 import com.bank.fd.domain.FdCalculationPolicy;
 import com.bank.fd.domain.FdTimePolicy;
 import com.bank.fd.entity.FdAccount;
+import com.bank.fd.entity.FdOperationIdempotency;
 import com.bank.fd.repository.FdAccountRepository;
 import com.bank.fd.repository.FdCurrencyReferenceRepository;
 import com.bank.fd.service.AccountNumberGenerator;
@@ -30,37 +32,62 @@ public class AccountBookingService {
     private final AccountNumberGenerator accountNumberGenerator;
     private final FdTimePolicy timePolicy;
     private final FdCalculationPolicy calculationPolicy;
+    private final FdIdempotencyGuard idempotencyGuard;
     @Autowired
     private FdCurrencyReferenceRepository currencyReferenceRepository;
 
     @Autowired
     public AccountBookingService(ProductTermsPort termsPort, FdActorResolver actorResolver,
                                  FdAccountRepository accountRepository, AccountNumberGenerator accountNumberGenerator,
-                                 FdTimePolicy timePolicy) {
+                                 FdTimePolicy timePolicy, FdIdempotencyGuard idempotencyGuard) {
         this(termsPort, actorResolver, accountRepository, accountNumberGenerator, timePolicy,
                 new FdCalculationPolicy(POLICY_VERSION, "DECIMAL_FRACTION", "ACTUAL_365", 4, 2,
-                        RoundingMode.HALF_UP, true, false));
+                        RoundingMode.HALF_UP, true, false),
+                idempotencyGuard);
     }
 
     public AccountBookingService(ProductTermsPort termsPort, FdActorResolver actorResolver,
                                  FdAccountRepository accountRepository, AccountNumberGenerator accountNumberGenerator,
-                                 FdTimePolicy timePolicy, FdCalculationPolicy calculationPolicy) {
+                                 FdTimePolicy timePolicy, FdCalculationPolicy calculationPolicy,
+                                 FdIdempotencyGuard idempotencyGuard) {
         this.termsPort = termsPort;
         this.actorResolver = actorResolver;
         this.accountRepository = accountRepository;
         this.accountNumberGenerator = accountNumberGenerator;
         this.timePolicy = timePolicy;
         this.calculationPolicy = calculationPolicy;
+        this.idempotencyGuard = idempotencyGuard;
     }
 
     @Transactional
     public AccountResponse book(String username, BookingRequest request) {
+        return book(username, request, null);
+    }
+
+    @Transactional
+    public AccountResponse book(String username, BookingRequest request, String idempotencyKey) {
         if (request == null) throw new IllegalArgumentException("Booking request is required");
+        var holder = actorResolver.resolve(username);
         ProductTerms terms = termsPort.resolveActiveTerms(
                 new ProductTermsQuery(request.productId(), request.principalAmount(), request.tenureMonths(),
                         request.currencyCode()), timePolicy.businessDate());
         validateCompounding(terms.compoundingFrequency());
-        var holder = actorResolver.resolve(username);
+
+        String actorKey = "fd-user-" + holder.getId();
+        String canonical = request.productId() + "|"
+                + request.principalAmount().stripTrailingZeros().toPlainString() + "|"
+                + request.tenureMonths() + "|" + request.currencyCode().toUpperCase();
+        FdOperationIdempotency claim = idempotencyGuard.claim("BOOKING", actorKey, idempotencyKey,
+                FdIdempotencyGuard.sha256Hex(canonical));
+        if (claim != null && claim.getAggregateId() != null) {
+            FdAccount existing = accountRepository.findById(claim.getAggregateId())
+                    .orElseThrow(() -> new ResourceNotFoundException("FD account not found"));
+            String[] parts = claim.getResponseReference() == null ? new String[0]
+                    : claim.getResponseReference().split("\\|", -1);
+            String productCode = parts.length > 0 && !parts[0].isBlank() ? parts[0] : terms.productCode();
+            String currencyCode = parts.length > 1 && !parts[1].isBlank() ? parts[1] : terms.currencyCode();
+            return AccountResponse.pending(existing, productCode, currencyCode);
+        }
 
         LocalDate openDate = timePolicy.businessDate();
         LocalDate maturityDate = openDate.plusMonths(request.tenureMonths());
@@ -83,6 +110,7 @@ public class AccountBookingService {
         account.setMaturityAmount(estimate);
         account.setPolicyVersion(calculationPolicy.version());
         FdAccount saved = accountRepository.save(account);
+        idempotencyGuard.complete(claim, saved.getId(), terms.productCode() + "|" + terms.currencyCode());
         return AccountResponse.pending(saved, terms.productCode(), terms.currencyCode());
     }
 

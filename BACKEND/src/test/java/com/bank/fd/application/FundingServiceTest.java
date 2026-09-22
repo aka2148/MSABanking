@@ -44,7 +44,8 @@ class FundingServiceTest {
     void setUp() {
         service = new FundingService(accountRepository, transactionRepository, transactionTypeRepository,
                 productRepository, currencyRepository, actorResolver, stateMachine,
-                new FdTimePolicy(Clock.fixed(Instant.parse("2026-01-15T10:15:30Z"), ZoneId.of("UTC")), ZoneId.of("UTC")));
+                new FdTimePolicy(Clock.fixed(Instant.parse("2026-01-15T10:15:30Z"), ZoneId.of("UTC")), ZoneId.of("UTC")),
+                mock(FdIdempotencyGuard.class), new FdAccessPolicy(actorResolver));
         account = new FdAccount();
         account.setId(11L);
         account.setPrimaryHolderId(41L);
