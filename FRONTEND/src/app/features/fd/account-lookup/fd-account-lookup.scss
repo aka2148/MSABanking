@@ -1,0 +1,21 @@
+.fd-lookup-card { max-width: 480px; }
+
+.fd-eyebrow {
+  color: var(--gold-500);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0 0 6px;
+}
+
+.fd-lookup-note {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  margin: 18px 0 0;
+}
+
+@media (max-width: 480px) {
+  .fd-lookup-card { margin: 8px; padding: 28px 22px; }
+}

@@ -1,0 +1,62 @@
+<app-glass-shell align="center" [focalX]="50" [focalY]="42" [zoom]="1.15">
+  <main class="glass-card glass-card--wide fd-home-card">
+    <header class="fd-home-card__header">
+      <div>
+        <p class="fd-eyebrow">Fixed deposits</p>
+        <h2>Put your savings to work</h2>
+        <p class="glass-card__sub">Choose an eligible server-owned offer, or inspect a deposit you have already booked.</p>
+      </div>
+      <div class="fd-home-card__paths" aria-label="FD entry paths">
+        <a class="glass-btn" href="#products">Browse products</a>
+        <a class="glass-btn glass-btn--ghost" routerLink="/fd/accounts/lookup">View my deposits</a>
+      </div>
+    </header>
+
+    <section id="products" class="fd-products" aria-labelledby="products-heading">
+      <div class="fd-section-heading">
+        <div>
+          <p class="fd-eyebrow">Eligible offers</p>
+          <h3 id="products-heading">Browse products</h3>
+        </div>
+        <button type="button" class="glass-link fd-retry" *ngIf="errorMessage" (click)="loadProducts()" [disabled]="loading">
+          {{ loading ? 'Retrying…' : 'Retry' }}
+        </button>
+      </div>
+
+      <p class="fd-state" *ngIf="loading" role="status">Loading eligible products…</p>
+      <div class="glass-error" *ngIf="errorMessage" role="alert">{{ errorMessage }}</div>
+      <p class="fd-state" *ngIf="!loading && !errorMessage && products.length === 0">
+        No eligible FD offers are available for your account right now.
+      </p>
+
+      <div class="fd-product-grid" *ngIf="!loading && !errorMessage && products.length > 0">
+        <article class="fd-product-card" *ngFor="let product of products">
+          <div class="fd-product-card__topline">
+            <div>
+              <p class="fd-product-card__code">{{ product.product_code }}</p>
+              <h4>{{ product.product_name }}</h4>
+            </div>
+            <span class="fd-product-card__currency">{{ product.currency_code }}</span>
+          </div>
+
+          <dl class="fd-product-card__terms">
+            <div><dt>Annual rate</dt><dd>{{ product.annual_rate }}</dd></div>
+            <div><dt>Amount</dt><dd>{{ product.minimum_amount }} – {{ product.maximum_amount }} {{ product.currency_code }}</dd></div>
+            <div><dt>Tenure</dt><dd>{{ product.minimum_tenure_months }} – {{ product.maximum_tenure_months }} months</dd></div>
+            <div><dt>Compounding / payout</dt><dd>{{ product.compounding_frequency }} / {{ product.payout_frequency }}</dd></div>
+          </dl>
+
+          <div class="fd-product-card__notes">
+            <p><strong>Closure rule:</strong> {{ product.closure_penalty_rule }}</p>
+            <p><strong>Maturity estimate:</strong> {{ product.maturity_estimate_basis }}</p>
+          </div>
+
+          <button type="button" class="glass-btn glass-btn--full" (click)="browseProduct(product)"
+                  [disabled]="loading || selectingProductId !== null">
+            {{ selectingProductId === product.product_id ? 'Opening…' : 'Choose this offer' }}
+          </button>
+        </article>
+      </div>
+    </section>
+  </main>
+</app-glass-shell>

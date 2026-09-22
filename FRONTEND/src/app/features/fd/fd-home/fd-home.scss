@@ -1,0 +1,112 @@
+.fd-home-card {
+  max-width: 1120px;
+  margin: 24px;
+}
+
+.fd-home-card__header,
+.fd-section-heading,
+.fd-product-card__topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.fd-home-card__paths {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.fd-eyebrow,
+.fd-product-card__code {
+  color: var(--gold-500);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0 0 6px;
+}
+
+.fd-products {
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  padding-top: 24px;
+}
+
+.fd-section-heading h3 {
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  margin: 0 0 18px;
+}
+
+.fd-retry {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.fd-state {
+  color: rgba(255, 255, 255, 0.76);
+  margin: 12px 0;
+}
+
+.fd-product-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.fd-product-card {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius-md);
+  padding: 20px;
+}
+
+.fd-product-card h4 {
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  margin: 0;
+}
+
+.fd-product-card__currency {
+  color: var(--mint-500);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+}
+
+.fd-product-card__terms {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 22px 0 16px;
+}
+
+.fd-product-card__terms div { min-width: 0; }
+.fd-product-card__terms dt { color: rgba(255, 255, 255, 0.6); font-size: var(--fs-xs); }
+.fd-product-card__terms dd { margin: 4px 0 0; font-size: var(--fs-sm); }
+
+.fd-product-card__notes {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+
+.fd-product-card__notes p { margin: 6px 0; }
+.fd-product-card__notes strong { color: rgba(255, 255, 255, 0.9); }
+
+@media (max-width: 720px) {
+  .fd-home-card__header,
+  .fd-section-heading { flex-direction: column; }
+  .fd-home-card__paths { width: 100%; }
+  .fd-home-card__paths .glass-btn { flex: 1; text-align: center; }
+}
+
+@media (max-width: 480px) {
+  .fd-home-card { margin: 8px; padding: 24px 18px; }
+  .fd-product-grid { grid-template-columns: 1fr; }
+  .fd-product-card__terms { grid-template-columns: 1fr; }
+  .fd-home-card__paths { flex-direction: column; }
+}
