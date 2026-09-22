@@ -77,10 +77,10 @@ Plans:
   5. The account history demonstrates the funding, accrual, maturity, closure, and settlement records linked to the FD without claiming an external payment rail succeeded when only an internal record exists.
 **Plans**: 4 plans
 Plans:
-- [ ] 04-01-PLAN.md — V9 closure/history migration, premature-closure entity, and BigDecimal penalty policy
-- [ ] 04-02-PLAN.md — Normal closure, two-step premature-closure, and unified history services
-- [ ] 04-03-PLAN.md — Closure/status/history endpoint wiring, consistent errors, OpenAPI, contract tests
-- [ ] 04-04-PLAN.md — Postman end-to-end demo collection with contract-consistency test
+- [x] 04-01-PLAN.md — V9 closure/history migration, premature-closure entity, and BigDecimal penalty policy
+- [x] 04-02-PLAN.md — Normal closure, two-step premature-closure, and unified history services
+- [x] 04-03-PLAN.md — Closure/status/history endpoint wiring, consistent errors, OpenAPI, contract tests
+- [x] 04-04-PLAN.md — Postman end-to-end demo collection with contract-consistency test
 
 ### Phase 5: Protection, Tests, and Regression Gate
 **Goal**: The demonstrable FD workflow is safe for ordinary retries and basic customer/staff use, and evidence exists that it did not regress the existing college lab application.
@@ -104,7 +104,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Existing FD Baseline | 3/3 | Complete | 2026-09-18 |
 | 2. Product Booking and Funding | 3/3 | Complete | 2026-09-19 |
 | 3. Interest and Maturity Processing | 2/2 | Complete | 2026-09-22 |
-| 4. Closure and Demonstrable API Workflow | 0/TBD | Not started | - |
+| 4. Closure and Demonstrable API Workflow | 4/4 | Complete | 2026-09-22 |
 | 5. Protection, Tests, and Regression Gate | 0/TBD | Not started | - |
 
 ## Coverage
