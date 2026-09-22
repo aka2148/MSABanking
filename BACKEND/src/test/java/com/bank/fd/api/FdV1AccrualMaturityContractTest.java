@@ -4,6 +4,7 @@ import com.bank.common.exception.GlobalExceptionHandler;
 import com.bank.fd.api.controller.FdV1ContractController;
 import com.bank.fd.api.dto.AccrualResponse;
 import com.bank.fd.application.AccrualService;
+import com.bank.fd.application.FdAccessPolicy;
 import com.bank.fd.application.AccountBookingService;
 import com.bank.fd.application.ClosureService;
 import com.bank.fd.application.FdActorResolver;
@@ -37,6 +38,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -68,7 +70,7 @@ class FdV1AccrualMaturityContractTest {
                 mock(com.bank.fd.repository.FdCurrencyReferenceRepository.class),
                 mock(com.bank.fd.repository.FdPrematureClosureRepository.class),
                 mock(com.bank.fd.repository.TransactionTypeRepository.class),
-                mock(FdActorResolver.class), mock(FdTimePolicy.class));
+                mock(FdActorResolver.class), mock(FdAccessPolicy.class), mock(FdTimePolicy.class));
         ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule())
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
@@ -79,7 +81,7 @@ class FdV1AccrualMaturityContractTest {
 
     @Test
     void postAccrualRunReturnsTypedAccrual() throws Exception {
-        when(accrualService.runAccrual(eq(11L), eq("alice"), any())).thenReturn(activeResponse());
+        when(accrualService.runAccrual(eq(11L), eq("alice"), any(), isNull())).thenReturn(activeResponse());
 
         mockMvc.perform(post("/fd/v1/accounts/11/accrual/run").principal(authentication)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -112,7 +114,7 @@ class FdV1AccrualMaturityContractTest {
         AccrualResponse matured = new AccrualResponse(11L, "FD000011", LocalDate.of(2026, 1, 1),
                 new BigDecimal("6500.00"), new BigDecimal("6500.00"), "USD",
                 new BigDecimal("106500.00"), "academic-v1", "MATURED");
-        when(maturityService.processMaturity(11L, "alice")).thenReturn(matured);
+        when(maturityService.processMaturity(eq(11L), eq("alice"), isNull())).thenReturn(matured);
 
         mockMvc.perform(post("/fd/v1/accounts/11/mature").principal(authentication))
                 .andExpect(status().isOk())
@@ -121,7 +123,7 @@ class FdV1AccrualMaturityContractTest {
 
     @Test
     void invalidTransitionMapsToStructuredErrorBody() throws Exception {
-        when(accrualService.runAccrual(eq(11L), eq("alice"), any()))
+        when(accrualService.runAccrual(eq(11L), eq("alice"), any(), isNull()))
                 .thenThrow(new InvalidFdTransitionException(FdStatus.PENDING, FdLifecycleCommand.MATURE));
 
         mockMvc.perform(post("/fd/v1/accounts/11/accrual/run").principal(authentication)
@@ -134,13 +136,13 @@ class FdV1AccrualMaturityContractTest {
     @Test
     void endpointRolesAndUnrelatedPlaceholdersPreserved() throws Exception {
         var runAccrual = FdV1ContractController.class.getDeclaredMethod("runAccrual", Long.class,
-                java.util.Map.class, Authentication.class);
+                java.util.Map.class, String.class, Authentication.class);
         assertEquals("/accounts/{accountId}/accrual/run", runAccrual.getAnnotation(PostMapping.class).value()[0]);
-        assertEquals("hasRole('CUSTOMER')", runAccrual.getAnnotation(PreAuthorize.class).value());
+        assertEquals("hasAnyRole('CUSTOMER','BANK_OFFICER','ADMIN')", runAccrual.getAnnotation(PreAuthorize.class).value());
 
         var mature = FdV1ContractController.class.getDeclaredMethod("matureAccount", Long.class,
-                Authentication.class);
-        assertEquals("hasRole('CUSTOMER')", mature.getAnnotation(PreAuthorize.class).value());
+                String.class, Authentication.class);
+        assertEquals("hasAnyRole('CUSTOMER','BANK_OFFICER','ADMIN')", mature.getAnnotation(PreAuthorize.class).value());
 
         var list = FdV1ContractController.class.getDeclaredMethod("listAccrual", Long.class,
                 Authentication.class);

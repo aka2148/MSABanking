@@ -8,6 +8,7 @@ import com.bank.fd.api.dto.PrematureClosureResponse;
 import com.bank.fd.application.AccrualService;
 import com.bank.fd.application.AccountBookingService;
 import com.bank.fd.application.ClosureService;
+import com.bank.fd.application.FdAccessPolicy;
 import com.bank.fd.application.FdActorResolver;
 import com.bank.fd.application.FundingService;
 import com.bank.fd.application.HistoryService;
@@ -54,6 +55,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -132,7 +134,7 @@ class FdV1ClosureHistoryContractTest {
                 mock(FundingService.class), accrualService, mock(MaturityService.class),
                 closureService, prematureClosureService, historyService, accountRepository,
                 productRepository, currencyRepository, prematureClosureRepository,
-                transactionTypeRepository, actorResolver, timePolicy);
+                transactionTypeRepository, actorResolver, mock(FdAccessPolicy.class), timePolicy);
         ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule())
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
@@ -144,7 +146,7 @@ class FdV1ClosureHistoryContractTest {
     @Test
     void closeReturnsClosedSettlement() throws Exception {
         FdAccount closed = account(FdStatus.CLOSED);
-        when(closureService.close(11L, "alice")).thenReturn(
+        when(closureService.close(eq(11L), eq("alice"), isNull())).thenReturn(
                 ClosureResponse.closed(closed, new BigDecimal("106500.0000"), "USD",
                         LocalDate.of(2026, 1, 1)));
 
@@ -157,7 +159,7 @@ class FdV1ClosureHistoryContractTest {
 
     @Test
     void closeInvalidTransitionMaps409() throws Exception {
-        when(closureService.close(eq(11L), eq("alice")))
+        when(closureService.close(eq(11L), eq("alice"), isNull()))
                 .thenThrow(new InvalidFdTransitionException(FdStatus.ACTIVE, FdLifecycleCommand.CLOSE));
 
         mockMvc.perform(post("/fd/v1/accounts/11/close").principal(authentication))
@@ -167,7 +169,7 @@ class FdV1ClosureHistoryContractTest {
 
     @Test
     void prematureRequestReturns201Pending() throws Exception {
-        when(prematureClosureService.requestPrematureClosure(eq(11L), eq("alice"), any()))
+        when(prematureClosureService.requestPrematureClosure(eq(11L), eq("alice"), any(), isNull()))
                 .thenReturn(PrematureClosureResponse.requested(
                         pendingClosure(), new BigDecimal("0.0550"), "USD"));
 
@@ -182,7 +184,7 @@ class FdV1ClosureHistoryContractTest {
 
     @Test
     void prematureUnsupportedRuleMaps422() throws Exception {
-        when(prematureClosureService.requestPrematureClosure(eq(11L), eq("alice"), any()))
+        when(prematureClosureService.requestPrematureClosure(eq(11L), eq("alice"), any(), isNull()))
                 .thenThrow(new PrematureClosureNotSupportedException(
                         "Premature closure is not supported for FD account 11: "
                                 + "no usable CLOSURE_PENALTY rule is stored for this product"));
@@ -199,7 +201,7 @@ class FdV1ClosureHistoryContractTest {
         FdPrematureClosure approved = pendingClosure();
         approved.setStatus("APPROVED");
         approved.setApprovedBy(42L);
-        when(prematureClosureService.approvePrematureClosure(11L, 7L, "alice"))
+        when(prematureClosureService.approvePrematureClosure(eq(11L), eq(7L), eq("alice"), isNull()))
                 .thenReturn(PrematureClosureResponse.approved(
                         approved, new BigDecimal("0.0550"), "USD"));
 
@@ -279,17 +281,17 @@ class FdV1ClosureHistoryContractTest {
     @Test
     void endpointRolesAndUnrelatedPlaceholdersPreserved() throws Exception {
         var close = FdV1ContractController.class.getDeclaredMethod("closeAccount", Long.class,
-                Authentication.class);
+                String.class, Authentication.class);
         assertEquals("/accounts/{accountId}/close", close.getAnnotation(PostMapping.class).value()[0]);
-        assertEquals("hasRole('CUSTOMER')", close.getAnnotation(PreAuthorize.class).value());
+        assertEquals("hasAnyRole('CUSTOMER','BANK_OFFICER','ADMIN')", close.getAnnotation(PreAuthorize.class).value());
 
         var request = FdV1ContractController.class.getDeclaredMethod("requestPrematureClosure",
-                Long.class, Map.class, Authentication.class);
-        assertEquals("hasRole('CUSTOMER')", request.getAnnotation(PreAuthorize.class).value());
+                Long.class, Map.class, String.class, Authentication.class);
+        assertEquals("hasAnyRole('CUSTOMER','BANK_OFFICER','ADMIN')", request.getAnnotation(PreAuthorize.class).value());
 
         var approve = FdV1ContractController.class.getDeclaredMethod("approvePrematureClosure",
-                Long.class, Long.class, Map.class, Authentication.class);
-        assertEquals("hasRole('CUSTOMER')", approve.getAnnotation(PreAuthorize.class).value());
+                Long.class, Long.class, Map.class, String.class, Authentication.class);
+        assertEquals("hasAnyRole('CUSTOMER','BANK_OFFICER','ADMIN')", approve.getAnnotation(PreAuthorize.class).value());
 
         var get = FdV1ContractController.class.getDeclaredMethod("getAccount", Long.class,
                 Authentication.class);

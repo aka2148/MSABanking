@@ -15,6 +15,7 @@ import com.bank.fd.api.dto.PrematureClosureResponse;
 import com.bank.fd.application.AccrualService;
 import com.bank.fd.application.AccountBookingService;
 import com.bank.fd.application.ClosureService;
+import com.bank.fd.application.FdAccessPolicy;
 import com.bank.fd.application.FdActorResolver;
 import com.bank.fd.application.FundingService;
 import com.bank.fd.application.HistoryService;
@@ -34,7 +35,6 @@ import com.bank.fd.api.dto.UpdateAccountContractRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -66,6 +66,7 @@ public class FdV1ContractController {
     private final FdPrematureClosureRepository prematureClosureRepository;
     private final TransactionTypeRepository transactionTypeRepository;
     private final FdActorResolver actorResolver;
+    private final FdAccessPolicy accessPolicy;
     private final FdTimePolicy timePolicy;
 
     public FdV1ContractController() {
@@ -83,6 +84,7 @@ public class FdV1ContractController {
         this.prematureClosureRepository = null;
         this.transactionTypeRepository = null;
         this.actorResolver = null;
+        this.accessPolicy = null;
         this.timePolicy = null;
     }
 
@@ -99,6 +101,7 @@ public class FdV1ContractController {
                                   FdPrematureClosureRepository prematureClosureRepository,
                                   TransactionTypeRepository transactionTypeRepository,
                                   FdActorResolver actorResolver,
+                                  FdAccessPolicy accessPolicy,
                                   FdTimePolicy timePolicy) {
         this.offerQueryService = offerQueryService;
         this.bookingService = bookingService;
@@ -114,6 +117,7 @@ public class FdV1ContractController {
         this.prematureClosureRepository = prematureClosureRepository;
         this.transactionTypeRepository = transactionTypeRepository;
         this.actorResolver = actorResolver;
+        this.accessPolicy = accessPolicy;
         this.timePolicy = timePolicy;
     }
 
@@ -125,19 +129,22 @@ public class FdV1ContractController {
 
     // Accounts
     @PostMapping("/accounts")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER','BANK_OFFICER','ADMIN')")
     public ResponseEntity<AccountResponse> createAccount(
-            @Valid @RequestBody BookingRequest request, Authentication authentication) {
+            @Valid @RequestBody BookingRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+            Authentication authentication) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(bookingService.book(authentication.getName(), request));
+                .body(bookingService.book(authentication.getName(), request, idempotencyKey));
     }
 
     @PostMapping("/accounts/{accountId}/fund")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER','BANK_OFFICER','ADMIN')")
     public ResponseEntity<FundingResponse> fundAccount(@PathVariable Long accountId,
-                                                       @Valid @RequestBody FundingRequest request,
-                                                       Authentication authentication) {
-        return ResponseEntity.ok(fundingService.fund(accountId, authentication.getName(), request));
+                                                        @Valid @RequestBody FundingRequest request,
+                                                        @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+                                                        Authentication authentication) {
+        return ResponseEntity.ok(fundingService.fund(accountId, authentication.getName(), request, idempotencyKey));
     }
 
     /** Compatibility-only reflection seam for the pre-Phase-2 typed boundary test. */
@@ -161,10 +168,7 @@ public class FdV1ContractController {
                                                       Authentication authentication) {
         FdAccount account = accountRepository.findByIdForUpdate(accountId)
                 .orElseThrow(() -> new ResourceNotFoundException("FD account not found"));
-        var holder = actorResolver.resolve(authentication.getName());
-        if (!holder.getId().equals(account.getPrimaryHolderId())) {
-            throw new AccessDeniedException("Authenticated customer does not own this FD account");
-        }
+        accessPolicy.requireOwned(authentication.getName(), account, authentication);
         String productCode = productRepository.findById(account.getProductId())
                 .orElseThrow(() -> new ResourceNotFoundException("FD product reference not found"))
                 .getProductCode();
@@ -185,20 +189,22 @@ public class FdV1ContractController {
     public ResponseEntity<ApiErrorResponse> activateAccount(@PathVariable Long accountId) { return notImplemented("activateAccount"); }
 
     @PostMapping("/accounts/{accountId}/mature")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER','BANK_OFFICER','ADMIN')")
     public ResponseEntity<AccrualResponse> matureAccount(@PathVariable Long accountId,
-                                                         Authentication authentication) {
-        return ResponseEntity.ok(maturityService.processMaturity(accountId, authentication.getName()));
+                                                          @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+                                                          Authentication authentication) {
+        return ResponseEntity.ok(maturityService.processMaturity(accountId, authentication.getName(), idempotencyKey));
     }
 
     @PostMapping("/accounts/{accountId}/renew")
     public ResponseEntity<ApiErrorResponse> renewAccount(@PathVariable Long accountId, @RequestBody(required = false) Map<String, Object> body) { return notImplemented("renewAccount"); }
 
     @PostMapping("/accounts/{accountId}/close")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER','BANK_OFFICER','ADMIN')")
     public ResponseEntity<ClosureResponse> closeAccount(@PathVariable Long accountId,
-                                                        Authentication authentication) {
-        return ResponseEntity.ok(closureService.close(accountId, authentication.getName()));
+                                                         @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+                                                         Authentication authentication) {
+        return ResponseEntity.ok(closureService.close(accountId, authentication.getName(), idempotencyKey));
     }
 
     // Holders
@@ -253,12 +259,13 @@ public class FdV1ContractController {
     public ResponseEntity<ApiErrorResponse> listTransactionTypes() { return notImplemented("listTransactionTypes"); }
 
     @PostMapping("/accounts/{accountId}/accrual/run")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER','BANK_OFFICER','ADMIN')")
     public ResponseEntity<AccrualResponse> runAccrual(@PathVariable Long accountId,
-                                                      @RequestBody(required = false) Map<String, Object> body,
-                                                      Authentication authentication) {
+                                                       @RequestBody(required = false) Map<String, Object> body,
+                                                       @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+                                                       Authentication authentication) {
         return ResponseEntity.ok(accrualService.runAccrual(accountId, authentication.getName(),
-                extractBusinessDate(body)));
+                extractBusinessDate(body), idempotencyKey));
     }
 
     @GetMapping("/accounts/{accountId}/accrual")
@@ -369,15 +376,16 @@ public class FdV1ContractController {
 
     // Premature closure and maturity instructions
     @PostMapping("/accounts/{accountId}/premature-closure")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER','BANK_OFFICER','ADMIN')")
     public ResponseEntity<PrematureClosureResponse> requestPrematureClosure(@PathVariable Long accountId,
-                                                                            @RequestBody(required = false) Map<String, Object> body,
-                                                                            Authentication authentication) {
+                                                                             @RequestBody(required = false) Map<String, Object> body,
+                                                                             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+                                                                             Authentication authentication) {
         if (body != null) {
             extractBusinessDate(body);
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(prematureClosureService
-                .requestPrematureClosure(accountId, authentication.getName(), extractReason(body)));
+                .requestPrematureClosure(accountId, authentication.getName(), extractReason(body), idempotencyKey));
     }
 
     @GetMapping("/accounts/{accountId}/premature-closure")
@@ -386,10 +394,7 @@ public class FdV1ContractController {
                                                                               Authentication authentication) {
         FdAccount account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new ResourceNotFoundException("FD account not found"));
-        var holder = actorResolver.resolve(authentication.getName());
-        if (!holder.getId().equals(account.getPrimaryHolderId())) {
-            throw new AccessDeniedException("Authenticated customer does not own this FD account");
-        }
+        accessPolicy.requireOwned(authentication.getName(), account, authentication);
         String currencyCode = currencyRepository.findById(account.getCurrencyId())
                 .orElseThrow(() -> new ResourceNotFoundException("FD account currency not found"))
                 .getIsoCode();
@@ -402,16 +407,17 @@ public class FdV1ContractController {
     }
 
     @PostMapping("/accounts/{accountId}/premature-closure/{closureId}/approve")
-    @PreAuthorize("hasRole('CUSTOMER')")
+    @PreAuthorize("hasAnyRole('CUSTOMER','BANK_OFFICER','ADMIN')")
     public ResponseEntity<PrematureClosureResponse> approvePrematureClosure(@PathVariable Long accountId,
-                                                                            @PathVariable Long closureId,
-                                                                            @RequestBody(required = false) Map<String, Object> body,
-                                                                            Authentication authentication) {
+                                                                             @PathVariable Long closureId,
+                                                                             @RequestBody(required = false) Map<String, Object> body,
+                                                                             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+                                                                             Authentication authentication) {
         if (body != null) {
             extractBusinessDate(body);
         }
         return ResponseEntity.ok(prematureClosureService
-                .approvePrematureClosure(accountId, closureId, authentication.getName()));
+                .approvePrematureClosure(accountId, closureId, authentication.getName(), idempotencyKey));
     }
 
     @GetMapping("/accounts/{accountId}/maturity-instructions")

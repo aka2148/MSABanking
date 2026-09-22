@@ -51,9 +51,9 @@ class FdV1BookingContractTest {
     @Test
     void fundingRouteIsAuthenticatedAndTyped() throws Exception {
         var method = FdV1ContractController.class.getDeclaredMethod("fundAccount", Long.class,
-                FundingRequest.class, org.springframework.security.core.Authentication.class);
+                FundingRequest.class, String.class, org.springframework.security.core.Authentication.class);
         assertEquals("/accounts/{accountId}/fund", method.getAnnotation(PostMapping.class).value()[0]);
-        assertEquals("hasRole('CUSTOMER')", method.getAnnotation(PreAuthorize.class).value());
+        assertEquals("hasAnyRole('CUSTOMER','BANK_OFFICER','ADMIN')", method.getAnnotation(PreAuthorize.class).value());
         assertEquals(2, FundingResponse.class.getRecordComponents().length - 15);
     }
 }
