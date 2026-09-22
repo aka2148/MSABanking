@@ -31,7 +31,8 @@ Requirements for the academic FD demonstration. Each maps to exactly one roadmap
 - [ ] **CALC-01**: Interest and maturity calculations use `BigDecimal`/decimal arithmetic with explicit scale and rounding rather than binary floating-point calculations.
 - [ ] **CALC-02**: The same calculation rules are reused consistently for estimates, accrual, maturity, and closure within the supported academic product scope.
 - [ ] **HIST-01**: The system records funding, interest/accrual, maturity, closure, and settlement transaction/history records linked to the FD account.
-- [ ] **HIST-02**: Repeating an accrual, maturity, or closure operation does not create an incorrect duplicate financial/history record.
+- [x] **HIST-02
+**: Repeating an accrual, maturity, or closure operation does not create an incorrect duplicate financial/history record.
 
 ### REST API and Persistence
 
@@ -84,9 +85,9 @@ Which phases cover which requirements. Populated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | PROD-01 | Phase 2 | Complete |
-| BOOK-01 | Phase 2 | Pending |
+| BOOK-01 | Phase 2 | Complete |
 | BOOK-02 | Phase 2 | Complete |
-| BOOK-03 | Phase 2 | Pending |
+| BOOK-03 | Phase 2 | Complete |
 | FUND-01 | Phase 2 | Complete |
 | FUND-02 | Phase 5 | Pending |
 | LIFE-01 | Phase 1 | Complete |

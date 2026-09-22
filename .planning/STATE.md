@@ -4,14 +4,14 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: None
-last_updated: "2026-09-22T10:38:40.515Z"
-last_activity: 2026-09-22 -- Phase 05 plan 02 complete (booking/funding/accrual/maturity idempotency + ownership)
+last_updated: "2026-09-22T10:48:07.364Z"
+last_activity: 2026-09-22
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 17
-  completed_plans: 14
-  percent: 82
+  completed_plans: 15
+  percent: 88
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-09-18)
 ## Current Position
 
 Phase: 05 (protection-tests-and-regression-gate) — EXECUTING
-Plan: 3 of 5 (05-02 complete)
+Plan: 4 of 5 (05-02 complete)
 Status: Ready to execute
-Last activity: 2026-09-22 -- Phase 05 plan 02 complete (booking/funding/accrual/maturity idempotency + ownership)
+Last activity: 2026-09-22
 
-Progress: [████████░░] 82%
+Progress: [█████████░] 88%
 
 ## Performance Metrics
 
@@ -61,6 +61,7 @@ Progress: [████████░░] 82%
 | Phase 02 P02 | 12min | 2 tasks | 14 files |
 | Phase 02 P03 | 25 min | 2 tasks | 10 files |
 | Phase 05 P02 | 6min | 2 tasks | 8 files |
+| Phase 05 P05-03 | 20min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -97,6 +98,8 @@ Recent decisions affecting current work:
 - 05-01 guard foundation: durable idempotency claim/replay (same key+hash replays, mismatch 409 with existing-record reference); ownership via FdActorResolver holder-match or ROLE_BANK_OFFICER/ROLE_ADMIN else 404; duplicate errors map to 409; CORS allows Idempotency-Key.
 - 05-02 service wiring: booking/funding/accrual/maturity claim guard scopes and replay the stored aggregate with zero new rows; authorities for requireOwned come from SecurityContextHolder (staff bypass live, controller still key-less); key-less double funding/maturity 409 referencing the existing record; key-less booking still creates a new pending FD.
 - 05-02: authorities for requireOwned come from SecurityContextHolder so staff bypass works without changing service signatures ahead of Plan 03
+- 05-03 closure/history idempotency: same-key replays rebuild stored DTOs with zero new rows; key-less CLOSED repeat is 409 referencing the existing settlement
+- 05-03 controller contract: seven FD mutating endpoints forward Idempotency-Key and admit CUSTOMER/BANK_OFFICER/ADMIN; cross-customer reads 404 via FdAccessPolicy
 
 ### Pending Todos
 
@@ -118,7 +121,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: Completed 05-02-PLAN.md
+Last session: Completed 05-03-PLAN.md
 Stopped at: None
 Resume file: None
 
