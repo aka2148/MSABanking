@@ -62,8 +62,8 @@ Plans:
   4. When the stored maturity date is reached, processing brings the calculation through the required end date and transitions the FD to matured; pending or already-closed FDs are not matured.
 **Plans**: 2 plans
 Plans:
-- [ ] 03-01-PLAN.md — Shared BigDecimal interest calculator, accrual persistence, and V8 transaction codes
-- [ ] 03-02-PLAN.md — Accrual and maturity services with /fd/v1 endpoint wiring
+- [x] 03-01-PLAN.md — Shared BigDecimal interest calculator, accrual persistence, and V8 transaction codes
+- [x] 03-02-PLAN.md — Accrual and maturity services with /fd/v1 endpoint wiring
 
 ### Phase 4: Closure and Demonstrable API Workflow
 **Goal**: Students can demonstrate the complete FD lifecycle through the REST contract, including truthful normal or supported premature closure and its financial history.
@@ -98,7 +98,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Existing FD Baseline | 3/3 | Complete | 2026-09-18 |
 | 2. Product Booking and Funding | 3/3 | Complete | 2026-09-19 |
-| 3. Interest and Maturity Processing | 0/TBD | Not started | - |
+| 3. Interest and Maturity Processing | 2/2 | Complete | 2026-09-22 |
 | 4. Closure and Demonstrable API Workflow | 0/TBD | Not started | - |
 | 5. Protection, Tests, and Regression Gate | 0/TBD | Not started | - |
 
