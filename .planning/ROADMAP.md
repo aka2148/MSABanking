@@ -17,6 +17,7 @@ The roadmap deliberately excludes production banking infrastructure, real paymen
 - [ ] **Phase 3: Interest and Maturity Processing** - Apply consistent decimal calculations, store accruals, and move eligible active FDs to matured.
 - [ ] **Phase 4: Closure and Demonstrable API Workflow** - Complete normal/premature closure, settlement/history responses, and the end-to-end REST demonstration.
 - [x] **Phase 5: Protection, Tests, and Regression Gate** - Add basic ownership/role protection, duplicate safety, focused tests, and regression verification.
+- [ ] **Phase 6: Angular FD Frontend** - Add a responsive Angular interface for the complete FD workflow using the existing login/dashboard visual language.
 
 ## Phase Details
 
@@ -100,10 +101,25 @@ Plans:
 - [x] 05-04-PLAN.md — Unit tests for math, lifecycle, guard, policy, and error mapping
 - [x] 05-05-PLAN.md — PostgreSQL/MockMvc integration proof and full-suite regression gate
 
+### Phase 6: Angular FD Frontend
+**Goal**: An authenticated customer can demonstrate the complete FD lifecycle through the existing Angular application, with screens and interactions matching the current login/dashboard visual language.
+**Depends on**: Phase 5
+**Requirements**: EXT-04 (v2)
+**Success Criteria** (what must be TRUE):
+  1. Authenticated routing is enforced for the dashboard and FD routes, JWT access tokens are persisted for the session, and FD requests send the authenticated bearer token without exposing credentials in logs or URLs.
+  2. Customers can view eligible products, open a booking wizard, submit a booking, and see the resulting pending account with server-returned terms and maturity estimate.
+  3. Customers can fund a pending FD for the exact booked principal and see the account transition to active; the UI sends an idempotency key for every write and presents safe retry/conflict feedback.
+  4. Customers can view account status, run/read accrual, mature an eligible account, close a matured account, request/approve premature closure, and inspect unified transaction history.
+  5. Invalid transitions, validation failures, ownership 404s, duplicate 409s, unsupported premature closure 422s, authentication failures, and backend error envelopes are rendered as understandable in-context UI states.
+  6. The FD screens reuse the existing `GlassShell`, glass cards, shared tokens, typography, controls, and responsive patterns; desktop and mobile layouts remain usable without introducing an unrelated visual system.
+  7. Placeholder `501 NOT_IMPLEMENTED` backend operations are not exposed in the v1 frontend; loading, empty, error, success, and disabled-action states are covered for the supported journeys.
+  8. Angular build and focused frontend tests pass, and the complete REST-driven workflow is manually verified against the configured Supabase-backed environment without committing credentials.
+**Plans**: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -112,6 +128,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 3. Interest and Maturity Processing | 2/2 | Complete | 2026-09-22 |
 | 4. Closure and Demonstrable API Workflow | 4/4 | Complete | 2026-09-22 |
 | 5. Protection, Tests, and Regression Gate | 5/5 | Complete | 2026-09-22 |
+| 6. Angular FD Frontend | 0/TBD | Not started | - |
 
 ## Coverage
 

@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
+status: ready_to_plan
 stopped_at: None
 last_updated: "2026-09-22T10:48:07.364Z"
 last_activity: 2026-09-22
 progress:
-  total_phases: 5
+  total_phases: 6
   completed_phases: 5
   total_plans: 17
   completed_plans: 17
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-18)
 
 **Core value:** Students must be able to demonstrate a complete, understandable fixed-deposit workflow from product selection through booking, funding, interest calculation, maturity, and closure using the existing application.
-**Current focus:** Phase --phase=05 — --name=protection-tests-and-regression-gate
+**Current focus:** Phase 06 — angular-fd-frontend
 
 ## Current Position
 
-Phase: 05 (protection-tests-and-regression-gate) — COMPLETE
-Plan: 5 of 5 (05-05 complete)
-Status: Phase complete — human follow-ups: live-PG run of FdPhase5ProtectionIT, live Supabase REST demo
+Phase: 06 (angular-fd-frontend)
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-09-22
 
-Progress: [██████████] 100%
+Progress: [██████████] 100% (Phase 5 complete; Phase 6 added)
 
 ## Performance Metrics
 
@@ -48,7 +48,8 @@ Progress: [██████████] 100%
 | 2 | 1 | 18 min | 18 min |
 | 3 | 2 | 27 min | 14 min |
 | 4 | 4 | 49 min | 12 min |
-| 5 | 0 | TBD | N/A |
+| 5 | 5 | 5 | 9 min |
+| 6 | 0 | TBD | N/A |
 | 02 | 3 | - | - |
 
 **Recent Trend:**
@@ -72,7 +73,7 @@ Recent decisions affecting current work:
 
 - The milestone is a college-lab FD demonstration, not a production banking platform.
 - Existing Spring Boot/Angular modules, services, entities, repositories, calculators, authentication, migrations, `/fd/v1`, and legacy endpoints are compatibility assets.
-- REST/Swagger/Postman is the acceptance surface; a new Angular FD UI is deferred unless existing functionality requires it.
+- REST/Swagger/Postman remains the backend acceptance surface; Phase 6 adds an Angular FD demonstration UI as a separate frontend phase.
 - Keep lifecycle, decimal money, PostgreSQL/Flyway persistence, basic idempotency, ownership/role checks, and focused tests; avoid enterprise workflow and payment infrastructure.
 - Policy authority: academic fixed policy, not a general production policy engine.
 - Rate unit: decimal fraction (0.0650 represents 6.50% annually).
@@ -120,13 +121,13 @@ None yet.
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
-| Scope | Angular FD screens beyond the current shell | Deferred to v2 unless required | 2026-09-18 |
+| Scope | Angular FD screens beyond the current shell | Promoted to Phase 6: Angular FD Frontend | 2026-09-22 |
 | Scope | Real payment rails, workflow engines, distributed locks, outbox/reconciliation infrastructure | Deferred as disproportionate to the lab | 2026-09-18 |
 | Scope | Recurring payouts, renewal, partial withdrawals, broad holder/nominee workflows, tax/regulatory reporting | Deferred until the core lifecycle is stable | 2026-09-18 |
 
 ## Session Continuity
 
-Last session: Completed 05-05-PLAN.md (Phase 5 complete)
+Last session: Added Phase 6 Angular FD Frontend roadmap scope
 Stopped at: None
 Resume file: None
 
