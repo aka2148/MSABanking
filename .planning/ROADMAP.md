@@ -60,7 +60,10 @@ Plans:
   2. The same documented calculation rules produce compatible estimates, accrual amounts, maturity values, and later closure inputs for the supported lab product.
   3. An eligible active FD can accrue for its supported business date(s), and the resulting accrual information can be read back for demonstration.
   4. When the stored maturity date is reached, processing brings the calculation through the required end date and transitions the FD to matured; pending or already-closed FDs are not matured.
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 03-01-PLAN.md — Shared BigDecimal interest calculator, accrual persistence, and V8 transaction codes
+- [ ] 03-02-PLAN.md — Accrual and maturity services with /fd/v1 endpoint wiring
 
 ### Phase 4: Closure and Demonstrable API Workflow
 **Goal**: Students can demonstrate the complete FD lifecycle through the REST contract, including truthful normal or supported premature closure and its financial history.
