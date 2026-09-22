@@ -97,7 +97,7 @@ Plans:
 - [x] 05-01-PLAN.md — Guard foundation: idempotency guard, ownership policy, error mapping, CORS
 - [x] 05-02-PLAN.md — Wire duplicate safety and ownership into booking/funding/accrual/maturity
 - [x] 05-03-PLAN.md — Wire closure/premature/history plus /fd/v1 key threading and staff roles
-- [ ] 05-04-PLAN.md — Unit tests for math, lifecycle, guard, policy, and error mapping
+- [x] 05-04-PLAN.md — Unit tests for math, lifecycle, guard, policy, and error mapping
 - [ ] 05-05-PLAN.md — PostgreSQL/MockMvc integration proof and full-suite regression gate
 
 ## Progress
@@ -111,7 +111,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Product Booking and Funding | 3/3 | Complete | 2026-09-19 |
 | 3. Interest and Maturity Processing | 2/2 | Complete | 2026-09-22 |
 | 4. Closure and Demonstrable API Workflow | 4/4 | Complete | 2026-09-22 |
-| 5. Protection, Tests, and Regression Gate | 3/5 | In progress | - |
+| 5. Protection, Tests, and Regression Gate | 4/5 | In progress | - |
 
 ## Coverage
 

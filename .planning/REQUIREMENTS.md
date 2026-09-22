@@ -45,7 +45,8 @@ Requirements for the academic FD demonstration. Each maps to exactly one roadmap
 
 - [ ] **AUTH-01**: FD endpoints require authentication where appropriate and derive the customer identity from the authenticated user rather than trusting arbitrary request identifiers.
 - [ ] **AUTH-02**: A customer cannot read or mutate another customer's FD by changing an account identifier, while permitted staff/admin operations remain available through existing role rules.
-- [ ] **TEST-01**: Unit tests cover interest, maturity, penalty, validation, and lifecycle transition rules, including important boundary and invalid cases.
+- [x] **TEST-01
+**: Unit tests cover interest, maturity, penalty, validation, and lifecycle transition rules, including important boundary and invalid cases.
 - [ ] **TEST-02**: Integration tests cover Flyway/PostgreSQL persistence, REST booking/funding/lifecycle flows, ownership authorization, transaction history, and duplicate-action protection.
 - [ ] **TEST-03**: Existing authentication, customer, product, calculator, reporting, migration, and other relevant behavior remains passing after the FD changes.
 
@@ -104,7 +105,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | DATA-02 | Phase 1 | Complete |
 | AUTH-01 | Phase 5 | Pending |
 | AUTH-02 | Phase 5 | Pending |
-| TEST-01 | Phase 5 | Pending |
+| TEST-01 | Phase 5 | Complete |
 | TEST-02 | Phase 5 | Pending |
 | TEST-03 | Phase 5 | Pending |
 

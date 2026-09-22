@@ -10,8 +10,8 @@ progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 17
-  completed_plans: 15
-  percent: 88
+  completed_plans: 16
+  percent: 94
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-09-18)
 ## Current Position
 
 Phase: 05 (protection-tests-and-regression-gate) — EXECUTING
-Plan: 4 of 5 (05-02 complete)
+Plan: 5 of 5 (05-04 complete)
 Status: Ready to execute
 Last activity: 2026-09-22
 
-Progress: [█████████░] 88%
+Progress: [█████████░] 94%
 
 ## Performance Metrics
 
@@ -100,6 +100,7 @@ Recent decisions affecting current work:
 - 05-02: authorities for requireOwned come from SecurityContextHolder so staff bypass works without changing service signatures ahead of Plan 03
 - 05-03 closure/history idempotency: same-key replays rebuild stored DTOs with zero new rows; key-less CLOSED repeat is 409 referencing the existing settlement
 - 05-03 controller contract: seven FD mutating endpoints forward Idempotency-Key and admit CUSTOMER/BANK_OFFICER/ADMIN; cross-customer reads 404 via FdAccessPolicy
+- 05-04 unit layer: 4 new test classes (guard replay/mismatch, ownership matrix, 409/409/422/404/400 mapping, gap-only boundaries incl. one-day 17.81 and 100-point penalty floor); 37/37 green with existing domain tests untouched, no Spring or Docker
 
 ### Pending Todos
 
@@ -121,7 +122,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: Completed 05-03-PLAN.md
+Last session: Completed 05-04-PLAN.md
 Stopped at: None
 Resume file: None
 
