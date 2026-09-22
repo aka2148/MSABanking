@@ -5,8 +5,12 @@ import com.bank.fd.api.controller.FdV1ContractController;
 import com.bank.fd.api.dto.AccrualResponse;
 import com.bank.fd.application.AccrualService;
 import com.bank.fd.application.AccountBookingService;
+import com.bank.fd.application.ClosureService;
+import com.bank.fd.application.FdActorResolver;
 import com.bank.fd.application.FundingService;
+import com.bank.fd.application.HistoryService;
 import com.bank.fd.application.MaturityService;
+import com.bank.fd.application.PrematureClosureService;
 import com.bank.fd.application.ProductOfferQueryService;
 import com.bank.fd.domain.FdLifecycleCommand;
 import com.bank.fd.domain.FdTimePolicy;
@@ -58,7 +62,13 @@ class FdV1AccrualMaturityContractTest {
         FdV1ContractController controller = new FdV1ContractController(
                 mock(ProductOfferQueryService.class), mock(AccountBookingService.class),
                 mock(FundingService.class), accrualService, maturityService,
-                mock(FdTimePolicy.class));
+                mock(ClosureService.class), mock(PrematureClosureService.class),
+                mock(HistoryService.class), mock(com.bank.fd.repository.FdAccountRepository.class),
+                mock(com.bank.fd.repository.FdProductReferenceRepository.class),
+                mock(com.bank.fd.repository.FdCurrencyReferenceRepository.class),
+                mock(com.bank.fd.repository.FdPrematureClosureRepository.class),
+                mock(com.bank.fd.repository.TransactionTypeRepository.class),
+                mock(FdActorResolver.class), mock(FdTimePolicy.class));
         ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule())
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
@@ -141,8 +151,8 @@ class FdV1AccrualMaturityContractTest {
                 Authentication.class);
         assertEquals("isAuthenticated()", cumulative.getAnnotation(PreAuthorize.class).value());
 
-        var untouched = new FdV1ContractController().closeAccount(1L);
+        var untouched = new FdV1ContractController().runPayout(1L, null);
         assertEquals(501, untouched.getStatusCode().value());
-        assertEquals("closeAccount", untouched.getHeaders().getFirst("X-Operation-Id"));
+        assertEquals("runPayout", untouched.getHeaders().getFirst("X-Operation-Id"));
     }
 }

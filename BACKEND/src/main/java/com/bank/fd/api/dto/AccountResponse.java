@@ -1,6 +1,7 @@
 package com.bank.fd.api.dto;
 
 import com.bank.fd.entity.FdAccount;
+import com.bank.fd.entity.FdStatus;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.math.BigDecimal;
@@ -31,5 +32,14 @@ public record AccountResponse(
                 account.getCompoundingFrequency(), account.getPayoutFrequency(), account.getBookingDate(),
                 account.getMaturityDate(), account.getMaturityAmount(), account.getPolicyVersion(),
                 account.getStatus().name(), false);
+    }
+
+    /** Status snapshot for the GET /accounts/{id} read; funding is recorded for every non-pending status. */
+    public static AccountResponse status(FdAccount account, String productCode, String currencyCode) {
+        return new AccountResponse(account.getId(), account.getAccountNumber(), account.getProductId(), productCode,
+                currencyCode, account.getPrincipalAmount(), account.getTenureMonths(), account.getInterestRate(),
+                account.getCompoundingFrequency(), account.getPayoutFrequency(), account.getBookingDate(),
+                account.getMaturityDate(), account.getMaturityAmount(), account.getPolicyVersion(),
+                account.getStatus().name(), account.getStatus() != FdStatus.PENDING);
     }
 }

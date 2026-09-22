@@ -37,6 +37,18 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
+    @ExceptionHandler(com.bank.fd.exception.InvalidFdTransitionException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidTransition(
+            com.bank.fd.exception.InvalidFdTransitionException ex) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(com.bank.fd.exception.PrematureClosureNotSupportedException.class)
+    public ResponseEntity<Map<String, Object>> handlePrematureClosureNotSupported(
+            com.bank.fd.exception.PrematureClosureNotSupportedException ex) {
+        return buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleAccessDeniedException(AccessDeniedException ex) {
         return buildResponse(HttpStatus.FORBIDDEN, "Access Denied: " + ex.getMessage());

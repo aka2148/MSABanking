@@ -1,26 +1,47 @@
 package com.bank.fd.api.controller;
 
+import com.bank.common.exception.InvalidInputException;
+import com.bank.common.exception.ResourceNotFoundException;
 import com.bank.fd.api.dto.ApiErrorResponse;
 import com.bank.fd.api.dto.AccrualResponse;
+import com.bank.fd.api.dto.ClosureResponse;
 import com.bank.fd.api.dto.CreateAccountContractRequest;
 import com.bank.fd.api.dto.AccountResponse;
 import com.bank.fd.api.dto.BookingRequest;
 import com.bank.fd.api.dto.FundingRequest;
 import com.bank.fd.api.dto.FundingResponse;
+import com.bank.fd.api.dto.HistoryEntry;
+import com.bank.fd.api.dto.PrematureClosureResponse;
 import com.bank.fd.application.AccrualService;
 import com.bank.fd.application.AccountBookingService;
+import com.bank.fd.application.ClosureService;
+import com.bank.fd.application.FdActorResolver;
 import com.bank.fd.application.FundingService;
+import com.bank.fd.application.HistoryService;
 import com.bank.fd.application.MaturityService;
+import com.bank.fd.application.PrematureClosureService;
 import com.bank.fd.application.ProductOfferQueryService;
 import com.bank.fd.domain.FdTimePolicy;
+import com.bank.fd.domain.PrematurePenalty;
+import com.bank.fd.entity.FdAccount;
+import com.bank.fd.entity.FdPrematureClosure;
+import com.bank.fd.repository.FdAccountRepository;
+import com.bank.fd.repository.FdCurrencyReferenceRepository;
+import com.bank.fd.repository.FdPrematureClosureRepository;
+import com.bank.fd.repository.FdProductReferenceRepository;
+import com.bank.fd.repository.TransactionTypeRepository;
 import com.bank.fd.api.dto.UpdateAccountContractRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -36,6 +57,15 @@ public class FdV1ContractController {
     private final FundingService fundingService;
     private final AccrualService accrualService;
     private final MaturityService maturityService;
+    private final ClosureService closureService;
+    private final PrematureClosureService prematureClosureService;
+    private final HistoryService historyService;
+    private final FdAccountRepository accountRepository;
+    private final FdProductReferenceRepository productRepository;
+    private final FdCurrencyReferenceRepository currencyRepository;
+    private final FdPrematureClosureRepository prematureClosureRepository;
+    private final TransactionTypeRepository transactionTypeRepository;
+    private final FdActorResolver actorResolver;
     private final FdTimePolicy timePolicy;
 
     public FdV1ContractController() {
@@ -44,6 +74,15 @@ public class FdV1ContractController {
         this.fundingService = null;
         this.accrualService = null;
         this.maturityService = null;
+        this.closureService = null;
+        this.prematureClosureService = null;
+        this.historyService = null;
+        this.accountRepository = null;
+        this.productRepository = null;
+        this.currencyRepository = null;
+        this.prematureClosureRepository = null;
+        this.transactionTypeRepository = null;
+        this.actorResolver = null;
         this.timePolicy = null;
     }
 
@@ -51,12 +90,30 @@ public class FdV1ContractController {
     public FdV1ContractController(ProductOfferQueryService offerQueryService,
                                   AccountBookingService bookingService, FundingService fundingService,
                                   AccrualService accrualService, MaturityService maturityService,
+                                  ClosureService closureService,
+                                  PrematureClosureService prematureClosureService,
+                                  HistoryService historyService,
+                                  FdAccountRepository accountRepository,
+                                  FdProductReferenceRepository productRepository,
+                                  FdCurrencyReferenceRepository currencyRepository,
+                                  FdPrematureClosureRepository prematureClosureRepository,
+                                  TransactionTypeRepository transactionTypeRepository,
+                                  FdActorResolver actorResolver,
                                   FdTimePolicy timePolicy) {
         this.offerQueryService = offerQueryService;
         this.bookingService = bookingService;
         this.fundingService = fundingService;
         this.accrualService = accrualService;
         this.maturityService = maturityService;
+        this.closureService = closureService;
+        this.prematureClosureService = prematureClosureService;
+        this.historyService = historyService;
+        this.accountRepository = accountRepository;
+        this.productRepository = productRepository;
+        this.currencyRepository = currencyRepository;
+        this.prematureClosureRepository = prematureClosureRepository;
+        this.transactionTypeRepository = transactionTypeRepository;
+        this.actorResolver = actorResolver;
         this.timePolicy = timePolicy;
     }
 
@@ -99,7 +156,23 @@ public class FdV1ContractController {
     public ResponseEntity<ApiErrorResponse> listAccounts(@RequestParam(required = false, name = "holder_id") Long holderId, @RequestParam(required = false) String status, @RequestParam(required = false, name = "product_id") Long productId, @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "20", name = "page_size") int pageSize) { return notImplemented("listAccounts"); }
 
     @GetMapping("/accounts/{accountId}")
-    public ResponseEntity<ApiErrorResponse> getAccount(@PathVariable Long accountId) { return notImplemented("getAccount"); }
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<AccountResponse> getAccount(@PathVariable Long accountId,
+                                                      Authentication authentication) {
+        FdAccount account = accountRepository.findByIdForUpdate(accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("FD account not found"));
+        var holder = actorResolver.resolve(authentication.getName());
+        if (!holder.getId().equals(account.getPrimaryHolderId())) {
+            throw new AccessDeniedException("Authenticated customer does not own this FD account");
+        }
+        String productCode = productRepository.findById(account.getProductId())
+                .orElseThrow(() -> new ResourceNotFoundException("FD product reference not found"))
+                .getProductCode();
+        String currencyCode = currencyRepository.findById(account.getCurrencyId())
+                .orElseThrow(() -> new ResourceNotFoundException("FD account currency not found"))
+                .getIsoCode();
+        return ResponseEntity.ok(AccountResponse.status(account, productCode, currencyCode));
+    }
 
     @PatchMapping("/accounts/{accountId}")
     public ResponseEntity<ApiErrorResponse> updateAccount(
@@ -122,7 +195,11 @@ public class FdV1ContractController {
     public ResponseEntity<ApiErrorResponse> renewAccount(@PathVariable Long accountId, @RequestBody(required = false) Map<String, Object> body) { return notImplemented("renewAccount"); }
 
     @PostMapping("/accounts/{accountId}/close")
-    public ResponseEntity<ApiErrorResponse> closeAccount(@PathVariable Long accountId) { return notImplemented("closeAccount"); }
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<ClosureResponse> closeAccount(@PathVariable Long accountId,
+                                                        Authentication authentication) {
+        return ResponseEntity.ok(closureService.close(accountId, authentication.getName()));
+    }
 
     // Holders
     @GetMapping("/accounts/{accountId}/holders")
@@ -142,7 +219,35 @@ public class FdV1ContractController {
     public ResponseEntity<ApiErrorResponse> createTransaction(@PathVariable Long accountId, @RequestBody Map<String, Object> body) { return notImplemented("createTransaction"); }
 
     @GetMapping("/accounts/{accountId}/transactions")
-    public ResponseEntity<ApiErrorResponse> listTransactions(@PathVariable Long accountId, @RequestParam(required = false, name = "from_date") String fromDate, @RequestParam(required = false, name = "to_date") String toDate, @RequestParam(required = false, name = "txn_type_id") Long transactionTypeId) { return notImplemented("listTransactions"); }
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<HistoryEntry>> listTransactions(@PathVariable Long accountId,
+                                                               @RequestParam(required = false, name = "from_date") String fromDate,
+                                                               @RequestParam(required = false, name = "to_date") String toDate,
+                                                               @RequestParam(required = false, name = "txn_type_id") Long transactionTypeId,
+                                                               Authentication authentication) {
+        List<HistoryEntry> timeline = historyService.timeline(accountId, authentication.getName());
+        LocalDate from = parseDateParam(fromDate, "from_date");
+        LocalDate to = parseDateParam(toDate, "to_date");
+        String wantedType = transactionTypeId == null ? null : resolveEntryTypeForTxnTypeId(transactionTypeId);
+        List<HistoryEntry> filtered = new ArrayList<>();
+        for (HistoryEntry entry : timeline) {
+            LocalDate entryDay = entry.entryDate() == null ? null : entry.entryDate().toLocalDate();
+            if (from != null && (entryDay == null || entryDay.isBefore(from))) {
+                continue;
+            }
+            if (to != null && (entryDay == null || entryDay.isAfter(to))) {
+                continue;
+            }
+            if (wantedType != null && !wantedType.equals(entry.entryType())) {
+                continue;
+            }
+            if (transactionTypeId != null && wantedType == null) {
+                continue;
+            }
+            filtered.add(entry);
+        }
+        return ResponseEntity.ok(filtered);
+    }
 
     @GetMapping("/transaction-types")
     public ResponseEntity<ApiErrorResponse> listTransactionTypes() { return notImplemented("listTransactionTypes"); }
@@ -174,10 +279,76 @@ public class FdV1ContractController {
         if (body != null) {
             Object raw = body.containsKey("business_date") ? body.get("business_date") : body.get("accrual_date");
             if (raw instanceof String text && !text.isBlank()) {
-                return java.time.LocalDate.parse(text.trim());
+                try {
+                    return java.time.LocalDate.parse(text.trim());
+                } catch (java.time.format.DateTimeParseException ex) {
+                    throw new InvalidInputException("business_date must be ISO-8601 (yyyy-MM-dd)");
+                }
             }
         }
         return timePolicy.businessDate();
+    }
+
+    /** Parses an optional yyyy-MM-dd query filter; malformed values are 400, never 500. */
+    private LocalDate parseDateParam(String raw, String paramName) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(raw.trim());
+        } catch (java.time.format.DateTimeParseException ex) {
+            throw new InvalidInputException(paramName + " must be ISO-8601 (yyyy-MM-dd)");
+        }
+    }
+
+    /** Extracts optional free-form reason text; non-text values are 400. Amounts stay server-computed. */
+    private String extractReason(Map<String, Object> body) {
+        if (body == null || !body.containsKey("reason") || body.get("reason") == null) {
+            return null;
+        }
+        Object reason = body.get("reason");
+        if (!(reason instanceof String text)) {
+            throw new InvalidInputException("reason must be text");
+        }
+        return text;
+    }
+
+    /** Maps one stored closure row to its typed response; PENDING reads use the request shape. */
+    private PrematureClosureResponse toPrematureClosureResponse(FdAccount account,
+                                                                FdPrematureClosure closure,
+                                                                String currencyCode) {
+        java.math.BigDecimal penalizedRate = null;
+        if (account.getInterestRate() != null && closure.getPenaltyPctApplied() != null) {
+            penalizedRate = PrematurePenalty.penalizedRate(
+                    account.getInterestRate(), closure.getPenaltyPctApplied());
+        }
+        if ("PENDING".equalsIgnoreCase(closure.getStatus())) {
+            return PrematureClosureResponse.requested(closure, penalizedRate, currencyCode);
+        }
+        return PrematureClosureResponse.approved(closure, penalizedRate, currencyCode);
+    }
+
+    /**
+     * Maps a transaction-type id to the HistoryEntry label HistoryService
+     * produces for it, or null when the id matches no known code (the
+     * timeline then filters to an empty list). HistoryEntry carries no
+     * txn_type_id, so the mapping reuses the same code-to-label table.
+     */
+    private String resolveEntryTypeForTxnTypeId(Long transactionTypeId) {
+        String[][] codesToLabels = {
+                {"DEPOSIT", "FUNDING"},
+                {"INTEREST_ACCRUAL", "ACCRUAL"},
+                {"MATURITY", "MATURITY"},
+                {"CLOSURE", "CLOSURE"},
+                {"PENALTY", "PENALTY"},
+        };
+        for (String[] mapping : codesToLabels) {
+            if (transactionTypeRepository.findIdByCode(mapping[0])
+                    .map(transactionTypeId::equals).orElse(false)) {
+                return mapping[1];
+            }
+        }
+        return null;
     }
 
     // Payout accounts and payouts
@@ -198,13 +369,50 @@ public class FdV1ContractController {
 
     // Premature closure and maturity instructions
     @PostMapping("/accounts/{accountId}/premature-closure")
-    public ResponseEntity<ApiErrorResponse> requestPrematureClosure(@PathVariable Long accountId, @RequestBody Map<String, Object> body) { return notImplemented("requestPrematureClosure"); }
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<PrematureClosureResponse> requestPrematureClosure(@PathVariable Long accountId,
+                                                                            @RequestBody(required = false) Map<String, Object> body,
+                                                                            Authentication authentication) {
+        if (body != null) {
+            extractBusinessDate(body);
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(prematureClosureService
+                .requestPrematureClosure(accountId, authentication.getName(), extractReason(body)));
+    }
 
     @GetMapping("/accounts/{accountId}/premature-closure")
-    public ResponseEntity<ApiErrorResponse> getPrematureClosure(@PathVariable Long accountId) { return notImplemented("getPrematureClosure"); }
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<PrematureClosureResponse>> getPrematureClosure(@PathVariable Long accountId,
+                                                                              Authentication authentication) {
+        FdAccount account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("FD account not found"));
+        var holder = actorResolver.resolve(authentication.getName());
+        if (!holder.getId().equals(account.getPrimaryHolderId())) {
+            throw new AccessDeniedException("Authenticated customer does not own this FD account");
+        }
+        String currencyCode = currencyRepository.findById(account.getCurrencyId())
+                .orElseThrow(() -> new ResourceNotFoundException("FD account currency not found"))
+                .getIsoCode();
+        List<PrematureClosureResponse> responses = new ArrayList<>();
+        for (FdPrematureClosure closure
+                : prematureClosureRepository.findByAccountIdOrderByClosureDateAscIdAsc(accountId)) {
+            responses.add(toPrematureClosureResponse(account, closure, currencyCode));
+        }
+        return ResponseEntity.ok(responses);
+    }
 
     @PostMapping("/accounts/{accountId}/premature-closure/{closureId}/approve")
-    public ResponseEntity<ApiErrorResponse> approvePrematureClosure(@PathVariable Long accountId, @PathVariable Long closureId, @RequestBody(required = false) Map<String, Object> body) { return notImplemented("approvePrematureClosure"); }
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<PrematureClosureResponse> approvePrematureClosure(@PathVariable Long accountId,
+                                                                            @PathVariable Long closureId,
+                                                                            @RequestBody(required = false) Map<String, Object> body,
+                                                                            Authentication authentication) {
+        if (body != null) {
+            extractBusinessDate(body);
+        }
+        return ResponseEntity.ok(prematureClosureService
+                .approvePrematureClosure(accountId, closureId, authentication.getName()));
+    }
 
     @GetMapping("/accounts/{accountId}/maturity-instructions")
     public ResponseEntity<ApiErrorResponse> getMaturityInstructions(@PathVariable Long accountId) { return notImplemented("getMaturityInstructions"); }
