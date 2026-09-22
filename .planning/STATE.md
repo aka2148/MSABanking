@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
-stopped_at: Phase 5 context gathered
-last_updated: "2026-09-22T10:10:55.025Z"
-last_activity: 2026-09-22
+status: executing
+stopped_at: Phase 5 plan 01 complete
+last_updated: "2026-09-22T10:30:00.000Z"
+last_activity: 2026-09-22 -- Phase 05 plan 01 complete (guard foundation)
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 12
-  completed_plans: 12
-  percent: 100
+  total_plans: 17
+  completed_plans: 13
+  percent: 76
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-18)
 
 **Core value:** Students must be able to demonstrate a complete, understandable fixed-deposit workflow from product selection through booking, funding, interest calculation, maturity, and closure using the existing application.
-**Current focus:** Phase 05 — protection-tests-and-regression-gate
+**Current focus:** Phase --phase=05 — --name=protection-tests-and-regression-gate
 
 ## Current Position
 
-Phase: 5
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-09-22
+Phase: 05 (protection-tests-and-regression-gate) — EXECUTING
+Plan: 2 of 5 (05-01 complete)
+Status: Executing Phase 05
+Last activity: 2026-09-22 -- Phase 05 plan 01 complete (guard foundation)
 
 Progress: [██████████] 100%
 
@@ -93,6 +93,7 @@ Recent decisions affecting current work:
 - Booking uses branch 000 and simple Actual/365 BigDecimal academic-v1 estimate
 - Funding uses an authenticated exact-principal pessimistic-lock transaction with an internal DEPOSIT and the Phase 1 FUND transition.
 - Funding responses explicitly describe internal academic recordkeeping without claiming external payment settlement.
+- 05-01 guard foundation: durable idempotency claim/replay (same key+hash replays, mismatch 409 with existing-record reference); ownership via FdActorResolver holder-match or ROLE_BANK_OFFICER/ROLE_ADMIN else 404; duplicate errors map to 409; CORS allows Idempotency-Key.
 
 ### Pending Todos
 
@@ -114,8 +115,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: --stopped-at
-Stopped at: Phase 5 context gathered
+Last session: 2026-09-22 -- Phase 05 plan 01 complete
+Stopped at: Phase 5 plan 01 complete (guard foundation committed; next: 05-02 service wiring)
 Resume file: --resume-file
 
 **Planned Phase:** 2 (Product Booking and Funding) — 3 plans — 2026-09-19

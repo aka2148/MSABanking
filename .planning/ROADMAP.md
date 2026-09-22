@@ -94,7 +94,7 @@ Plans:
   5. Existing authentication, customer, product, calculator, reporting, migration, and relevant non-FD regression tests remain passing after the FD changes.
 **Plans**: 5 plans
 Plans:
-- [ ] 05-01-PLAN.md — Guard foundation: idempotency guard, ownership policy, error mapping, CORS
+- [x] 05-01-PLAN.md — Guard foundation: idempotency guard, ownership policy, error mapping, CORS
 - [ ] 05-02-PLAN.md — Wire duplicate safety and ownership into booking/funding/accrual/maturity
 - [ ] 05-03-PLAN.md — Wire closure/premature/history plus /fd/v1 key threading and staff roles
 - [ ] 05-04-PLAN.md — Unit tests for math, lifecycle, guard, policy, and error mapping
@@ -111,7 +111,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Product Booking and Funding | 3/3 | Complete | 2026-09-19 |
 | 3. Interest and Maturity Processing | 2/2 | Complete | 2026-09-22 |
 | 4. Closure and Demonstrable API Workflow | 4/4 | Complete | 2026-09-22 |
-| 5. Protection, Tests, and Regression Gate | 0/TBD | Not started | - |
+| 5. Protection, Tests, and Regression Gate | 1/5 | In progress | - |
 
 ## Coverage
 
