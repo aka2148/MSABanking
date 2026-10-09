@@ -1,8 +1,7 @@
 package com.bank.customer.entity;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
+import org.hibernate.annotations.JoinFormula;
 import java.time.OffsetDateTime;
 
 @Entity
@@ -13,9 +12,11 @@ public class UserPasswordHistory {
     @Column(name = "uph_history_id")
     private Integer id;
 
+    @Column(name = "uph_user_id", nullable = false)
+    private Integer userForeignKey;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "uph_user_id", nullable = false)
-    @JdbcTypeCode(SqlTypes.INTEGER)
+    @JoinFormula(value = "cast(uph_user_id as bigint)", referencedColumnName = "usr_user_id")
     private User user;
 
     @Column(name = "uph_password_hash", nullable = false, length = 255)
@@ -24,7 +25,10 @@ public class UserPasswordHistory {
     @Column(name = "uph_changed_at", nullable = false)
     private OffsetDateTime changedAt = OffsetDateTime.now();
 
-    public void setUser(User user) { this.user = user; }
+    public void setUser(User user) {
+        this.user = user;
+        this.userForeignKey = user == null || user.getId() == null ? null : Math.toIntExact(user.getId());
+    }
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
     public String getPasswordHash() { return passwordHash; }
 }

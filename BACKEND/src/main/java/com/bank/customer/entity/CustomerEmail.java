@@ -1,15 +1,13 @@
 package com.bank.customer.entity;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 /** Maps public.customer_emails. */
 @Entity
 @Table(name = "customer_emails", schema = "public")
 public class CustomerEmail {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) @Column(name = "cem_email_id") private Integer id;
-    @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "cem_customer_id", nullable = false) @JdbcTypeCode(SqlTypes.INTEGER) private CustomerProfile customer;
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) @Column(name = "cem_email_id") private Long id;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "cem_customer_id", nullable = false) private CustomerProfile customer;
     @Column(name = "cem_contact_type") private String contactType;
     @Column(name = "cem_email_address", nullable = false) private String emailAddress;
     /** True if this was the email address used at signup registration. */
@@ -19,7 +17,7 @@ public class CustomerEmail {
     @Column(name = "cem_verification_method") private String verificationMethod;
     @Column(name = "cem_consent_marketing", nullable = false) private boolean consentMarketing;
 
-    public Integer getId() { return id; }
+    public Long getId() { return id; }
     public CustomerProfile getCustomer() { return customer; }
     public void setCustomer(CustomerProfile v) { customer = v; }
     public String getContactType() { return contactType; }
