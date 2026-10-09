@@ -16,15 +16,10 @@ export class AuthService {
 
   constructor(private http: HttpClient) {}
 
-  login(identifier: string, password: string): Observable<LoginResponse> {
-    const payload = {
-      username: identifier,
-      identifier,
-      password,
-      context: this.buildContext(),
-    };
-    return this.http.post<LoginResponse>(`${this.baseUrl}/login`, payload);
-  }
+ login(username: string, password: string): Observable<LoginResponse> {
+  const payload: LoginRequest = { username, password, context: this.buildContext() };
+  return this.http.post<LoginResponse>(`${this.baseUrl}/login`, payload);
+}
 
   signup(form: Omit<SignupRequest, 'context'>): Observable<SignupResponse> {
     const payload: SignupRequest = { ...form, context: this.buildContext() };
