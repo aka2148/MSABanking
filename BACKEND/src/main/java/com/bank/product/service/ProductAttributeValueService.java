@@ -1,0 +1,239 @@
+package com.bank.product.service;
+
+import com.bank.common.exception.*;
+import com.bank.product.dto.request.ProductAttributeValueRequest;
+import com.bank.product.dto.response.ProductAttributeValueResponse;
+import com.bank.product.entity.*;
+import com.bank.product.repository.*;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.*;
+
+@Service
+public class ProductAttributeValueService {
+
+    private final ProductAttributeValueRepository repo;
+    private final ProductRepository products;
+    private final AttributeDefinitionRepository defs;
+
+    public ProductAttributeValueService(
+            ProductAttributeValueRepository repo,
+            ProductRepository products,
+            AttributeDefinitionRepository defs) {
+        this.repo = repo;
+        this.products = products;
+        this.defs = defs;
+    }
+
+    private void product(Integer id) {
+        if (id == null || id < 1) {
+            throw new InvalidInputException("productId must be positive");
+        }
+
+        if (!products.existsById(id)) {
+            throw new ResourceNotFoundException(
+                    "Product not found with ID: " + id);
+        }
+    }
+
+    private AttributeDefinition def(Integer id) {
+        if (id == null || id < 1) {
+            throw new InvalidInputException("attributeDefId must be positive");
+        }
+
+        return defs.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Attribute definition not found with ID: " + id));
+    }
+
+    private void belongs(Product product, AttributeDefinition d) {
+        if (!product.getCategoryId().equals(d.getCategoryId())) {
+            throw new InvalidInputException(
+                    "Attribute definition does not belong to the product category");
+        }
+    }
+
+    private void validateValue(
+            AttributeDefinition d,
+            ProductAttributeValueRequest r) {
+
+        String type = d.getDataType().trim().toUpperCase();
+
+        if (r.getValueString() == null
+                && r.getValueNumber() == null
+                && r.getValueDate() == null) {
+            if (d.getRequired()) {
+                throw new InvalidInputException(
+                        "Value is required for attribute: " + d.getAttributeKey());
+            }
+            return;
+        }
+
+        switch (type) {
+            case "STRING" -> {
+                if (r.getValueString() == null
+                        || r.getValueNumber() != null
+                        || r.getValueDate() != null) {
+                    throw new InvalidInputException(
+                            "STRING attribute requires valueString only");
+                }
+            }
+
+            case "NUMBER" -> {
+                if (r.getValueNumber() == null
+                        || r.getValueString() != null
+                        || r.getValueDate() != null) {
+                    throw new InvalidInputException(
+                            "NUMBER attribute requires valueNumber only");
+                }
+            }
+
+            case "DATE" -> {
+                if (r.getValueDate() == null
+                        || r.getValueString() != null
+                        || r.getValueNumber() != null) {
+                    throw new InvalidInputException(
+                            "DATE attribute requires valueDate only");
+                }
+            }
+
+            case "BOOLEAN" -> {
+                if (r.getValueString() == null
+                        || r.getValueNumber() != null
+                        || r.getValueDate() != null
+                        || !("true".equalsIgnoreCase(r.getValueString())
+                        || "false".equalsIgnoreCase(r.getValueString()))) {
+                    throw new InvalidInputException(
+                            "BOOLEAN attribute requires valueString=true or false");
+                }
+            }
+
+            default -> throw new InvalidInputException(
+                    "Unsupported attribute dataType: " + d.getDataType()
+                    + ". Use STRING, NUMBER, DATE or BOOLEAN");
+        }
+    }
+
+    @Transactional
+    public ProductAttributeValueResponse create(
+            Integer pid,
+            ProductAttributeValueRequest r,
+            Integer did) {
+
+        product(pid);
+        Product p = products.findById(pid).orElseThrow();
+
+        AttributeDefinition d = def(did);
+        belongs(p, d);
+        validateValue(d, r);
+
+        if (repo.existsByProductIdAndAttributeDefId(pid, did)) {
+            throw new DuplicateResourceException(
+                    "Attribute value already exists for this product and attribute definition");
+        }
+
+        ProductAttributeValue e = new ProductAttributeValue();
+        e.setProductId(pid);
+        e.setAttributeDefId(did);
+
+        apply(e, r);
+
+        e.setCreatedBy("SYSTEM");
+        e.setCreatedDate(LocalDateTime.now());
+        e.setCrudValue("C");
+        e.setUuid(UUID.randomUUID().toString());
+
+        return map(repo.save(e));
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProductAttributeValueResponse> list(Integer pid) {
+        product(pid);
+
+        return repo.findByProductId(pid)
+                .stream()
+                .map(this::map)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public ProductAttributeValueResponse get(Integer pid, Integer did) {
+        product(pid);
+        Product p = products.findById(pid).orElseThrow();
+
+        belongs(p, def(did));
+
+        return map(repo.findByProductIdAndAttributeDefId(pid, did)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Attribute value not found for productId=" + pid
+                        + " and attributeDefId=" + did)));
+    }
+
+    @Transactional
+    public ProductAttributeValueResponse update(
+            Integer pid,
+            Integer did,
+            ProductAttributeValueRequest r) {
+
+        product(pid);
+        Product p = products.findById(pid).orElseThrow();
+
+        AttributeDefinition d = def(did);
+        belongs(p, d);
+        validateValue(d, r);
+
+        ProductAttributeValue e = repo.findByProductIdAndAttributeDefId(pid, did)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Attribute value not found for productId=" + pid
+                        + " and attributeDefId=" + did));
+
+        apply(e, r);
+
+        e.setUpdatedBy("SYSTEM");
+        e.setUpdatedDate(LocalDateTime.now());
+        e.setCrudValue("U");
+
+        return map(repo.save(e));
+    }
+
+    @Transactional
+    public void delete(Integer pid, Integer did) {
+        product(pid);
+        Product p = products.findById(pid).orElseThrow();
+
+        belongs(p, def(did));
+
+        ProductAttributeValue e = repo.findByProductIdAndAttributeDefId(pid, did)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Attribute value not found for productId=" + pid
+                        + " and attributeDefId=" + did));
+
+        repo.delete(e);
+    }
+
+    private void apply(
+            ProductAttributeValue e,
+            ProductAttributeValueRequest r) {
+        e.setValueString(r.getValueString());
+        e.setValueNumber(r.getValueNumber());
+        e.setValueDate(r.getValueDate());
+    }
+
+    private ProductAttributeValueResponse map(ProductAttributeValue e) {
+        ProductAttributeValueResponse r = new ProductAttributeValueResponse();
+
+        r.setId(e.getId());
+        r.setProductId(e.getProductId());
+        r.setAttributeDefId(e.getAttributeDefId());
+        r.setValueString(e.getValueString());
+        r.setValueNumber(e.getValueNumber());
+        r.setValueDate(e.getValueDate());
+        r.setCreatedDate(e.getCreatedDate());
+        r.setUpdatedDate(e.getUpdatedDate());
+
+        return r;
+    }
+}

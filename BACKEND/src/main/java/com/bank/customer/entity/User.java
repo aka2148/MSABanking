@@ -25,6 +25,9 @@ public class User implements UserDetails {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<UserRole> roleAssignments = new ArrayList<>();
 
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
+    private java.util.List<UserRole> roleAssignments = new java.util.ArrayList<>();
+
     /* Legacy API compatibility. Role assignments belong in user_roles. */
     @Transient private Role role = Role.ROLE_CUSTOMER;
     @Transient private String email;

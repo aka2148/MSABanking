@@ -1,6 +1,5 @@
 server:
   port: 8080
-
 spring:
   application:
     name: MoneyPal Fixed Deposit System
@@ -24,18 +23,10 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
-
-# Custom Application Security & JWT Properties
 app:
-  user-service:
-    base-url: ${USER_SERVICE_URL:https://localhost:8081}
-    service-token: ${USER_SERVICE_SERVICE_TOKEN:replace-with-signed-service-token}
-    timeout-ms: ${USER_SERVICE_TIMEOUT_MS:2000}
-    max-retries: ${USER_SERVICE_MAX_RETRIES:2}
-    failure-threshold: ${USER_SERVICE_FAILURE_THRESHOLD:3}
-    open-duration-ms: ${USER_SERVICE_OPEN_DURATION_MS:30000}
   jwt:
-    secret: ${JWT_SECRET}
+    # A 256-bit (32 bytes) hex string at least. Using a secure 512-bit key here:
+    secret: 407f3f31726a454848324e4d6a6a576b4a7276796c56784d633261623933624e5a7465355674384d5972744747514a67554f6c44347738374e6f477035645a30
     expiration-ms: 86400000 # 24 Hours
 
 # Actuator Config for Liveliness & Health Probes
@@ -49,7 +40,6 @@ management:
       show-details: always
       probes:
         enabled: true
-
 springdoc:
   api-docs:
     path: /api-docs

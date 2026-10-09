@@ -1,0 +1,48 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: MoneyPal Fixed Deposit System
+  datasource:
+    url: jdbc:postgresql://localhost:5432/bankingtech
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  sql:
+    init:
+      mode: never
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+app:
+  user-service:
+    base-url: ${USER_SERVICE_BASE_URL:http://localhost:8081}
+  jwt:
+    secret: 407f3f31726a454848324e4d6a6a576b4a7276796c56784d633261623933624e5a7465355674384d5972744747514a67554f6c44347738374e6f477035645a30
+    expiration-ms: 86400000
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    url: /openapi/fd-service-openapi.yaml
+    disable-swagger-default-url: true

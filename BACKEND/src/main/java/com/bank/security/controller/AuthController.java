@@ -32,12 +32,14 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@RestController
+// DEPRECATED: All auth routes are handled by AuthCustomerController under /api/v1.
+// @RestController removed to prevent duplicate route registration.
 @RequestMapping("/api/auth")
 public class AuthController {
 
@@ -89,7 +91,12 @@ public class AuthController {
     }
 
     @PostMapping("/register")
+<<<<<<< HEAD
     public ResponseEntity<Map<String, Object>> registerUser(@Valid @RequestBody RegisterRequest registerRequest) {
+=======
+    @Transactional
+    public ResponseEntity<String> registerUser(@Valid @RequestBody RegisterRequest registerRequest) {
+>>>>>>> 58ef7c3b6a2c43e2e3ba528a32c24ff540fbd187
         if (userRepository.existsByCredentialsUsername(registerRequest.getUsername())) {
             throw new InvalidInputException("Error: Username is already taken!");
         }
@@ -125,6 +132,9 @@ public class AuthController {
                 .address(registerRequest.getAddress())
                 .category(category)
                 .build();
+            com.bank.customer.entity.CustomerDetails details = new com.bank.customer.entity.CustomerDetails();
+            details.setFullName((registerRequest.getFirstName() + " " + registerRequest.getLastName()).trim());
+            profile.setDetails(details);
         profile.setCustomerNumber("CUS-" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase());
 
         CustomerDetail detail = new CustomerDetail();

@@ -21,13 +21,18 @@ public class UserCredential {
     @Column(name = "ucr_last_login_ip", length = 64) private String lastLoginIp;
     @Column(name = "ucr_uuid", nullable = false, length = 64) private String uuid;
     public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }
+    public String getCredentialType() { return credentialType; }
+    public void setCredentialType(String credentialType) { this.credentialType = credentialType; }
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
     public String getPasswordHash() { return passwordHash; }
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+    public boolean isMustChangePassword() { return mustChangePassword; }
+    public void setMustChangePassword(boolean mustChangePassword) { this.mustChangePassword = mustChangePassword; }
+    public int getFailedAttemptCount() { return failedAttemptCount; }
+    public void setFailedAttemptCount(int failedAttemptCount) { this.failedAttemptCount = failedAttemptCount; }
     public OffsetDateTime getLockedUntil() { return lockedUntil; }
     public void setLockedUntil(OffsetDateTime lockedUntil) { this.lockedUntil = lockedUntil; }
     public int getFailedAttemptCount() { return failedAttemptCount; }
