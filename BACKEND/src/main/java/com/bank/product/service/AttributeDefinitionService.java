@@ -1,13 +1,190 @@
 package com.bank.product.service;
-import com.bank.common.exception.*;import com.bank.product.dto.request.*;import com.bank.product.dto.response.*;import com.bank.product.entity.AttributeDefinition;import com.bank.product.repository.*;import org.springframework.stereotype.Service;import org.springframework.transaction.annotation.Transactional;import java.time.LocalDateTime;import java.util.*;
-@Service public class AttributeDefinitionService{
- private final AttributeDefinitionRepository repo;private final ProductCategoryRepository categories;private final ProductAttributeValueRepository values;public AttributeDefinitionService(AttributeDefinitionRepository repo,ProductCategoryRepository categories,ProductAttributeValueRepository values){this.repo=repo;this.categories=categories;this.values=values;}
- private void category(Integer id){if(id==null||id<1)throw new InvalidInputException("categoryId must be positive");if(!categories.existsById(id))throw new ResourceNotFoundException("Product category not found with ID: "+id);}
- @Transactional public AttributeDefinitionResponse create(CreateAttributeDefinitionRequest r){category(r.getCategoryId());String key=r.getAttributeKey().trim();validateDataType(r.getDataType());if(repo.existsByCategoryIdAndAttributeKey(r.getCategoryId(),key))throw new DuplicateResourceException("Attribute key already exists for this category");AttributeDefinition e=new AttributeDefinition();e.setCategoryId(r.getCategoryId());e.setAttributeKey(key);e.setDataType(r.getDataType().trim().toUpperCase());e.setDisplayName(r.getDisplayName());e.setRequired(Boolean.TRUE.equals(r.getRequired()));e.setCreatedBy("SYSTEM");e.setCreatedDate(LocalDateTime.now());e.setCrudValue("C");e.setUuid(UUID.randomUUID().toString());return map(repo.save(e));}
- @Transactional(readOnly=true) public List<AttributeDefinitionResponse> list(Integer categoryId){category(categoryId);return repo.findByCategoryId(categoryId).stream().map(this::map).toList();}
- @Transactional(readOnly=true) public AttributeDefinitionResponse get(Integer id){return map(repo.findById(id).orElseThrow(()->new ResourceNotFoundException("Attribute definition not found with ID: "+id)));}
- @Transactional public AttributeDefinitionResponse update(Integer id,UpdateAttributeDefinitionRequest r){AttributeDefinition e=repo.findById(id).orElseThrow(()->new ResourceNotFoundException("Attribute definition not found with ID: "+id));Integer cat=r.getCategoryId()!=null?r.getCategoryId():e.getCategoryId();String key=r.getAttributeKey()!=null?r.getAttributeKey().trim():e.getAttributeKey();category(cat);if(values.existsByAttributeDefId(id)&&r.getCategoryId()!=null&&!cat.equals(e.getCategoryId()))throw new InvalidInputException("Cannot change category of an attribute definition that has values");if(values.existsByAttributeDefId(id)&&r.getDataType()!=null&&!r.getDataType().trim().equalsIgnoreCase(e.getDataType()))throw new InvalidInputException("Cannot change dataType of an attribute definition that has values");if((!cat.equals(e.getCategoryId())||!key.equals(e.getAttributeKey()))&&repo.existsByCategoryIdAndAttributeKey(cat,key))throw new DuplicateResourceException("Attribute key already exists for this category");if(r.getCategoryId()!=null)e.setCategoryId(cat);if(r.getAttributeKey()!=null)e.setAttributeKey(key);if(r.getDataType()!=null){validateDataType(r.getDataType());e.setDataType(r.getDataType().trim().toUpperCase());}if(r.getDisplayName()!=null)e.setDisplayName(r.getDisplayName());if(r.getRequired()!=null)e.setRequired(r.getRequired());e.setUpdatedBy("SYSTEM");e.setUpdatedDate(LocalDateTime.now());e.setCrudValue("U");return map(repo.save(e));}
- @Transactional public void delete(Integer id){AttributeDefinition e=repo.findById(id).orElseThrow(()->new ResourceNotFoundException("Attribute definition not found with ID: "+id));if(values.existsByAttributeDefId(id))throw new InvalidInputException("Attribute definition is in use and cannot be deleted");repo.delete(e);}
- private void validateDataType(String value){String type=value==null?"":value.trim().toUpperCase();if(!Set.of("STRING","NUMBER","DATE","BOOLEAN").contains(type))throw new InvalidInputException("Unsupported dataType: "+value+". Use STRING, NUMBER, DATE or BOOLEAN");}
- private AttributeDefinitionResponse map(AttributeDefinition e){AttributeDefinitionResponse r=new AttributeDefinitionResponse();r.setId(e.getId());r.setCategoryId(e.getCategoryId());r.setAttributeKey(e.getAttributeKey());r.setDataType(e.getDataType());r.setDisplayName(e.getDisplayName());r.setRequired(e.getRequired());r.setCreatedDate(e.getCreatedDate());r.setUpdatedDate(e.getUpdatedDate());return r;}
+
+import com.bank.common.exception.*;
+import com.bank.product.dto.request.*;
+import com.bank.product.dto.response.*;
+import com.bank.product.entity.AttributeDefinition;
+import com.bank.product.repository.*;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.*;
+
+@Service
+public class AttributeDefinitionService {
+
+    private final AttributeDefinitionRepository repo;
+    private final ProductCategoryRepository categories;
+    private final ProductAttributeValueRepository values;
+
+    public AttributeDefinitionService(
+            AttributeDefinitionRepository repo,
+            ProductCategoryRepository categories,
+            ProductAttributeValueRepository values) {
+        this.repo = repo;
+        this.categories = categories;
+        this.values = values;
+    }
+
+    private void category(Integer id) {
+        if (id == null || id < 1) {
+            throw new InvalidInputException("categoryId must be positive");
+        }
+
+        if (!categories.existsById(id)) {
+            throw new ResourceNotFoundException(
+                    "Product category not found with ID: " + id);
+        }
+    }
+
+    @Transactional
+    public AttributeDefinitionResponse create(CreateAttributeDefinitionRequest r) {
+        category(r.getCategoryId());
+
+        String key = r.getAttributeKey().trim();
+        validateDataType(r.getDataType());
+
+        if (repo.existsByCategoryIdAndAttributeKey(r.getCategoryId(), key)) {
+            throw new DuplicateResourceException(
+                    "Attribute key already exists for this category");
+        }
+
+        AttributeDefinition e = new AttributeDefinition();
+        e.setCategoryId(r.getCategoryId());
+        e.setAttributeKey(key);
+        e.setDataType(r.getDataType().trim().toUpperCase());
+        e.setDisplayName(r.getDisplayName());
+        e.setRequired(Boolean.TRUE.equals(r.getRequired()));
+        e.setCreatedBy("SYSTEM");
+        e.setCreatedDate(LocalDateTime.now());
+        e.setCrudValue("C");
+        e.setUuid(UUID.randomUUID().toString());
+
+        return map(repo.save(e));
+    }
+
+    @Transactional(readOnly = true)
+    public List<AttributeDefinitionResponse> list(Integer categoryId) {
+        category(categoryId);
+
+        return repo.findByCategoryId(categoryId)
+                .stream()
+                .map(this::map)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public AttributeDefinitionResponse get(Integer id) {
+        return map(repo.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Attribute definition not found with ID: " + id)));
+    }
+
+    @Transactional
+    public AttributeDefinitionResponse update(
+            Integer id,
+            UpdateAttributeDefinitionRequest r) {
+
+        AttributeDefinition e = repo.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Attribute definition not found with ID: " + id));
+
+        Integer cat = r.getCategoryId() != null
+                ? r.getCategoryId()
+                : e.getCategoryId();
+
+        String key = r.getAttributeKey() != null
+                ? r.getAttributeKey().trim()
+                : e.getAttributeKey();
+
+        category(cat);
+
+        if (values.existsByAttributeDefId(id)
+                && r.getCategoryId() != null
+                && !cat.equals(e.getCategoryId())) {
+            throw new InvalidInputException(
+                    "Cannot change category of an attribute definition that has values");
+        }
+
+        if (values.existsByAttributeDefId(id)
+                && r.getDataType() != null
+                && !r.getDataType().trim().equalsIgnoreCase(e.getDataType())) {
+            throw new InvalidInputException(
+                    "Cannot change dataType of an attribute definition that has values");
+        }
+
+        if ((!cat.equals(e.getCategoryId()) || !key.equals(e.getAttributeKey()))
+                && repo.existsByCategoryIdAndAttributeKey(cat, key)) {
+            throw new DuplicateResourceException(
+                    "Attribute key already exists for this category");
+        }
+
+        if (r.getCategoryId() != null) {
+            e.setCategoryId(cat);
+        }
+
+        if (r.getAttributeKey() != null) {
+            e.setAttributeKey(key);
+        }
+
+        if (r.getDataType() != null) {
+            validateDataType(r.getDataType());
+            e.setDataType(r.getDataType().trim().toUpperCase());
+        }
+
+        if (r.getDisplayName() != null) {
+            e.setDisplayName(r.getDisplayName());
+        }
+
+        if (r.getRequired() != null) {
+            e.setRequired(r.getRequired());
+        }
+
+        e.setUpdatedBy("SYSTEM");
+        e.setUpdatedDate(LocalDateTime.now());
+        e.setCrudValue("U");
+
+        return map(repo.save(e));
+    }
+
+    @Transactional
+    public void delete(Integer id) {
+        AttributeDefinition e = repo.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Attribute definition not found with ID: " + id));
+
+        if (values.existsByAttributeDefId(id)) {
+            throw new InvalidInputException(
+                    "Attribute definition is in use and cannot be deleted");
+        }
+
+        repo.delete(e);
+    }
+
+    private void validateDataType(String value) {
+        String type = value == null ? "" : value.trim().toUpperCase();
+
+        if (!Set.of("STRING", "NUMBER", "DATE", "BOOLEAN").contains(type)) {
+            throw new InvalidInputException(
+                    "Unsupported dataType: " + value
+                    + ". Use STRING, NUMBER, DATE or BOOLEAN");
+        }
+    }
+
+    private AttributeDefinitionResponse map(AttributeDefinition e) {
+        AttributeDefinitionResponse r = new AttributeDefinitionResponse();
+
+        r.setId(e.getId());
+        r.setCategoryId(e.getCategoryId());
+        r.setAttributeKey(e.getAttributeKey());
+        r.setDataType(e.getDataType());
+        r.setDisplayName(e.getDisplayName());
+        r.setRequired(e.getRequired());
+        r.setCreatedDate(e.getCreatedDate());
+        r.setUpdatedDate(e.getUpdatedDate());
+
+        return r;
+    }
 }
