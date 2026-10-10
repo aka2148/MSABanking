@@ -28,35 +28,31 @@ export class Login {
     });
   }
 
-  submit(): void {
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
-      this.errorMessage = 'Please fill in all required fields.';
-      return;
-    }
-    this.loading = true;
-    this.errorMessage = '';
-    const { identifier, password } = this.form.getRawValue();
-
-    this.authService.login(identifier, password).subscribe({
-      next: (res) => {
-        this.loading = false;
-        if (res.token || res.success) {
-          if (res.token) {
-            localStorage.setItem('token', res.token);
-          }
-          this.router.navigate(['/dashboard']);
-        } else {
-          this.errorMessage = res.message ?? 'Unable to sign in.';
-        }
-      },
-      error: (err) => {
-        this.loading = false;
-        this.errorMessage =
-          err.error?.message ??
-          err.error?.error ??
-          'Invalid username or password.';
-      },
-    });
+submit(): void {
+  if (this.form.invalid) {
+    this.form.markAllAsTouched();
+    this.errorMessage = 'Please fill in all required fields.';
+    return;
   }
+  this.loading = true;
+  this.errorMessage = '';
+  const { identifier, password } = this.form.getRawValue();
+
+  this.authService.login(identifier, password).subscribe({
+    next: (res) => {
+      this.loading = false;
+      localStorage.setItem('token', res.token);
+      localStorage.setItem('username', res.username);
+      localStorage.setItem('roles', JSON.stringify(res.roles));
+      this.router.navigate(['/dashboard']);
+    },
+    error: (err) => {
+      this.loading = false;
+      this.errorMessage =
+        err.error?.message ??
+        err.error?.error ??
+        'Invalid username or password.';
+    },
+  });
+}
 }

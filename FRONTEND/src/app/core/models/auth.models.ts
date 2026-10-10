@@ -58,11 +58,14 @@ export type PreferredCurrency = 'INR' | 'USD' | 'JPY' | 'KWD';
 export type LegalEntityType = 'INDIVIDUAL' | 'JOINT' | 'CORPORATE';
 
 export interface LoginRequest {
-  identifier: string;
+  username: string; // backend's LoginRequest.java expects `username`, not `identifier`
   password: string;
   context: RequestContext;
 }
-
+// Matches the backend's actual JwtResponse shape — no `success` field exists,
+// so a 200 response IS the success signal. Failures come through as HTTP
+// error status codes (401/403), caught in the service's error callback, not
+// as `success: false` in the body.
 export interface LoginResponse {
   success: boolean;
   token?: string;
