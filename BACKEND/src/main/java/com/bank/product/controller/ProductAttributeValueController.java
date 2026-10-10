@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/products/{productId}/attribute-values")
+@RequestMapping("/api/v1/products/{productId}/attribute-values")
 public class ProductAttributeValueController {
 
     private final ProductAttributeValueService service;

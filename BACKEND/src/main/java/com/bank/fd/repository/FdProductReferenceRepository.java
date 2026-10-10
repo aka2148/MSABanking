@@ -7,4 +7,5 @@ import java.util.Optional;
 
 public interface FdProductReferenceRepository extends JpaRepository<FdProductReference, Long> {
     Optional<FdProductReference> findByProductCode(String productCode);
+    Optional<FdProductReference> findByProductCodeIgnoreCase(String productCode);
 }

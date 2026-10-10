@@ -76,16 +76,54 @@
   font-size: var(--fs-sm);
 }
 
+.fd-product-card__currencies { display: flex; flex-wrap: wrap; gap: 8px; }
+
 .fd-product-card__terms {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  display: block;
   margin: 22px 0 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-.fd-product-card__terms div { min-width: 0; }
-.fd-product-card__terms dt { color: rgba(255, 255, 255, 0.6); font-size: var(--fs-xs); }
-.fd-product-card__terms dd { margin: 4px 0 0; font-size: var(--fs-sm); }
+.fd-product-card__currency-heading,
+.fd-rate-option__term,
+.fd-rate-option__rate {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.fd-product-card__terms h5 { margin: 0 0 4px; color: rgba(255,255,255,.94); font-size: var(--fs-sm); }
+.fd-product-card__terms p { margin: 0; color: rgba(255,255,255,.68); font-size: var(--fs-xs); }
+
+.fd-rate-option-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.fd-rate-option {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--radius-md);
+}
+
+.fd-rate-option__term span,
+.fd-rate-option__rate span {
+  color: rgba(255,255,255,.62);
+  font-size: var(--fs-xs);
+}
+
+.fd-rate-option__term strong { font-size: var(--fs-sm); font-weight: 500; }
+.fd-rate-option__rate strong { color: var(--gold-100); font-family: var(--font-display); font-size: var(--fs-xl); }
+.fd-rate-option > p { min-height: 1.25rem; }
+.fd-rate-option .glass-btn { margin-top: auto; }
 
 .fd-product-card__notes {
   color: rgba(255, 255, 255, 0.7);
@@ -107,6 +145,6 @@
 @media (max-width: 480px) {
   .fd-home-card { margin: 8px; padding: 24px 18px; }
   .fd-product-grid { grid-template-columns: 1fr; }
-  .fd-product-card__terms { grid-template-columns: 1fr; }
+  .fd-rate-option-grid { grid-template-columns: 1fr; }
   .fd-home-card__paths { flex-direction: column; }
 }

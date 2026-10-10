@@ -26,6 +26,8 @@ class FdAccrualSchemaTest {
         assertEquals("fia_accrual_date", field(FdInterestAccrual.class, "accrualDate").getAnnotation(Column.class).name());
         assertEquals("fia_accrued_amount", field(FdInterestAccrual.class, "accruedAmount").getAnnotation(Column.class).name());
         assertEquals("fia_cumulative_accrued", field(FdInterestAccrual.class, "cumulativeAccrued").getAnnotation(Column.class).name());
+        assertEquals("fia_compounding_balance", field(FdInterestAccrual.class, "compoundingBalance").getAnnotation(Column.class).name());
+        assertEquals("fia_capitalized_amount", field(FdInterestAccrual.class, "capitalizedAmount").getAnnotation(Column.class).name());
         assertEquals("fia_currency_id", field(FdInterestAccrual.class, "currencyId").getAnnotation(Column.class).name());
         assertEquals("fia_uuid", field(FdInterestAccrual.class, "uuid").getAnnotation(Column.class).name());
     }
@@ -50,6 +52,19 @@ class FdAccrualSchemaTest {
         assertTrue(migration.contains("RAISE EXCEPTION"));
         assertTrue(migration.contains("uq_fd_interest_accrual_account_date"));
         assertTrue(migration.contains("uq_fd_interest_accrual_fia_uuid"));
+    }
+
+    @Test
+    void v20MigrationAddsCurrencyRateIdentityAndCompoundAccrualStorage() throws Exception {
+        String migration = new String(getClass().getResourceAsStream(
+                "/db/migration/V20__tiered_fd_rates_and_compounding.sql").readAllBytes());
+        assertTrue(migration.contains("FD_TENURE_RATE"));
+        assertTrue(migration.contains("fror_source_outcome_id"));
+        assertTrue(migration.contains("fcr_iso_code"));
+        assertTrue(migration.contains("fia_compounding_balance"));
+        assertTrue(migration.contains("fia_capitalized_amount"));
+        assertTrue(migration.contains("'USD'"));
+        assertTrue(migration.contains("'INR'"));
     }
 
     private static java.lang.reflect.Field field(Class<?> type, String name) throws NoSuchFieldException {

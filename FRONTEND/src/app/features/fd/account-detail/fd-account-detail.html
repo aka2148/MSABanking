@@ -66,8 +66,10 @@
         </div>
         <dl class="fd-terms-grid">
           <div><dt>Principal</dt><dd>{{ currentAccount.principal_amount | number:'1.2-2' }} {{ currentAccount.currency_code }}</dd></div>
-          <div><dt>Annual rate</dt><dd>{{ currentAccount.annual_rate }}</dd></div>
+          <div><dt>Annual rate</dt><dd>{{ currentAccount.annual_rate * 100 | number:'1.2-2' }}%</dd></div>
           <div><dt>Tenure</dt><dd>{{ currentAccount.tenure_months }} months</dd></div>
+          <div><dt>Compounding</dt><dd>{{ formatFrequency(currentAccount.compounding_frequency) }}</dd></div>
+          <div><dt>Interest payout</dt><dd>{{ formatFrequency(currentAccount.payout_frequency) }}</dd></div>
           <div><dt>Open date</dt><dd>{{ currentAccount.open_date }}</dd></div>
           <div><dt>Maturity date</dt><dd>{{ currentAccount.maturity_date }}</dd></div>
           <div><dt>Maturity amount</dt><dd>{{ currentAccount.maturity_amount | number:'1.2-2' }} {{ currentAccount.currency_code }}</dd></div>

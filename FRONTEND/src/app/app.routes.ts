@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
+import { staffGuard } from './core/guards/staff.guard';
 
 export const routes: Routes = [
   {
@@ -19,6 +20,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () =>
       import('./features/dashboard/dashboard-stub').then((m) => m.DashboardStub),
+  },
+  {
+    path: 'staff/fd-products',
+    canActivate: [authGuard, staffGuard],
+    loadComponent: () =>
+      import('./features/staff/fd-products/fd-products').then((m) => m.FdProductsAdmin),
   },
   {
     path: 'fd',

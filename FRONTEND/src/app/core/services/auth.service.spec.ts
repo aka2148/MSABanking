@@ -27,14 +27,26 @@ describe('AuthService session boundary', () => {
   it('stores the returned token and role after login', () => {
     service.login('customer', 'password').subscribe();
 
-    const request = http.expectOne('http://localhost:8080/api/auth/login');
-    request.flush({ success: true, token: 'session-token', role: 'CUSTOMER' });
+    const request = http.expectOne('http://localhost:8080/api/v1/auth/login');
+    request.flush({ success: true, token: 'session-token', roles: ['CUSTOMER'] });
 
     expect(service.isAuthenticated()).toBeTrue();
     expect(service.getToken()).toBe('session-token');
     expect(service.currentRole()).toBe('CUSTOMER');
     expect(localStorage.getItem('token')).toBe('session-token');
     expect(localStorage.getItem('role')).toBe('CUSTOMER');
+  });
+
+  it('prioritizes a staff role when the token response contains multiple roles', () => {
+    service.login('staff', 'password').subscribe();
+    http.expectOne('http://localhost:8080/api/v1/auth/login').flush({
+      success: true,
+      token: 'staff-token',
+      roles: ['ROLE_CUSTOMER', 'ROLE_BANK_OFFICER'],
+    });
+
+    expect(service.currentRole()).toBe('ROLE_BANK_OFFICER');
+    expect(localStorage.getItem('role')).toBe('ROLE_BANK_OFFICER');
   });
 
   it('clears token and role and emits an unauthenticated session on logout', () => {

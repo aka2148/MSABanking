@@ -4,11 +4,11 @@
       <div>
         <p class="fd-eyebrow">Fixed deposits</p>
         <h2>Put your savings to work</h2>
-        <p class="glass-card__sub">Choose an eligible server-owned offer, or inspect a deposit you have already booked.</p>
+         <p class="glass-card__sub">Choose a currency and rate option for a new deposit, or open one you have already booked.</p>
       </div>
       <div class="fd-home-card__paths" aria-label="FD entry paths">
-        <a class="glass-btn" href="#products">Browse products</a>
-        <a class="glass-btn glass-btn--ghost" routerLink="/fd/accounts/lookup">View my deposits</a>
+        <a class="glass-btn" routerLink="/fd" fragment="products">Browse products</a>
+         <a class="glass-btn glass-btn--ghost" routerLink="/fd/accounts/lookup">Open existing deposit</a>
       </div>
     </header>
 
@@ -36,25 +36,44 @@
               <p class="fd-product-card__code">{{ product.product_code }}</p>
               <h4>{{ product.product_name }}</h4>
             </div>
-            <span class="fd-product-card__currency">{{ product.currency_code }}</span>
+            <div class="fd-product-card__currencies">
+              <span class="fd-product-card__currency" *ngFor="let currency of product.currency_offers">{{ currency.currency_code }}</span>
+            </div>
           </div>
 
-          <dl class="fd-product-card__terms">
-            <div><dt>Annual rate</dt><dd>{{ product.annual_rate }}</dd></div>
-            <div><dt>Amount</dt><dd>{{ product.minimum_amount }} – {{ product.maximum_amount }} {{ product.currency_code }}</dd></div>
-            <div><dt>Tenure</dt><dd>{{ product.minimum_tenure_months }} – {{ product.maximum_tenure_months }} months</dd></div>
-            <div><dt>Compounding / payout</dt><dd>{{ product.compounding_frequency }} / {{ product.payout_frequency }}</dd></div>
-          </dl>
+          <section class="fd-product-card__terms" *ngFor="let currency of product.currency_offers">
+            <div class="fd-product-card__currency-heading">
+              <div>
+                <h5>{{ currency.currency_code }} deposit</h5>
+                <p>Deposit {{ currency.minimum_amount | number:'1.2-2' }}–{{ currency.maximum_amount | number:'1.2-2' }} {{ currency.currency_code }}</p>
+              </div>
+              <span class="fd-product-card__currency">{{ currency.currency_code }}</span>
+            </div>
+            <div class="fd-rate-option-grid">
+              <article class="fd-rate-option" *ngFor="let tier of currency.rate_tiers">
+                <div class="fd-rate-option__term">
+                  <span>Term</span>
+                  <strong>{{ tier.minimum_tenure_months }}–{{ tier.maximum_tenure_months }} months</strong>
+                </div>
+                <div class="fd-rate-option__rate">
+                  <span>Annual rate</span>
+                  <strong>{{ tier.annual_rate * 100 | number:'1.2-2' }}%</strong>
+                </div>
+                <p>{{ tier.compounding_frequency | lowercase }} compounding · paid at maturity</p>
+                <button type="button" class="glass-btn glass-btn--full"
+                        [disabled]="loading || selectingOptionKey !== null"
+                        [attr.aria-label]="'Choose ' + tier.minimum_tenure_months + ' to ' + tier.maximum_tenure_months + ' month ' + currency.currency_code + ' option'"
+                        (click)="chooseRateTier(product, currency, tier)">
+                  {{ selectingOptionKey === optionKey(product, currency, tier) ? 'Opening…' : 'Choose this option' }}
+                </button>
+              </article>
+            </div>
+          </section>
 
           <div class="fd-product-card__notes">
-            <p><strong>Closure rule:</strong> {{ product.closure_penalty_rule }}</p>
             <p><strong>Maturity estimate:</strong> {{ product.maturity_estimate_basis }}</p>
           </div>
 
-          <button type="button" class="glass-btn glass-btn--full" (click)="browseProduct(product)"
-                  [disabled]="loading || selectingProductId !== null">
-            {{ selectingProductId === product.product_id ? 'Opening…' : 'Choose this offer' }}
-          </button>
         </article>
       </div>
     </section>

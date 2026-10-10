@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/role-types")
+@RequestMapping("/api/v1/role-types")
 public class RoleTypeController {
     private final RoleTypeService service;
 

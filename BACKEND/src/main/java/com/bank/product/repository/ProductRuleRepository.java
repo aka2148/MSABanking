@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface ProductRuleRepository extends JpaRepository<ProductRule, Integer> {
     List<ProductRule> findByProductId(Integer productId);
     Optional<ProductRule> findByRuleIdAndProductId(Integer ruleId, Integer productId);
+    List<ProductRule> findByProductIdAndRuleNameAndIsActiveTrue(Integer productId, String ruleName);
 }

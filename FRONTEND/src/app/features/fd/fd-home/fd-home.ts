@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { ProductOffer } from '../../../core/models/fd.models';
+import { CurrencyOffer, ProductOffer, RateTier } from '../../../core/models/fd.models';
 import { FdService } from '../../../core/services/fd.service';
 import { GlassShell } from '../../../shared/components/glass-shell/glass-shell';
 
@@ -16,7 +16,7 @@ export class FdHome implements OnInit {
   products: ProductOffer[] = [];
   loading = true;
   errorMessage = '';
-  selectingProductId: number | null = null;
+  selectingOptionKey: string | null = null;
 
   constructor(
     private readonly fdService: FdService,
@@ -42,11 +42,22 @@ export class FdHome implements OnInit {
     });
   }
 
-  browseProduct(product: ProductOffer): void {
-    if (this.loading || this.selectingProductId !== null) return;
-    this.selectingProductId = product.product_id;
-    this.router.navigate(['/fd/book', product.product_id]).finally(() => {
-      this.selectingProductId = null;
+  optionKey(product: ProductOffer, currency: CurrencyOffer, tier: RateTier): string {
+    return `${product.product_id}:${currency.currency_code}:${tier.minimum_tenure_months}:${tier.maximum_tenure_months}`;
+  }
+
+  chooseRateTier(product: ProductOffer, currency: CurrencyOffer, tier: RateTier): void {
+    if (this.loading || this.selectingOptionKey !== null) return;
+    const key = this.optionKey(product, currency, tier);
+    this.selectingOptionKey = key;
+    this.router.navigate(['/fd/book', product.product_id], {
+      queryParams: {
+        currency: currency.currency_code,
+        minMonths: tier.minimum_tenure_months,
+        maxMonths: tier.maximum_tenure_months,
+      },
+    }).finally(() => {
+      this.selectingOptionKey = null;
     });
   }
 }

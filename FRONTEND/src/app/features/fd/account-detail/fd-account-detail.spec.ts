@@ -30,4 +30,10 @@ describe('FdAccountDetail lifecycle actions', () => {
     expect(FdAccountDetail.requiresConfirmation('ACCRUE')).toBeFalse();
     expect(FdAccountDetail.requiresConfirmation('MATURE')).toBeFalse();
   });
+
+  it('labels quarterly capitalization as a customer-readable history item', () => {
+    const component = new FdAccountDetail({} as never, {} as never);
+    expect(component.entryLabel('CAPITALIZATION')).toBe('Interest capitalized');
+    expect(component.formatFrequency('AT_MATURITY')).toBe('At Maturity');
+  });
 });

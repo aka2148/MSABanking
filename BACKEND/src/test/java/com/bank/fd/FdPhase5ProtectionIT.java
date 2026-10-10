@@ -346,18 +346,15 @@ class FdPhase5ProtectionIT {
         request.put("username", username);
         request.put("password", PASSWORD);
         request.put("email", email);
-        request.put("role", "ROLE_CUSTOMER");
-        request.put("firstName", "Phase");
-        request.put("lastName", "Five");
+        request.put("fullName", "Phase Five");
         request.put("phone", "1234567890");
         request.put("address", "123 Banking St");
-        request.put("category", "STANDARD");
-        MvcResult result = mockMvc.perform(post("/api/auth/register")
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andReturn();
         int responseStatus = result.getResponse().getStatus();
-        assertTrue(responseStatus == 200 || responseStatus == 400,
+        assertTrue(responseStatus == 200 || responseStatus == 201 || responseStatus == 400,
                 "Register must succeed or report the user exists, got " + responseStatus);
     }
 
@@ -365,7 +362,7 @@ class FdPhase5ProtectionIT {
         Map<String, String> request = new HashMap<>();
         request.put("username", username);
         request.put("password", PASSWORD);
-        MvcResult result = mockMvc.perform(post("/api/auth/login")
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())

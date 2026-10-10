@@ -37,7 +37,9 @@ class FdV1BookingContractTest {
         };
         var offers = new ProductOfferQueryService(port).findEligibleOffers(LocalDate.of(2026, 9, 19));
         assertEquals(1, offers.size());
-        assertEquals("USD", offers.get(0).currencyCode());
+        assertEquals("USD", offers.get(0).currencyOffers().get(0).currencyCode());
+        assertEquals(0, offers.get(0).currencyOffers().get(0).rateTiers().get(0).annualRate()
+                .compareTo(new BigDecimal("0.0650")));
         assertTrue(offers.get(0).maturityEstimateBasis().contains("Actual/365"));
     }
 

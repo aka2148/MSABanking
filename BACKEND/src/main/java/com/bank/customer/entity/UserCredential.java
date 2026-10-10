@@ -31,12 +31,12 @@ public class UserCredential {
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
     public boolean isMustChangePassword() { return mustChangePassword; }
     public void setMustChangePassword(boolean mustChangePassword) { this.mustChangePassword = mustChangePassword; }
+    public boolean isMfaEnabled() { return mfaEnabled; }
+    public void setMfaEnabled(boolean mfaEnabled) { this.mfaEnabled = mfaEnabled; }
     public int getFailedAttemptCount() { return failedAttemptCount; }
     public void setFailedAttemptCount(int failedAttemptCount) { this.failedAttemptCount = failedAttemptCount; }
     public OffsetDateTime getLockedUntil() { return lockedUntil; }
     public void setLockedUntil(OffsetDateTime lockedUntil) { this.lockedUntil = lockedUntil; }
-    public int getFailedAttemptCount() { return failedAttemptCount; }
-    public void setFailedAttemptCount(int failedAttemptCount) { this.failedAttemptCount = failedAttemptCount; }
     public OffsetDateTime getLastLoginAt() { return lastLoginAt; }
     public void setLastLoginAt(OffsetDateTime lastLoginAt) { this.lastLoginAt = lastLoginAt; }
     public String getLastLoginIp() { return lastLoginIp; }

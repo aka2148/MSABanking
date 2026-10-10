@@ -26,6 +26,11 @@
 .fd-step-copy, .fd-range-note, .fd-state { color: rgba(255, 255, 255, 0.72); line-height: 1.55; }
 .fd-range-note { font-size: var(--fs-xs); margin-top: -4px; }
 .fd-review-list { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; margin: 20px 0; }
+.fd-option-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px; margin: 20px 0; }
+.fd-option-summary div { border-bottom: 1px solid rgba(255, 255, 255, 0.12); padding-bottom: 10px; }
+.fd-option-summary dt { color: rgba(255, 255, 255, 0.58); font-size: var(--fs-xs); }
+.fd-option-summary dd { margin: 5px 0 0; font-size: var(--fs-sm); }
+.fd-option-summary div:nth-child(2) dd { color: var(--gold-100); font-family: var(--font-display); font-size: var(--fs-lg); }
 .fd-review-list div { border-bottom: 1px solid rgba(255, 255, 255, 0.12); padding-bottom: 10px; }
 .fd-review-list dt { color: rgba(255, 255, 255, 0.58); font-size: var(--fs-xs); }
 .fd-review-list dd { margin: 5px 0 0; font-size: var(--fs-sm); }
@@ -34,6 +39,7 @@
   .fd-booking-card { margin: 8px; padding: 28px 20px; }
   .fd-step-labels { grid-template-columns: 1fr; gap: 5px; }
   .fd-review-list { grid-template-columns: 1fr; }
+  .fd-option-summary { grid-template-columns: 1fr; }
   .stepper-actions { gap: 10px; }
   .stepper-actions .glass-btn { flex: 1; }
 }

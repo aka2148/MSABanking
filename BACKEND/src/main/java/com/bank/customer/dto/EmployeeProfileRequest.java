@@ -2,6 +2,7 @@ package com.bank.customer.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Email;
 
 import java.time.LocalDate;
 
@@ -9,6 +10,7 @@ import java.time.LocalDate;
 public class EmployeeProfileRequest {
     @NotBlank private String employeeCode;
     @NotBlank private String fullName;
+    @Email private String email;
     /** User ID that this employee profile is linked to. Required for creation. */
     private Long userId;
     private Integer homeBranchId;
@@ -20,6 +22,8 @@ public class EmployeeProfileRequest {
     public void setEmployeeCode(String v) { employeeCode = v; }
     public String getFullName() { return fullName; }
     public void setFullName(String v) { fullName = v; }
+    public String getEmail() { return email; }
+    public void setEmail(String v) { email = v; }
     public Long getUserId() { return userId; }
     public void setUserId(Long v) { userId = v; }
     public Integer getHomeBranchId() { return homeBranchId; }

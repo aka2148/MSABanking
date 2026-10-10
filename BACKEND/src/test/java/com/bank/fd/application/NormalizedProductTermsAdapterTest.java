@@ -36,6 +36,40 @@ class NormalizedProductTermsAdapterTest {
     }
 
     @Test
+    void choosesTheSingleRateTierMatchingBookedTenure() {
+        var shortTier = new NormalizedProductTermsAdapter.NormalizedOffer(
+                7L, "FD-12", "Academic Fixed Deposit", "USD", true,
+                new BigDecimal("100.00"), new BigDecimal("100000.00"), 3, 5,
+                new BigDecimal("0.0400"), "QUARTERLY", "AT_MATURITY", 51L, "NONE");
+        var longTier = new NormalizedProductTermsAdapter.NormalizedOffer(
+                7L, "FD-12", "Academic Fixed Deposit", "USD", true,
+                new BigDecimal("100.00"), new BigDecimal("100000.00"), 6, 12,
+                new BigDecimal("0.0500"), "QUARTERLY", "AT_MATURITY", 52L, "NONE");
+        var adapter = new NormalizedProductTermsAdapter((product, currency, date) -> List.of(shortTier, longTier));
+
+        ProductTerms terms = adapter.resolveActiveTerms(
+                new ProductTermsQuery(7L, new BigDecimal("1000.00"), 8, "USD"), LocalDate.of(2026, 1, 1));
+
+        assertEquals(new BigDecimal("0.0500"), terms.annualRate());
+        assertEquals(52L, terms.appliedRateOutcomeId());
+        assertEquals(6, terms.minimumTenureMonths());
+        assertEquals(12, terms.maximumTenureMonths());
+    }
+
+    @Test
+    void rejectsUncoveredOrAmbiguousTenureBands() {
+        var secondTier = new NormalizedProductTermsAdapter.NormalizedOffer(
+                7L, "FD-12", "Academic Fixed Deposit", "USD", true,
+                new BigDecimal("100.00"), new BigDecimal("100000.00"), 8, 12,
+                new BigDecimal("0.0500"), "QUARTERLY", "AT_MATURITY", 52L, "NONE");
+        var adapter = new NormalizedProductTermsAdapter((product, currency, date) -> List.of(VALID_OFFER, secondTier));
+
+        assertThrows(NormalizedProductTermsAdapter.ProductTermsResolutionException.class,
+                () -> adapter.resolveActiveTerms(new ProductTermsQuery(7L,
+                        new BigDecimal("1000.00"), 8, "USD"), LocalDate.now()));
+    }
+
+    @Test
     void failsClosedForMissingAmbiguousInactiveAndOutOfRangeTerms() {
         assertThrows(NormalizedProductTermsAdapter.ProductTermsResolutionException.class,
                 () -> adapter(List.of()).resolveActiveTerms(query(), LocalDate.now()));
@@ -54,7 +88,7 @@ class NormalizedProductTermsAdapterTest {
                 List.of(BookingRequest.class.getRecordComponents()).stream().map(java.lang.reflect.RecordComponent::getName).toList());
         assertEquals(List.of("amount", "currencyCode"),
                 List.of(FundingRequest.class.getRecordComponents()).stream().map(java.lang.reflect.RecordComponent::getName).toList());
-        assertEquals(13, ProductOfferResponse.class.getRecordComponents().length);
+        assertEquals(5, ProductOfferResponse.class.getRecordComponents().length);
     }
 
     private static ProductTermsQuery query() {

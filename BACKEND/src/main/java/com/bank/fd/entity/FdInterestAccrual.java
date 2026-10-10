@@ -11,8 +11,10 @@ public class FdInterestAccrual {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) @Column(name = "fia_accrual_id") private Long id;
     @Column(name = "fia_account_id", nullable = false) private Long accountId;
     @Column(name = "fia_accrual_date", nullable = false) private OffsetDateTime accrualDate;
-    @Column(name = "fia_accrued_amount", nullable = false, precision = 18, scale = 4) private BigDecimal accruedAmount;
-    @Column(name = "fia_cumulative_accrued", precision = 18, scale = 4) private BigDecimal cumulativeAccrued;
+    @Column(name = "fia_accrued_amount", nullable = false, precision = 22, scale = 8) private BigDecimal accruedAmount;
+    @Column(name = "fia_cumulative_accrued", precision = 22, scale = 8) private BigDecimal cumulativeAccrued;
+    @Column(name = "fia_compounding_balance", precision = 22, scale = 8) private BigDecimal compoundingBalance;
+    @Column(name = "fia_capitalized_amount", nullable = false, precision = 22, scale = 8) private BigDecimal capitalizedAmount = BigDecimal.ZERO;
     @Column(name = "fia_currency_id", nullable = false) private Long currencyId;
     @Column(name = "fia_uuid", nullable = false, length = 64) private String uuid;
     public Long getId() { return id; }
@@ -25,6 +27,10 @@ public class FdInterestAccrual {
     public void setAccruedAmount(BigDecimal accruedAmount) { this.accruedAmount = accruedAmount; }
     public BigDecimal getCumulativeAccrued() { return cumulativeAccrued; }
     public void setCumulativeAccrued(BigDecimal cumulativeAccrued) { this.cumulativeAccrued = cumulativeAccrued; }
+    public BigDecimal getCompoundingBalance() { return compoundingBalance; }
+    public void setCompoundingBalance(BigDecimal compoundingBalance) { this.compoundingBalance = compoundingBalance; }
+    public BigDecimal getCapitalizedAmount() { return capitalizedAmount; }
+    public void setCapitalizedAmount(BigDecimal capitalizedAmount) { this.capitalizedAmount = capitalizedAmount; }
     public Long getCurrencyId() { return currencyId; }
     public void setCurrencyId(Long currencyId) { this.currencyId = currencyId; }
     public String getUuid() { return uuid; }

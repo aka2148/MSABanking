@@ -4,9 +4,9 @@ spring:
   application:
     name: MoneyPal Fixed Deposit System
   datasource:
-    url: jdbc:postgresql://localhost:5432/bankingtech
-    username: postgres
-    password: postgres
+    url: ${SUPABASE_DB_URL:${DB_URL:jdbc:postgresql://localhost:5432/bankingtech}}
+    username: ${SUPABASE_DB_USERNAME:${DB_USERNAME:postgres}}
+    password: ${SUPABASE_DB_PASSWORD:${DB_PASSWORD:postgres}}
     driver-class-name: org.postgresql.Driver
   sql:
     init:
@@ -25,10 +25,17 @@ spring:
     baseline-on-migrate: true
 app:
   user-service:
-    base-url: ${USER_SERVICE_BASE_URL:http://localhost:8081}
+    base-url: ${USER_SERVICE_URL:https://localhost:8081}
+    service-token: ${USER_SERVICE_SERVICE_TOKEN:replace-with-signed-service-token}
+    timeout-ms: ${USER_SERVICE_TIMEOUT_MS:2000}
+    max-retries: ${USER_SERVICE_MAX_RETRIES:2}
+    failure-threshold: ${USER_SERVICE_FAILURE_THRESHOLD:3}
+    open-duration-ms: ${USER_SERVICE_OPEN_DURATION_MS:30000}
   jwt:
-    secret: 407f3f31726a454848324e4d6a6a576b4a7276796c56784d633261623933624e5a7465355674384d5972744747514a67554f6c44347738374e6f477035645a30
-    expiration-ms: 86400000
+    secret: ${JWT_SECRET}
+    expiration-ms: 86400000 # 24 Hours
+
+# Actuator Config for Liveliness & Health Probes
 management:
   endpoints:
     web:
@@ -44,5 +51,27 @@ springdoc:
     path: /api-docs
   swagger-ui:
     path: /swagger-ui.html
-    url: /openapi/fd-service-openapi.yaml
+    urls:
+      - name: FD Customer API
+        url: /openapi/fd-service-openapi.yaml
+      - name: FD Product Administration
+        url: /openapi/fd-product-admin-openapi.yaml
+      - name: Login Service
+        url: /openapi/login-service-openapi.yaml
     disable-swagger-default-url: true
+
+fd:
+  policy:
+    authority: "academic fixed policy"
+    version: academic-v1
+    rate-unit: DECIMAL_FRACTION
+    day-count-convention: ACTUAL_365
+    currency-scale: 2
+    display-scale: 2
+    rounding-mode: HALF_UP
+    opening-date-included: true
+    maturity-date-included: false
+    business-zone: UTC
+  integration:
+    actor-authority: "local /api/auth identity"
+    product-terms-authority: "existing normalized server-owned product/rule tables"

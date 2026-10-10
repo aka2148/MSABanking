@@ -70,4 +70,26 @@ class AccountBookingServiceTest {
                 new BookingRequest(7L, new BigDecimal("1000.00"), 3, "USD")));
         verify(accountRepository, never()).save(any());
     }
+
+    @Test
+    void bookingSelectsQuarterlyRatePolicyAndSnapshotsCompoundedEstimate() {
+        when(termsPort.resolveActiveTerms(any(), any())).thenReturn(
+                new ProductTerms(7L, "FD7", "Academic FD", "USD", new BigDecimal("100"),
+                        new BigDecimal("10000"), 3, 5, new BigDecimal("0.1200"), "QUARTERLY",
+                        "AT_MATURITY", 19L, "NONE"));
+        FdUserReference holder = new FdUserReference(); holder.setId(41L);
+        when(actorResolver.resolve("alice")).thenReturn(holder);
+        when(accountNumberGenerator.generateNextAccountNumber("000")).thenReturn("FD-BR000-00000002");
+        FdCurrencyReference currency = new FdCurrencyReference();
+        currency.setId(3L); currency.setIsoCode("USD"); currency.setDecimalPlaces(2);
+        when(currencyRepository.findByIsoCode("USD")).thenReturn(Optional.of(currency));
+        when(accountRepository.save(any(FdAccount.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = service.book("alice", new BookingRequest(7L, new BigDecimal("1000.00"), 3, "USD"));
+
+        assertEquals("academic-v2-quarterly", response.policyVersion());
+        assertEquals("QUARTERLY", response.compoundingFrequency());
+        assertEquals(new BigDecimal("1000.00"), response.principalAmount());
+        assertEquals(new BigDecimal("1029.59"), response.maturityAmount());
+    }
 }

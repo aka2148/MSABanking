@@ -3,16 +3,16 @@ package com.bank.security.controller;
 import com.bank.common.exception.InvalidInputException;
 import com.bank.customer.entity.CustomerCategory;
 import com.bank.customer.entity.CustomerAddress;
-import com.bank.customer.entity.CustomerDetail;
 import com.bank.customer.entity.CustomerEmail;
 import com.bank.customer.entity.CustomerPhoneNumber;
 import com.bank.customer.entity.BankRole;
+import com.bank.customer.entity.RoleDefinition;
 import com.bank.customer.entity.UserRole;
 import com.bank.customer.entity.CustomerProfile;
 import com.bank.customer.entity.Role;
 import com.bank.customer.entity.User;
 import com.bank.customer.repository.CustomerProfileRepository;
-import com.bank.customer.repository.BankRoleRepository;
+import com.bank.customer.repository.RoleDefinitionRepository;
 import com.bank.customer.repository.UserRepository;
 import com.bank.security.dto.JwtResponse;
 import com.bank.security.dto.LoginRequest;
@@ -53,7 +53,7 @@ public class AuthController {
     private CustomerProfileRepository customerProfileRepository;
 
     @Autowired
-    private BankRoleRepository bankRoleRepository;
+    private RoleDefinitionRepository roleDefinitionRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -91,24 +91,20 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-<<<<<<< HEAD
-    public ResponseEntity<Map<String, Object>> registerUser(@Valid @RequestBody RegisterRequest registerRequest) {
-=======
     @Transactional
-    public ResponseEntity<String> registerUser(@Valid @RequestBody RegisterRequest registerRequest) {
->>>>>>> 58ef7c3b6a2c43e2e3ba528a32c24ff540fbd187
+    public ResponseEntity<Map<String, Object>> registerUser(@Valid @RequestBody RegisterRequest registerRequest) {
         if (userRepository.existsByCredentialsUsername(registerRequest.getUsername())) {
             throw new InvalidInputException("Error: Username is already taken!");
         }
 
         Role role = registerRequest.getRole() != null ? registerRequest.getRole() : Role.ROLE_CUSTOMER;
 
-        BankRole bankRole = bankRoleRepository.findByCode(role.name()).orElseGet(() -> {
-            BankRole createdRole = new BankRole();
+        RoleDefinition roleDefinition = roleDefinitionRepository.findByCode(role.name()).orElseGet(() -> {
+            RoleDefinition createdRole = new RoleDefinition();
             createdRole.setCode(role.name());
             createdRole.setName(role.name().replace("ROLE_", "").replace('_', ' '));
             createdRole.setDescription("Application role " + role.name());
-            return bankRoleRepository.save(createdRole);
+            return roleDefinitionRepository.save(createdRole);
         });
 
         User user = User.builder()
@@ -119,7 +115,7 @@ public class AuthController {
                 .build();
 
             UserRole userRole = new UserRole();
-            userRole.setRole(bankRole);
+            userRole.setRole(roleDefinition);
             user.addRoleAssignment(userRole);
 
         CustomerCategory category = registerRequest.getCategory() != null ? registerRequest.getCategory() : CustomerCategory.STANDARD;
@@ -136,10 +132,6 @@ public class AuthController {
             details.setFullName((registerRequest.getFirstName() + " " + registerRequest.getLastName()).trim());
             profile.setDetails(details);
         profile.setCustomerNumber("CUS-" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase());
-
-        CustomerDetail detail = new CustomerDetail();
-        detail.setFullName(registerRequest.getFirstName() + " " + registerRequest.getLastName());
-        profile.addDetail(detail);
 
         CustomerEmail email = new CustomerEmail();
         email.setEmailAddress(registerRequest.getEmail());

@@ -1118,20 +1118,33 @@ components:
 
     ProductOffer:
       type: object
-      required: [product_id, product_code, product_name, currency_code, minimum_amount, maximum_amount, annual_rate]
+      required: [product_id, product_code, product_name, currency_offers]
       properties:
         product_id: { type: integer }
         product_code: { type: string }
         product_name: { type: string }
-        currency_code: { type: string }
-        minimum_amount: { type: number, format: decimal }
-        maximum_amount: { type: number, format: decimal }
-        minimum_tenure_months: { type: integer }
-        maximum_tenure_months: { type: integer }
-        annual_rate: { type: number, format: decimal }
-        compounding_frequency: { type: string }
-        payout_frequency: { type: string }
-        closure_penalty_rule: { type: string }
+        currency_offers:
+          type: array
+          items:
+            type: object
+            required: [currency_code, minimum_amount, maximum_amount, rate_tiers]
+            properties:
+              currency_code: { type: string, enum: [USD, INR] }
+              minimum_amount: { type: number, format: decimal }
+              maximum_amount: { type: number, format: decimal }
+              minimum_tenure_months: { type: integer }
+              maximum_tenure_months: { type: integer }
+              rate_tiers:
+                type: array
+                items:
+                  type: object
+                  required: [minimum_tenure_months, maximum_tenure_months, annual_rate, compounding_frequency, payout_frequency]
+                  properties:
+                    minimum_tenure_months: { type: integer }
+                    maximum_tenure_months: { type: integer }
+                    annual_rate: { type: number, format: decimal, description: Decimal fraction, e.g. 0.0650 means 6.50 percent per year. }
+                    compounding_frequency: { type: string, enum: [QUARTERLY] }
+                    payout_frequency: { type: string, enum: [AT_MATURITY] }
         maturity_estimate_basis: { type: string }
 
     FundingRequest:

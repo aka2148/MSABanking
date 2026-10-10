@@ -1,9 +1,8 @@
 package com.bank.fd.scheduler;
 
-import com.bank.fd.service.FdAccountService;
+import com.bank.fd.application.FdBatchProcessingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -12,15 +11,18 @@ public class FdBatchScheduler {
 
     private static final Logger logger = LoggerFactory.getLogger(FdBatchScheduler.class);
 
-    @Autowired
-    private FdAccountService fdAccountService;
+    private final FdBatchProcessingService batchService;
+
+    public FdBatchScheduler(FdBatchProcessingService batchService) {
+        this.batchService = batchService;
+    }
 
     // Run at midnight every day
-    @Scheduled(cron = "0 0 0 * * ?")
+    @Scheduled(cron = "0 0 0 * * ?", zone = "UTC")
     public void accrueDailyInterest() {
         logger.info("Starting scheduled task: Daily Interest Accrual...");
         try {
-            fdAccountService.accrueDailyInterest();
+            batchService.runAccrual(null);
             logger.info("Daily Interest Accrual completed successfully.");
         } catch (Exception e) {
             logger.error("Error during scheduled Daily Interest Accrual", e);
@@ -28,11 +30,11 @@ public class FdBatchScheduler {
     }
 
     // Run at 1 AM every day
-    @Scheduled(cron = "0 0 1 * * ?")
+    @Scheduled(cron = "0 0 1 * * ?", zone = "UTC")
     public void processMaturedAccounts() {
         logger.info("Starting scheduled task: Maturity Handling...");
         try {
-            fdAccountService.processMaturedAccounts();
+            batchService.runMaturity(null);
             logger.info("Maturity Handling completed successfully.");
         } catch (Exception e) {
             logger.error("Error during scheduled Maturity Handling", e);

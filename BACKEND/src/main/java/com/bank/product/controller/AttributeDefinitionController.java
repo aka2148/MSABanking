@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/attribute-definitions")
+@RequestMapping("/api/v1/attribute-definitions")
 public class AttributeDefinitionController {
 
     private final AttributeDefinitionService service;

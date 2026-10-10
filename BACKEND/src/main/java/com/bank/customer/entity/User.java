@@ -25,9 +25,6 @@ public class User implements UserDetails {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<UserRole> roleAssignments = new ArrayList<>();
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
-    private java.util.List<UserRole> roleAssignments = new java.util.ArrayList<>();
-
     /* Legacy API compatibility. Role assignments belong in user_roles. */
     @Transient private Role role = Role.ROLE_CUSTOMER;
     @Transient private String email;
@@ -48,6 +45,7 @@ public class User implements UserDetails {
     public void setEmail(String email) { this.email = email; }
     public Role getRole() { return role; }
     public void setRole(Role role) { this.role = role; }
+    public List<UserRole> getRoleAssignments() { return roleAssignments; }
     public void addRoleAssignment(UserRole roleAssignment) { roleAssignments.add(roleAssignment); roleAssignment.setUser(this); }
 
     @PrePersist
@@ -59,8 +57,7 @@ public class User implements UserDetails {
     @Override public Collection<? extends GrantedAuthority> getAuthorities() {
         if (!roleAssignments.isEmpty()) {
             return roleAssignments.stream()
-                    .map(UserRole::getRole)
-                    .map(BankRole::getCode)
+                    .map(UserRole::getRoleCode)
                     .map(SimpleGrantedAuthority::new)
                     .toList();
         }

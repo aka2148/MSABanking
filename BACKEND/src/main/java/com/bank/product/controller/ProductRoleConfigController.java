@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/products/{productId}/role-configs")
+@RequestMapping("/api/v1/products/{productId}/role-configs")
 public class ProductRoleConfigController {
 
     private final ProductRoleConfigService service;

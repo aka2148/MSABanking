@@ -54,7 +54,7 @@ class AccrualMaturityServiceTest {
         maturityService = new MaturityService(accountRepository, accrualRepository, currencyRepository,
                 transactionTypeRepository, transactionRepository, actorResolver,
                 new FdLifecycleStateMachine(), timePolicy,
-                mock(FdIdempotencyGuard.class), new FdAccessPolicy(actorResolver));
+                mock(FdIdempotencyGuard.class), new FdAccessPolicy(actorResolver), accrualService);
 
         account = new FdAccount();
         account.setId(11L);
@@ -107,6 +107,25 @@ class AccrualMaturityServiceTest {
         assertThrows(InvalidInputException.class,
                 () -> accrualService.runAccrual(11L, "alice", LocalDate.of(2026, 1, 1)));
         verify(accrualRepository, never()).save(any());
+    }
+
+    @Test
+    void quarterlyBatchPersistsDailyAccrualAndCapitalizesAtTheQuarterBoundary() {
+        account.setPolicyVersion(AccrualService.COMPOUND_POLICY_VERSION);
+        account.setCompoundingFrequency("QUARTERLY");
+        account.setPrincipalAmount(new BigDecimal("1000.00"));
+        account.setInterestRate(new BigDecimal("0.1200"));
+        when(accrualRepository.findByAccountIdAndAccrualDate(eq(11L), any())).thenReturn(Optional.empty());
+        when(accrualRepository.findByAccountIdOrderByAccrualDateAscIdAsc(11L)).thenReturn(List.of());
+
+        AccrualResponse response = accrualService.accrueForBatch(11L, LocalDate.of(2025, 4, 1));
+
+        assertEquals(0, response.cumulativeAccrued().compareTo(new BigDecimal("29.58904080")));
+        var savedRows = org.mockito.ArgumentCaptor.forClass(FdInterestAccrual.class);
+        verify(accrualRepository, times(90)).save(savedRows.capture());
+        FdInterestAccrual quarterEnd = savedRows.getAllValues().get(89);
+        assertEquals(0, quarterEnd.getCapitalizedAmount().compareTo(new BigDecimal("29.59")));
+        assertEquals(0, quarterEnd.getCompoundingBalance().compareTo(new BigDecimal("1029.59")));
     }
 
     @Test
@@ -182,5 +201,23 @@ class AccrualMaturityServiceTest {
         assertThrows(InvalidFdTransitionException.class, () -> maturityService.processMaturity(11L, "alice"));
 
         verify(transactionRepository, never()).save(any());
+    }
+
+    @Test
+    void quarterlyMaturityUsesTheFinalCompoundedBalance() {
+        account.setBookingDate(LocalDate.of(2025, 1, 1));
+        account.setMaturityDate(LocalDate.of(2025, 4, 1));
+        account.setPrincipalAmount(new BigDecimal("1000.00"));
+        account.setInterestRate(new BigDecimal("0.1200"));
+        account.setCompoundingFrequency("QUARTERLY");
+        account.setPolicyVersion(AccrualService.COMPOUND_POLICY_VERSION);
+        when(accrualRepository.findByAccountIdAndAccrualDate(eq(11L), any())).thenReturn(Optional.empty());
+        when(accrualRepository.findByAccountIdOrderByAccrualDateAscIdAsc(11L)).thenReturn(List.of());
+
+        AccrualResponse response = maturityService.processMaturity(11L, "alice");
+
+        assertEquals("MATURED", response.status());
+        assertEquals(0, response.maturityAmount().compareTo(new BigDecimal("1029.59")));
+        assertEquals(0, response.accruedAmount().compareTo(new BigDecimal("29.59")));
     }
 }

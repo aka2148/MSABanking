@@ -76,11 +76,17 @@ ALTER TABLE public.fd_accounts
 
 ALTER TABLE public.fd_accounts
     ADD CONSTRAINT ck_fd_accounts_status
-        CHECK (fa_status IN ('PENDING', 'ACTIVE', 'MATURED', 'CLOSED', 'PREMATURELY_CLOSED)),
+        CHECK (fa_status IN ('PENDING', 'ACTIVE', 'MATURED', 'CLOSED', 'PREMATURELY_CLOSED'));
+
+ALTER TABLE public.fd_accounts
     ADD CONSTRAINT ck_fd_accounts_principal_positive
-        CHECK (fa_principal_amount > 0),
+        CHECK (fa_principal_amount > 0);
+
+ALTER TABLE public.fd_accounts
     ADD CONSTRAINT ck_fd_accounts_tenure_positive
-        CHECK (fa_tenure_months > 0),
+        CHECK (fa_tenure_months > 0);
+
+ALTER TABLE public.fd_accounts
     ADD COLUMN fa_row_version BIGINT NOT NULL DEFAULT 0;
 
 CREATE TABLE public.fd_operation_idempotency (

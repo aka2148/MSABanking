@@ -1,0 +1,147 @@
+openapi: 3.0.3
+info:
+  title: FD Product Administration API
+  version: 1.0.0
+  description: Staff-only setup and activation of academic USD/INR fixed-deposit products.
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: FD Product Administration
+  - name: FD Batch Operations
+paths:
+  /api/v1/product-categories:
+    get:
+      tags: [FD Product Administration]
+      summary: Find the category ID for FD product configuration
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Existing product categories }
+        '403': { description: BANK_OFFICER or ADMIN role required }
+  /api/v1/currencies:
+    get:
+      tags: [FD Product Administration]
+      summary: List configured currencies
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Currency catalog, including the provisioned USD and INR entries }
+        '403': { description: BANK_OFFICER or ADMIN role required }
+  /api/v1/fd-products:
+    get:
+      tags: [FD Product Administration]
+      summary: List local FD product references
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Product references and activation status
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/FdOfferAdminResponse' }
+        '403': { description: BANK_OFFICER or ADMIN role required }
+    post:
+      tags: [FD Product Administration]
+      summary: Create a draft product with USD and INR tenor-rate schedules
+      description: Rates are decimal fractions (0.0650 means 6.50% annually). Tenure bands must be consecutive and non-overlapping. The product uses quarterly compounding and payout at maturity.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateFdOfferRequest' }
+      responses:
+        '201':
+          description: Draft product created; explicitly activate before customer offers are visible
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FdOfferAdminResponse' }
+        '400': { description: Invalid or overlapping rate schedule }
+        '403': { description: BANK_OFFICER or ADMIN role required }
+  /api/v1/fd-products/{fdProductId}/activate:
+    post:
+      tags: [FD Product Administration]
+      summary: Validate and activate a draft FD product
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: fdProductId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Activated FD product
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FdOfferAdminResponse' }
+        '400': { description: Product has missing or invalid schedules }
+        '403': { description: BANK_OFFICER or ADMIN role required }
+        '404': { description: FD product not found }
+  /api/admin/batch/run:
+    post:
+      tags: [FD Batch Operations]
+      summary: Manually run today's accrual and maturity batch
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Batch summary; account failures are reported without aborting other account work
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FdBatchRunResponse' }
+        '403': { description: BANK_OFFICER or ADMIN role required }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    CreateFdOfferRequest:
+      type: object
+      required: [productCode, productName, categoryId, currencies]
+      properties:
+        productCode: { type: string, maxLength: 32 }
+        productName: { type: string, maxLength: 255 }
+        categoryId: { type: integer, minimum: 1 }
+        description: { type: string, maxLength: 1000 }
+        currencies:
+          type: array
+          minItems: 2
+          items:
+            type: object
+            required: [currencyCode, minimumAmount, maximumAmount, rateBands]
+            properties:
+              currencyCode: { type: string, enum: [USD, INR] }
+              minimumAmount: { type: number, minimum: 0.01 }
+              maximumAmount: { type: number, minimum: 0.01 }
+              rateBands:
+                type: array
+                minItems: 1
+                items:
+                  type: object
+                  required: [minimumTenureMonths, maximumTenureMonths, annualRate]
+                  properties:
+                    minimumTenureMonths: { type: integer, minimum: 1 }
+                    maximumTenureMonths: { type: integer, minimum: 1 }
+                    annualRate: { type: number, minimum: 0, maximum: 1, description: Decimal fraction, not percent units. }
+    FdOfferAdminResponse:
+      type: object
+      properties:
+        fd_product_id: { type: integer }
+        catalog_product_id: { type: integer }
+        product_code: { type: string }
+        product_name: { type: string }
+        status: { type: string, enum: [DRAFT, ACTIVE, INACTIVE] }
+        currency_codes:
+          type: array
+          items: { type: string, enum: [USD, INR] }
+    FdBatchRunResponse:
+      type: object
+      properties:
+        business_date: { type: string, format: date }
+        accounts_examined: { type: integer }
+        accruals_processed: { type: integer }
+        maturities_processed: { type: integer }
+        accounts_failed: { type: integer }
+        failed_account_ids:
+          type: array
+          items: { type: integer }

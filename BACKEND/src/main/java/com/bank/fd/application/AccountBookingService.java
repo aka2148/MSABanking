@@ -1,8 +1,10 @@
 package com.bank.fd.application;
 
+import com.bank.common.exception.InvalidInputException;
 import com.bank.common.exception.ResourceNotFoundException;
 import com.bank.fd.api.dto.AccountResponse;
 import com.bank.fd.api.dto.BookingRequest;
+import com.bank.fd.domain.FdCompoundCalculator;
 import com.bank.fd.domain.FdCalculationPolicy;
 import com.bank.fd.domain.FdTimePolicy;
 import com.bank.fd.entity.FdAccount;
@@ -26,6 +28,7 @@ import java.time.temporal.ChronoUnit;
 public class AccountBookingService {
     private static final String BRANCH_CODE = "000";
     private static final String POLICY_VERSION = "academic-v1";
+    private static final String COMPOUND_POLICY_VERSION = "academic-v2-quarterly";
     private final ProductTermsPort termsPort;
     private final FdActorResolver actorResolver;
     private final FdAccountRepository accountRepository;
@@ -71,7 +74,7 @@ public class AccountBookingService {
         ProductTerms terms = termsPort.resolveActiveTerms(
                 new ProductTermsQuery(request.productId(), request.principalAmount(), request.tenureMonths(),
                         request.currencyCode()), timePolicy.businessDate());
-        validateCompounding(terms.compoundingFrequency());
+        boolean quarterlyCompounding = validateCompounding(terms.compoundingFrequency(), terms.payoutFrequency());
 
         String actorKey = "fd-user-" + holder.getId();
         String canonical = request.productId() + "|"
@@ -91,14 +94,25 @@ public class AccountBookingService {
 
         LocalDate openDate = timePolicy.businessDate();
         LocalDate maturityDate = openDate.plusMonths(request.tenureMonths());
-        BigDecimal estimate = maturityEstimate(request.principalAmount(), terms.annualRate(), openDate, maturityDate);
+        int currencyScale = quarterlyCompounding ? resolveCurrencyScale(terms.currencyCode())
+                : calculationPolicy.currencyScale();
+        BigDecimal principal;
+        try {
+            principal = request.principalAmount().setScale(currencyScale, RoundingMode.UNNECESSARY);
+        } catch (ArithmeticException exception) {
+            throw new InvalidInputException("Principal amount exceeds the supported minor units for " + terms.currencyCode());
+        }
+        BigDecimal estimate = quarterlyCompounding
+                ? FdCompoundCalculator.maturityAmount(principal, terms.annualRate(), openDate, maturityDate,
+                        currencyScale).maturityAmount()
+                : maturityEstimate(principal, terms.annualRate(), openDate, maturityDate);
 
         FdAccount account = new FdAccount();
         account.setAccountNumber(accountNumberGenerator.generateNextAccountNumber(BRANCH_CODE));
         account.setPrimaryHolderId(holder.getId());
         account.setProductId(terms.productId());
         account.setAppliedRateOutcomeId(terms.appliedRateOutcomeId());
-        account.setPrincipalAmount(request.principalAmount().setScale(calculationPolicy.currencyScale(), RoundingMode.HALF_UP));
+        account.setPrincipalAmount(principal);
         account.setCurrencyId(resolveCurrencyReferenceId(terms.currencyCode()));
         account.setTenureMonths(request.tenureMonths());
         account.setInterestRate(terms.annualRate());
@@ -108,7 +122,7 @@ public class AccountBookingService {
         account.setOpenDate(openDate.atStartOfDay().atOffset(ZoneOffset.UTC));
         account.setMaturityDate(maturityDate);
         account.setMaturityAmount(estimate);
-        account.setPolicyVersion(calculationPolicy.version());
+        account.setPolicyVersion(quarterlyCompounding ? COMPOUND_POLICY_VERSION : calculationPolicy.version());
         FdAccount saved = accountRepository.save(account);
         idempotencyGuard.complete(claim, saved.getId(), terms.productCode() + "|" + terms.currencyCode());
         return AccountResponse.pending(saved, terms.productCode(), terms.currencyCode());
@@ -123,6 +137,15 @@ public class AccountBookingService {
                 .getId();
     }
 
+    private int resolveCurrencyScale(String currencyCode) {
+        if (currencyReferenceRepository == null) {
+            throw new IllegalStateException("Currency reference repository is required for booking");
+        }
+        return currencyReferenceRepository.findByIsoCode(currencyCode.toUpperCase())
+                .map(reference -> reference.getDecimalPlaces() == null ? 2 : reference.getDecimalPlaces())
+                .orElseThrow(() -> new IllegalArgumentException("Currency reference is not available"));
+    }
+
     static BigDecimal maturityEstimate(BigDecimal principal, BigDecimal annualRate,
                                       LocalDate openDate, LocalDate maturityDate) {
         long days = ChronoUnit.DAYS.between(openDate, maturityDate);
@@ -132,11 +155,17 @@ public class AccountBookingService {
                 .setScale(2, RoundingMode.HALF_UP);
     }
 
-    private static void validateCompounding(String frequency) {
-        if (frequency == null || !(frequency.equalsIgnoreCase("SIMPLE")
-                || frequency.equalsIgnoreCase("SIMPLE_INTEREST")
-                || frequency.equalsIgnoreCase("NONE"))) {
-            throw new IllegalArgumentException("Only simple Actual/365 interest is supported for booking");
+    private static boolean validateCompounding(String frequency, String payoutFrequency) {
+        if (frequency != null && frequency.equalsIgnoreCase(FdCompoundCalculator.QUARTERLY)) {
+            if (payoutFrequency == null || !payoutFrequency.equalsIgnoreCase("AT_MATURITY")) {
+                throw new IllegalArgumentException("Quarterly compounding requires payout at maturity");
+            }
+            return true;
         }
+        if (frequency == null || !(frequency.equalsIgnoreCase("SIMPLE")
+                || frequency.equalsIgnoreCase("SIMPLE_INTEREST") || frequency.equalsIgnoreCase("NONE"))) {
+            throw new IllegalArgumentException("Unsupported FD compounding frequency");
+        }
+        return false;
     }
 }

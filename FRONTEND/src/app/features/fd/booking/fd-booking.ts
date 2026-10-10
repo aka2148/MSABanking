@@ -15,7 +15,9 @@ import {
   AccountResponse,
   ApiErrorResponse,
   BookingRequest,
+  CurrencyOffer,
   ProductOffer,
+  RateTier,
 } from '../../../core/models/fd.models';
 import { FdService, normalizeApiError } from '../../../core/services/fd.service';
 import { GlassShell } from '../../../shared/components/glass-shell/glass-shell';
@@ -35,13 +37,13 @@ export class FdBooking implements OnInit {
   errorMessage = '';
   bookingError = '';
   selectedProduct: ProductOffer | null = null;
+  selectedCurrencyOffer: CurrencyOffer | null = null;
+  selectedRateTier: RateTier | null = null;
   submittedAccount: AccountResponse | null = null;
   tenureOptions: GlassSelectOption[] = [];
-  readonly currencyOptions: GlassSelectOption[] = [];
   readonly bookingForm: FormGroup<{
     principalAmount: FormControl<string>;
     tenureMonths: FormControl<string>;
-    currencyCode: FormControl<string>;
   }>;
 
   constructor(
@@ -53,7 +55,6 @@ export class FdBooking implements OnInit {
     this.bookingForm = this.fb.nonNullable.group({
       principalAmount: ['', [this.requiredValue()]],
       tenureMonths: ['', [this.requiredValue()]],
-      currencyCode: ['', [this.requiredValue()]],
     });
   }
 
@@ -67,13 +68,24 @@ export class FdBooking implements OnInit {
 
     this.fdService.listProducts().subscribe({
       next: (products) => {
-        this.selectedProduct = products.find((product) => product.product_id === productId) ?? null;
+        const product = products.find((offer) => offer.product_id === productId) ?? null;
         this.loading = false;
-        if (!this.selectedProduct) {
+        if (!product) {
           this.errorMessage = 'This FD offer is no longer eligible. Return to products and choose another offer.';
           return;
         }
-        this.configureProductFields(this.selectedProduct);
+        const currencyCode = this.route.snapshot.queryParamMap.get('currency')?.toUpperCase();
+        const minimumMonths = Number(this.route.snapshot.queryParamMap.get('minMonths'));
+        const maximumMonths = Number(this.route.snapshot.queryParamMap.get('maxMonths'));
+        const currency = product.currency_offers.find((offer) => offer.currency_code === currencyCode);
+        const tier = currency?.rate_tiers.find((rate) => rate.minimum_tenure_months === minimumMonths
+          && rate.maximum_tenure_months === maximumMonths);
+        if (!currency || !tier) {
+          this.errorMessage = 'Choose a valid currency and rate option from the FD offers page.';
+          return;
+        }
+        this.selectedProduct = product;
+        this.configureSelectedOption(currency, tier);
       },
       error: () => {
         this.loading = false;
@@ -91,7 +103,7 @@ export class FdBooking implements OnInit {
     if (this.step === 2) {
       if (this.bookingForm.invalid) {
         this.bookingForm.markAllAsTouched();
-        this.bookingError = 'Check the amount, tenure, and currency before reviewing the booking.';
+        this.bookingError = 'Check the amount and exact term before reviewing the booking.';
         return;
       }
       this.bookingError = '';
@@ -106,7 +118,8 @@ export class FdBooking implements OnInit {
   }
 
   submitBooking(): void {
-    if (this.submitting || this.submittedAccount || !this.selectedProduct) return;
+    if (this.submitting || this.submittedAccount || !this.selectedProduct
+        || !this.selectedCurrencyOffer || !this.selectedRateTier) return;
     if (this.bookingForm.invalid) {
       this.bookingForm.markAllAsTouched();
       this.step = 2;
@@ -119,7 +132,7 @@ export class FdBooking implements OnInit {
       product_id: this.selectedProduct.product_id,
       principal_amount: Number(values.principalAmount),
       tenure_months: Number(values.tenureMonths),
-      currency_code: values.currencyCode,
+      currency_code: this.selectedCurrencyOffer.currency_code,
     };
 
     this.fdService.startSubmission();
@@ -144,35 +157,28 @@ export class FdBooking implements OnInit {
     });
   }
 
-  fieldError(controlName: 'principalAmount' | 'tenureMonths' | 'currencyCode'): string {
+  fieldError(controlName: 'principalAmount' | 'tenureMonths'): string {
     const control = this.bookingForm.controls[controlName];
     if (!control.touched || !control.errors) return '';
     if (control.errors['requiredValue']) return 'This field is required.';
     if (control.errors['amountBounds']) return 'Enter an amount within the offer range and at least 0.01.';
     if (control.errors['tenureBounds']) return 'Choose a tenure within the offer range.';
-    if (control.errors['currencyMismatch']) return 'Use the currency provided by the server offer.';
     return 'Check this value.';
   }
 
-  private configureProductFields(product: ProductOffer): void {
+  private configureSelectedOption(currency: CurrencyOffer, tier: RateTier): void {
+    this.selectedCurrencyOffer = currency;
+    this.selectedRateTier = tier;
     this.tenureOptions = [];
-    for (let month = product.minimum_tenure_months; month <= product.maximum_tenure_months; month += 1) {
+    for (let month = tier.minimum_tenure_months; month <= tier.maximum_tenure_months; month += 1) {
       this.tenureOptions.push({ label: `${month} months`, value: String(month) });
     }
-    this.currencyOptions.splice(0, this.currencyOptions.length, {
-      label: product.currency_code,
-      value: product.currency_code,
-    });
     this.bookingForm.controls.principalAmount.setValidators([
-      this.requiredValue(), this.amountBounds(product.minimum_amount, product.maximum_amount),
+      this.requiredValue(), this.amountBounds(currency.minimum_amount, currency.maximum_amount),
     ]);
     this.bookingForm.controls.tenureMonths.setValidators([
-      this.requiredValue(), this.tenureBounds(product.minimum_tenure_months, product.maximum_tenure_months),
+      this.requiredValue(), this.tenureBounds(tier.minimum_tenure_months, tier.maximum_tenure_months),
     ]);
-    this.bookingForm.controls.currencyCode.setValidators([
-      this.requiredValue(), this.currencyMatch(product.currency_code),
-    ]);
-    this.bookingForm.patchValue({ currencyCode: product.currency_code });
     this.bookingForm.updateValueAndValidity();
   }
 
@@ -209,8 +215,4 @@ export class FdBooking implements OnInit {
     };
   }
 
-  private currencyMatch(currency: string): ValidatorFn {
-    return (control: AbstractControl): ValidationErrors | null =>
-      control.value === currency ? null : { currencyMismatch: true };
-  }
 }

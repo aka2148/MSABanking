@@ -25,8 +25,16 @@ public class FdRuleOutcomeReference {
     @Column(name = "fror_unit", length = 30)
     private String unit;
 
+    @Column(name = "fror_source_outcome_id")
+    private Integer sourceOutcomeId;
+
     public Long getId() { return id; }
     public String getOutcomeType() { return outcomeType; }
     public String getOutcomeValue() { return outcomeValue; }
     public String getUnit() { return unit; }
+    public Integer getSourceOutcomeId() { return sourceOutcomeId; }
+    public void setOutcomeType(String outcomeType) { this.outcomeType = outcomeType; }
+    public void setOutcomeValue(String outcomeValue) { this.outcomeValue = outcomeValue; }
+    public void setUnit(String unit) { this.unit = unit; }
+    public void setSourceOutcomeId(Integer sourceOutcomeId) { this.sourceOutcomeId = sourceOutcomeId; }
 }

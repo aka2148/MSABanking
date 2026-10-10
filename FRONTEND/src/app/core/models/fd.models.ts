@@ -4,16 +4,25 @@ export interface ProductOffer {
   product_id: number;
   product_code: string;
   product_name: string;
+  currency_offers: CurrencyOffer[];
+  maturity_estimate_basis: string;
+}
+
+export interface CurrencyOffer {
   currency_code: string;
   minimum_amount: number;
   maximum_amount: number;
   minimum_tenure_months: number;
   maximum_tenure_months: number;
+  rate_tiers: RateTier[];
+}
+
+export interface RateTier {
+  minimum_tenure_months: number;
+  maximum_tenure_months: number;
   annual_rate: number;
   compounding_frequency: string;
   payout_frequency: string;
-  closure_penalty_rule: string;
-  maturity_estimate_basis: string;
 }
 
 export interface BookingRequest {

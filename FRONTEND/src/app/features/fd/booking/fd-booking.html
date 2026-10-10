@@ -11,7 +11,7 @@
     </div>
     <ol class="fd-step-labels">
       <li [class.fd-step-label--active]="step === 1">1. Offer confirmation</li>
-      <li [class.fd-step-label--active]="step === 2">2. Amount, term, and currency</li>
+      <li [class.fd-step-label--active]="step === 2">2. Deposit amount and exact term</li>
       <li [class.fd-step-label--active]="step === 3">3. Review and confirm</li>
     </ol>
 
@@ -21,36 +21,40 @@
 
     <ng-container *ngIf="!loading && selectedProduct as product">
       <section *ngIf="step === 1" class="fd-step-panel">
-        <p class="fd-eyebrow">Selected offer</p>
+        <p class="fd-eyebrow">Selected rate option</p>
         <div class="fd-offer-summary">
           <div>
             <span class="fd-product-code">{{ product.product_code }}</span>
             <h3>{{ product.product_name }}</h3>
           </div>
-          <span class="fd-currency">{{ product.currency_code }}</span>
+          <span class="fd-currency">{{ selectedCurrencyOffer?.currency_code }}</span>
         </div>
-        <p class="fd-step-copy">Confirm this eligible server-owned offer to enter the amount and term.</p>
+        <dl class="fd-option-summary" *ngIf="selectedCurrencyOffer as currency">
+          <div><dt>Selected term band</dt><dd>{{ selectedRateTier?.minimum_tenure_months }}–{{ selectedRateTier?.maximum_tenure_months }} months</dd></div>
+          <div><dt>Annual rate</dt><dd>{{ selectedRateTier ? (selectedRateTier.annual_rate * 100 | number:'1.2-2') + '%' : '—' }}</dd></div>
+          <div><dt>Deposit range</dt><dd>{{ currency.minimum_amount | number:'1.2-2' }}–{{ currency.maximum_amount | number:'1.2-2' }} {{ currency.currency_code }}</dd></div>
+          <div><dt>Interest</dt><dd>{{ selectedRateTier?.compounding_frequency | lowercase }} compounding · paid at maturity</dd></div>
+        </dl>
+        <p class="fd-step-copy">This option’s rate is indicative of the selected band. The server resolves and locks the exact rate for your chosen month when you book.</p>
       </section>
 
       <form *ngIf="step === 2" [formGroup]="bookingForm" class="fd-step-panel" novalidate>
         <div class="glass-field-row">
           <label class="glass-field">
-            <span class="glass-field__label">Principal amount <small>{{ product.currency_code }}</small></span>
+            <span class="glass-field__label">Principal amount <small>{{ selectedCurrencyOffer?.currency_code }}</small></span>
             <input type="number" min="0.01" step="0.01" formControlName="principalAmount" placeholder="Enter amount" />
             <span class="glass-field__error" *ngIf="fieldError('principalAmount')">{{ fieldError('principalAmount') }}</span>
           </label>
           <label class="glass-field">
-            <span class="glass-field__label">Tenure</span>
-            <app-glass-select formControlName="tenureMonths" [options]="tenureOptions" placeholder="Choose tenure"></app-glass-select>
+            <span class="glass-field__label">Exact term <small>{{ selectedCurrencyOffer?.currency_code }}</small></span>
+            <app-glass-select formControlName="tenureMonths" [options]="tenureOptions" placeholder="Choose term"></app-glass-select>
             <span class="glass-field__error" *ngIf="fieldError('tenureMonths')">{{ fieldError('tenureMonths') }}</span>
           </label>
         </div>
-        <label class="glass-field">
-          <span class="glass-field__label">Currency</span>
-          <app-glass-select formControlName="currencyCode" [options]="currencyOptions" placeholder="Choose currency"></app-glass-select>
-          <span class="glass-field__error" *ngIf="fieldError('currencyCode')">{{ fieldError('currencyCode') }}</span>
-        </label>
-        <p class="fd-range-note">Offer range: {{ product.minimum_amount }}–{{ product.maximum_amount }} {{ product.currency_code }}, {{ product.minimum_tenure_months }}–{{ product.maximum_tenure_months }} months.</p>
+        <p class="fd-range-note" *ngIf="selectedCurrencyOffer as currency">
+          You selected {{ currency.currency_code }} with a {{ selectedRateTier ? (selectedRateTier.annual_rate * 100 | number:'1.2-2') + '%' : 'tiered rate' }} annual rate band.
+          Choose a term from {{ selectedRateTier?.minimum_tenure_months }} to {{ selectedRateTier?.maximum_tenure_months }} months.
+        </p>
       </form>
 
       <section *ngIf="step === 3" class="fd-step-panel">
@@ -58,13 +62,15 @@
         <p class="fd-step-copy">Confirming sends only the selected product and your entered amount, tenure, and currency to the FD service.</p>
         <dl class="fd-review-list" *ngIf="!submittedAccount">
           <div><dt>Product</dt><dd>{{ product.product_name }} ({{ product.product_code }})</dd></div>
-          <div><dt>Principal</dt><dd>{{ bookingForm.controls.principalAmount.value }} {{ bookingForm.controls.currencyCode.value }}</dd></div>
+          <div><dt>Principal</dt><dd>{{ bookingForm.controls.principalAmount.value }} {{ selectedCurrencyOffer?.currency_code }}</dd></div>
           <div><dt>Tenure</dt><dd>{{ bookingForm.controls.tenureMonths.value }} months</dd></div>
-          <div><dt>Offer annual rate</dt><dd>{{ product.annual_rate }}</dd></div>
+          <div><dt>Selected annual rate</dt><dd>{{ selectedRateTier ? (selectedRateTier.annual_rate * 100 | number:'1.2-2') + '%' : '—' }}</dd></div>
+          <div><dt>Interest</dt><dd>Quarterly compounding, paid at maturity</dd></div>
         </dl>
         <dl class="fd-review-list" *ngIf="submittedAccount as account">
           <div><dt>Status</dt><dd>{{ account.status }}</dd></div>
-          <div><dt>Annual rate</dt><dd>{{ account.annual_rate }}</dd></div>
+          <div><dt>Annual rate</dt><dd>{{ account.annual_rate * 100 | number:'1.2-2' }}%</dd></div>
+          <div><dt>Compounding / payout</dt><dd>{{ account.compounding_frequency }} / {{ account.payout_frequency }}</dd></div>
           <div><dt>Open date</dt><dd>{{ account.open_date }}</dd></div>
           <div><dt>Maturity date</dt><dd>{{ account.maturity_date }}</dd></div>
           <div><dt>Maturity amount</dt><dd>{{ account.maturity_amount }} {{ account.currency_code }}</dd></div>

@@ -67,6 +67,8 @@ export interface LoginResponse {
   success: boolean;
   token?: string;
   role?: string;
+  roles?: string[];
+  username?: string;
   message?: string;
 }
 

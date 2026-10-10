@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface FdRuleOutcomeReferenceRepository extends JpaRepository<FdRuleOutcomeReference, Long> {
     List<FdRuleOutcomeReference> findByOutcomeTypeAndOutcomeValue(String outcomeType, String outcomeValue);
+    java.util.Optional<FdRuleOutcomeReference> findBySourceOutcomeId(Integer sourceOutcomeId);
 }

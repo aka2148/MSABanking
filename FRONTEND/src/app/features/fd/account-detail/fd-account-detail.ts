@@ -178,10 +178,15 @@ export class FdAccountDetail implements OnInit {
 
   entryLabel(entryType: string): string {
     const labels: Record<string, string> = {
-      FUNDING: 'Funding record', ACCRUAL: 'Interest accrual', MATURITY: 'Maturity',
+      FUNDING: 'Funding record', ACCRUAL: 'Daily interest accrual', CAPITALIZATION: 'Interest capitalized', MATURITY: 'Maturity',
       CLOSURE: 'Closure', SETTLEMENT: 'Settlement', PENALTY: 'Penalty',
     };
     return labels[entryType.toUpperCase()] ?? entryType;
+  }
+
+  formatFrequency(value: string | null | undefined): string {
+    if (!value) return '—';
+    return value.toLowerCase().split('_').map((part) => part ? part[0].toUpperCase() + part.slice(1) : '').join(' ');
   }
 
   private requireConfirmation(action: AccountAction): boolean {

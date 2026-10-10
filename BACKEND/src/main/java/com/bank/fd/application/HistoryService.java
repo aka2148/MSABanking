@@ -81,25 +81,38 @@ public class HistoryService {
             merged.add(new DatedEntry(transaction.getTransactionDate(), transaction.getId(),
                     new HistoryEntry(entryType, transaction.getTransactionDate(), transaction.getAmount(),
                             currencyCode, transaction.getBalanceAfter(), SOURCE_TRANSACTION,
-                            transaction.getRemarks())));
+                            transaction.getRemarks()), 0));
         }
 
         for (FdInterestAccrual accrual
                 : accrualRepository.findByAccountIdOrderByAccrualDateAscIdAsc(accountId)) {
             BigDecimal cumulative = accrual.getCumulativeAccrued() != null
                     ? accrual.getCumulativeAccrued() : accrual.getAccruedAmount();
-            BigDecimal runningBalance = account.getPrincipalAmount() != null
-                    ? account.getPrincipalAmount().add(cumulative).setScale(2, RoundingMode.HALF_UP)
-                    : cumulative.setScale(2, RoundingMode.HALF_UP);
+            boolean compounding = AccrualService.COMPOUND_POLICY_VERSION.equals(account.getPolicyVersion());
+            BigDecimal runningBalance = compounding && accrual.getCompoundingBalance() != null
+                    ? accrual.getCompoundingBalance()
+                    : account.getPrincipalAmount() != null
+                        ? account.getPrincipalAmount().add(cumulative).setScale(2, RoundingMode.HALF_UP)
+                        : cumulative.setScale(2, RoundingMode.HALF_UP);
             BigDecimal amount = accrual.getAccruedAmount() == null ? null
                     : accrual.getAccruedAmount().setScale(2, RoundingMode.HALF_UP);
             merged.add(new DatedEntry(accrual.getAccrualDate(), accrual.getId(),
                     new HistoryEntry("ACCRUAL", accrual.getAccrualDate(), amount,
-                            currencyCode, runningBalance, SOURCE_ACCRUAL, ACCRUAL_DESCRIPTION)));
+                            currencyCode, runningBalance, SOURCE_ACCRUAL,
+                            compounding ? "Daily interest accrued; quarterly capitalization is recorded separately."
+                                    : ACCRUAL_DESCRIPTION), 0));
+            if (compounding && accrual.getCapitalizedAmount() != null
+                    && accrual.getCapitalizedAmount().signum() > 0) {
+                merged.add(new DatedEntry(accrual.getAccrualDate(), accrual.getId(),
+                        new HistoryEntry("CAPITALIZATION", accrual.getAccrualDate(), accrual.getCapitalizedAmount(),
+                                currencyCode, runningBalance, SOURCE_ACCRUAL,
+                                "Quarterly interest capitalized into the FD balance."), 1));
+            }
         }
 
         merged.sort(Comparator.comparing(DatedEntry::date, Comparator.nullsFirst(Comparator.naturalOrder()))
-                .thenComparing(DatedEntry::id, Comparator.nullsFirst(Comparator.naturalOrder())));
+                .thenComparing(DatedEntry::id, Comparator.nullsFirst(Comparator.naturalOrder()))
+                .thenComparingInt(DatedEntry::sequence));
         return merged.stream().map(DatedEntry::entry).toList();
     }
 
@@ -118,6 +131,6 @@ public class HistoryService {
         transactionTypeRepository.findIdByCode(code).ifPresent(id -> labels.put(id, entryType));
     }
 
-    private record DatedEntry(OffsetDateTime date, Long id, HistoryEntry entry) {
+    private record DatedEntry(OffsetDateTime date, Long id, HistoryEntry entry, int sequence) {
     }
 }

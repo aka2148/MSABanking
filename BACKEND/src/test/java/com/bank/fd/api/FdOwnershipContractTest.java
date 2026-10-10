@@ -3,6 +3,11 @@ package com.bank.fd.api;
 import com.bank.fd.application.ProductTerms;
 import com.bank.fd.application.ProductTermsPort;
 import com.bank.fd.application.ProductTermsQuery;
+import com.bank.customer.entity.RoleDefinition;
+import com.bank.customer.entity.User;
+import com.bank.customer.entity.UserRole;
+import com.bank.customer.repository.RoleDefinitionRepository;
+import com.bank.customer.repository.UserRepository;
 import com.bank.fd.entity.FdCurrencyReference;
 import com.bank.fd.repository.FdCurrencyReferenceRepository;
 import com.bank.fd.repository.FdTransactionRepository;
@@ -94,6 +99,12 @@ class FdOwnershipContractTest {
 
     @Autowired
     private FdTransactionRepository transactionRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private RoleDefinitionRepository roleDefinitionRepository;
 
     @BeforeAll
     void seedUsersAndReferences() throws Exception {
@@ -249,7 +260,7 @@ class FdOwnershipContractTest {
         Map<String, String> badLogin = new HashMap<>();
         badLogin.put("username", OWNER_A);
         badLogin.put("password", "wrong-password");
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(badLogin)))
                 .andExpect(status().isUnauthorized())
@@ -261,26 +272,52 @@ class FdOwnershipContractTest {
         request.put("username", username);
         request.put("password", PASSWORD);
         request.put("email", email);
-        request.put("role", role);
-        request.put("firstName", "Fd");
-        request.put("lastName", "Owner");
+        request.put("fullName", "Fd Owner");
         request.put("phone", "1234567890");
         request.put("address", "123 Banking St");
-        request.put("category", "STANDARD");
-        MvcResult result = mockMvc.perform(post("/api/auth/register")
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andReturn();
         int status = result.getResponse().getStatus();
-        assertTrue(status == 200 || status == 400,
+        assertTrue(status == 200 || status == 201 || status == 400,
                 "Register must succeed or report the user exists, got " + status);
+        if (!"ROLE_CUSTOMER".equals(role)) {
+            assignRole(username, role);
+        }
+    }
+
+    /**
+     * The public /api/v1/auth/register always seeds ROLE_CUSTOMER. Staff
+     * principals (D-06 BANK_OFFICER bypass) are promoted here instead of
+     * trusting a role claim on a public registration payload.
+     */
+    private void assignRole(String username, String roleCode) {
+        User user = userRepository.findByCredentialsUsername(username).orElseThrow();
+        boolean alreadyAssigned = user.getRoleAssignments().stream()
+                .anyMatch(assignment -> assignment.getRole() != null
+                        && roleCode.equals(assignment.getRole().getCode()));
+        if (alreadyAssigned) {
+            return;
+        }
+        RoleDefinition role = roleDefinitionRepository.findByCode(roleCode).orElseGet(() -> {
+            RoleDefinition created = new RoleDefinition();
+            created.setCode(roleCode);
+            created.setName(roleCode.replace("ROLE_", "").replace('_', ' '));
+            return roleDefinitionRepository.save(created);
+        });
+        UserRole assignment = new UserRole();
+        assignment.setUser(user);
+        assignment.setRole(role);
+        user.getRoleAssignments().add(assignment);
+        userRepository.save(user);
     }
 
     private String login(String username) throws Exception {
         Map<String, String> request = new HashMap<>();
         request.put("username", username);
         request.put("password", PASSWORD);
-        MvcResult result = mockMvc.perform(post("/api/auth/login")
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())

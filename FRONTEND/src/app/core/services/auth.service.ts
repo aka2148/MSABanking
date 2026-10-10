@@ -13,7 +13,7 @@ import {
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly baseUrl = 'http://localhost:8080/api/auth'; // update once backend confirms port
+  private readonly baseUrl = 'http://localhost:8080/api/v1/auth'; // backend auth routes moved to /api/v1
   private readonly tokenKey = 'token';
   private readonly roleKey = 'role';
   private readonly sessionSubject = new BehaviorSubject<AuthSession>(this.readSession());
@@ -32,7 +32,12 @@ export class AuthService {
     return this.http.post<LoginResponse>(`${this.baseUrl}/login`, payload).pipe(
       tap((response) => {
         if (response.token) {
-          this.setSession(response.token, response.role ?? null);
+          const sessionRole = response.roles?.find((role) => role === 'ROLE_ADMIN')
+            ?? response.roles?.find((role) => role === 'ROLE_BANK_OFFICER')
+            ?? response.role
+            ?? response.roles?.[0]
+            ?? null;
+          this.setSession(response.token, sessionRole);
         }
       })
     );
