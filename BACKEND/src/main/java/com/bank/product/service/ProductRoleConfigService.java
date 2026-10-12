@@ -18,14 +18,17 @@ public class ProductRoleConfigService {
     private final ProductRoleConfigRepository repo;
     private final ProductRepository products;
     private final RoleTypeRepository roles;
+    private final ProductConfigurationIntegrityService integrity;
 
     public ProductRoleConfigService(
             ProductRoleConfigRepository repo,
             ProductRepository products,
-            RoleTypeRepository roles) {
+            RoleTypeRepository roles,
+            ProductConfigurationIntegrityService integrity) {
         this.repo = repo;
         this.products = products;
         this.roles = roles;
+        this.integrity = integrity;
     }
 
     private void product(Integer id) {
@@ -63,6 +66,7 @@ public class ProductRoleConfigService {
             ProductRoleConfigRequest r) {
 
         product(pid);
+        integrity.assertEditable(pid);
         role(r.getRoleTypeId());
         counts(r.getMinCount(), r.getMaxCount());
 
@@ -101,6 +105,7 @@ public class ProductRoleConfigService {
             UpdateProductRoleConfigRequest r) {
 
         product(pid);
+        integrity.assertEditable(pid);
         role(roleId);
         counts(r.getMinCount(), r.getMaxCount());
 
@@ -121,6 +126,7 @@ public class ProductRoleConfigService {
     @Transactional
     public void delete(Integer pid, Integer roleId) {
         product(pid);
+        integrity.assertEditable(pid);
         role(roleId);
 
         ProductRoleConfig e = repo.findByProductIdAndRoleTypeId(pid, roleId)

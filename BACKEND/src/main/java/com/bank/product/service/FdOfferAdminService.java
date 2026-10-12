@@ -99,7 +99,8 @@ public class FdOfferAdminService {
         product.setProductCode(code);
         product.setProductName(request.productName().trim());
         product.setCategoryId(request.categoryId());
-        product.setBaseCurrencyCode("USD");
+        String baseCurrency = baseCurrency(request);
+        product.setBaseCurrencyCode(baseCurrency);
         product.setDescription(request.description());
         product.setStatus("DRAFT");
         product.setUuid(UUID.randomUUID().toString());
@@ -125,7 +126,9 @@ public class FdOfferAdminService {
             ProductCurrencyConfig config = new ProductCurrencyConfig();
             config.setProductId(savedProduct.getProductId());
             config.setCurrencyId(currency.getCurrencyId());
-            config.setIsBaseCurrency("USD".equals(iso));
+            config.setIsBaseCurrency(baseCurrency.equals(iso));
+            config.setMinimumAmount(schedule.minimumAmount());
+            config.setMaximumAmount(schedule.maximumAmount());
             config.setWalletEnabled(false);
             config.setCreatedBy(CREATOR);
             config.setCreatedDate(LocalDateTime.now());
@@ -161,8 +164,13 @@ public class FdOfferAdminService {
                 .filter(code -> code != null)
                 .sorted()
                 .toList();
-        if (!currencyCodes.containsAll(List.of("USD", "INR"))) {
-            throw new InvalidInputException("An FD offer must be configured for both USD and INR before activation");
+        List<ProductCurrencyConfig> configs = currencyConfigs.findByProductId(product.getProductId());
+        long baseCurrencies = configs.stream().filter(config -> Boolean.TRUE.equals(config.getIsBaseCurrency())).count();
+        if (currencyCodes.isEmpty()) {
+            throw new InvalidInputException("An FD offer must have at least one configured currency");
+        }
+        if (baseCurrencies != 1 || !currencyCodes.contains(product.getBaseCurrencyCode())) {
+            throw new InvalidInputException("An FD offer must have exactly one selected base currency");
         }
         for (String currencyCode : currencyCodes) {
             Currency currency = currencies.findByIsoCode(currencyCode)
@@ -326,9 +334,19 @@ public class FdOfferAdminService {
                 }
             }
         }
-        if (!codes.containsAll(List.of("USD", "INR"))) {
-            throw new InvalidInputException("Configure both USD and INR schedules for the initial FD product");
+        if (codes.isEmpty()) {
+            throw new InvalidInputException("Configure at least one FD currency schedule");
         }
+        String baseCurrency = baseCurrency(request);
+        if (!codes.contains(baseCurrency)) {
+            throw new InvalidInputException("Base currency must be one of the configured FD currencies");
+        }
+    }
+
+    private String baseCurrency(CreateFdOfferRequest request) {
+        return request.baseCurrencyCode() == null || request.baseCurrencyCode().isBlank()
+                ? request.currencies().get(0).currencyCode().trim().toUpperCase(Locale.ROOT)
+                : request.baseCurrencyCode().trim().toUpperCase(Locale.ROOT);
     }
 
     private FdOfferAdminResponse response(FdProductReference reference, Product product) {

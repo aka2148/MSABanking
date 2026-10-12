@@ -6,6 +6,7 @@ import com.bank.product.dto.response.RuleConditionResponse;
 import com.bank.product.entity.RuleCondition;
 import com.bank.product.repository.ProductRuleRepository;
 import com.bank.product.repository.RuleConditionRepository;
+import com.bank.product.service.ProductConfigurationIntegrityService;
 import com.bank.product.service.RuleConditionService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,11 +21,14 @@ public class RuleConditionServiceImpl implements RuleConditionService {
 
     private final RuleConditionRepository ruleConditionRepository;
     private final ProductRuleRepository productRuleRepository;
+    private final ProductConfigurationIntegrityService integrity;
 
     public RuleConditionServiceImpl(RuleConditionRepository ruleConditionRepository,
-                                  ProductRuleRepository productRuleRepository) {
+                                  ProductRuleRepository productRuleRepository,
+                                  ProductConfigurationIntegrityService integrity) {
         this.ruleConditionRepository = ruleConditionRepository;
         this.productRuleRepository = productRuleRepository;
+        this.integrity = integrity;
     }
 
     private void validateParentRule(Integer productId, Integer ruleId) {
@@ -36,6 +40,7 @@ public class RuleConditionServiceImpl implements RuleConditionService {
     @Transactional
     public RuleConditionResponse createRuleCondition(Integer productId, Integer ruleId, CreateRuleConditionRequest request) {
         validateParentRule(productId, ruleId);
+        integrity.assertEditable(productId);
 
         RuleCondition entity = new RuleCondition();
         entity.setRuleId(ruleId);
@@ -78,6 +83,7 @@ public class RuleConditionServiceImpl implements RuleConditionService {
     @Transactional
     public RuleConditionResponse updateRuleCondition(Integer productId, Integer ruleId, Integer conditionId, UpdateRuleConditionRequest request) {
         validateParentRule(productId, ruleId);
+        integrity.assertEditable(productId);
         RuleCondition entity = ruleConditionRepository.findByConditionIdAndRuleId(conditionId, ruleId)
                 .orElseThrow(() -> new RuntimeException("Condition ID " + conditionId + " not found under rule " + ruleId));
 
@@ -99,6 +105,7 @@ public class RuleConditionServiceImpl implements RuleConditionService {
     @Transactional
     public void deleteRuleCondition(Integer productId, Integer ruleId, Integer conditionId) {
         validateParentRule(productId, ruleId);
+        integrity.assertEditable(productId);
         RuleCondition entity = ruleConditionRepository.findByConditionIdAndRuleId(conditionId, ruleId)
                 .orElseThrow(() -> new RuntimeException("Condition ID " + conditionId + " not found under rule " + ruleId));
         ruleConditionRepository.delete(entity);

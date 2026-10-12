@@ -2,6 +2,7 @@
 package com.bank.product.entity;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -33,6 +34,27 @@ public class AttributeDefinition {
 
     @Column(name = "ad_is_required", nullable = false)
     private Boolean required = false;
+
+    @Column(name = "ad_choice_values", length = 1000)
+    private String choiceValues;
+
+    @Column(name = "ad_unit", length = 30)
+    private String unit;
+
+    @Column(name = "ad_default_value", length = 255)
+    private String defaultValue;
+
+    @Column(name = "ad_min_value", precision = 22, scale = 8)
+    private BigDecimal minValue;
+
+    @Column(name = "ad_max_value", precision = 22, scale = 8)
+    private BigDecimal maxValue;
+
+    @Column(name = "ad_display_order", nullable = false)
+    private Integer displayOrder = 0;
+
+    @Column(name = "ad_behavior_key", length = 50)
+    private String behaviorKey;
 
     @Column(name = "ad_created_by")
     private String createdBy;
@@ -100,12 +122,26 @@ public class AttributeDefinition {
         required = v;
     }
 
+    public String getChoiceValues() { return choiceValues; }
+    public void setChoiceValues(String value) { choiceValues = value; }
+    public String getUnit() { return unit; }
+    public void setUnit(String value) { unit = value; }
+    public String getDefaultValue() { return defaultValue; }
+    public void setDefaultValue(String value) { defaultValue = value; }
+    public BigDecimal getMinValue() { return minValue; }
+    public void setMinValue(BigDecimal value) { minValue = value; }
+    public BigDecimal getMaxValue() { return maxValue; }
+    public void setMaxValue(BigDecimal value) { maxValue = value; }
+    public Integer getDisplayOrder() { return displayOrder; }
+    public void setDisplayOrder(Integer value) { displayOrder = value; }
+    public String getBehaviorKey() { return behaviorKey; }
+    public void setBehaviorKey(String value) { behaviorKey = value; }
     public String getCreatedBy() {
         return createdBy;
     }
 
     public void setCreatedBy(String v) {
-        updatedBy = v;
+        createdBy = v;
     }
 
     public LocalDateTime getCreatedDate() {

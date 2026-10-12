@@ -17,8 +17,12 @@ public class ProductCurrencyConfigService {
     @Autowired
     private ProductCurrencyConfigRepository productCurrencyConfigRepository;
 
+    @Autowired
+    private ProductConfigurationIntegrityService integrity;
+
     @Transactional
     public ProductCurrencyConfig createConfig(ProductCurrencyConfig config) {
+        integrity.assertEditable(config.getProductId());
         if (productCurrencyConfigRepository.existsByProductIdAndCurrencyId(
                 config.getProductId(), config.getCurrencyId())) {
             throw new RuntimeException("Currency config already exists for this product and currency");
@@ -42,8 +46,11 @@ public class ProductCurrencyConfigService {
     @Transactional
     public ProductCurrencyConfig updateConfig(Integer id, ProductCurrencyConfig updates) {
         ProductCurrencyConfig existing = getConfigById(id);
+        integrity.assertEditable(existing.getProductId());
         if (updates.getIsBaseCurrency() != null) existing.setIsBaseCurrency(updates.getIsBaseCurrency());
         if (updates.getWalletEnabled() != null) existing.setWalletEnabled(updates.getWalletEnabled());
+        if (updates.getMinimumAmount() != null) existing.setMinimumAmount(updates.getMinimumAmount());
+        if (updates.getMaximumAmount() != null) existing.setMaximumAmount(updates.getMaximumAmount());
         existing.setUpdatedBy("SYSTEM");
         existing.setUpdatedDate(LocalDateTime.now());
         existing.setCrudValue("U");
@@ -52,7 +59,8 @@ public class ProductCurrencyConfigService {
 
     @Transactional
     public void deleteConfig(Integer id) {
-        getConfigById(id);
+        ProductCurrencyConfig existing = getConfigById(id);
+        integrity.assertEditable(existing.getProductId());
         productCurrencyConfigRepository.deleteById(id);
     }
 }

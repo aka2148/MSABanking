@@ -15,6 +15,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -39,7 +41,10 @@ class FdPostgresSchemaTest {
     void appliesAllMigrationsAndExposesTheLifecycleBaseline() throws SQLException {
         try (Connection connection = DriverManager.getConnection(
                 postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())) {
-            assertEquals(Set.of("1", "2", "3", "4", "5", "6", "7"), appliedVersions(connection));
+            Set<String> expectedVersions = IntStream.rangeClosed(1, 25)
+                    .mapToObj(String::valueOf)
+                    .collect(Collectors.toSet());
+            assertEquals(expectedVersions, appliedVersions(connection));
             assertTrue(scalar(connection,
                     "SELECT column_default FROM information_schema.columns "
                             + "WHERE table_schema = 'public' AND table_name = 'fd_accounts' "
@@ -60,6 +65,19 @@ class FdPostgresSchemaTest {
             assertEquals("DEPOSIT", scalar(connection,
                     "SELECT tt_txn_type_code FROM public.transaction_types "
                             + "WHERE tt_txn_type_code = 'DEPOSIT'"));
+            assertTrue(tableExists(connection, "product_configuration_revision"));
+            assertEquals("numeric", scalar(connection,
+                    "SELECT data_type FROM information_schema.columns "
+                            + "WHERE table_schema = 'public' AND table_name = 'product_currency_config' "
+                            + "AND column_name = 'pcc_minimum_amount'"));
+            assertEquals("numeric", scalar(connection,
+                    "SELECT data_type FROM information_schema.columns "
+                            + "WHERE table_schema = 'public' AND table_name = 'product_currency_config' "
+                            + "AND column_name = 'pcc_maximum_amount'"));
+            assertEquals("KWD", scalar(connection,
+                    "SELECT cur_iso_code FROM public.currency WHERE cur_iso_code = 'KWD'"));
+            assertTrue(constraintExists(connection, "product_currency_config",
+                    "ck_product_currency_config_amount_limits"));
 
             assertTrue(constraintExists(connection, "fd_accounts", "ck_fd_accounts_status"));
             assertTrue(constraintExists(connection, "fd_accounts", "ck_fd_accounts_principal_positive"));

@@ -1,5 +1,6 @@
 package com.bank.product.service;
 
+import com.bank.common.exception.InvalidInputException;
 import com.bank.common.exception.ResourceNotFoundException;
 import com.bank.product.entity.Product;
 import com.bank.product.repository.ProductRepository;
@@ -17,6 +18,9 @@ public class ProductService {
     @Autowired
     private ProductRepository productRepository;
 
+    @Autowired
+    private ProductConfigurationService productConfigurationService;
+
     @Transactional
     public Product createProduct(Product product) {
         if (productRepository.existsByProductCode(product.getProductCode())) {
@@ -26,7 +30,7 @@ public class ProductService {
         product.setCreatedDate(LocalDateTime.now());
         product.setCreatedBy("SYSTEM");
         product.setCrudValue("C");
-        if (product.getStatus() == null) product.setStatus("DRAFT");
+        product.setStatus("DRAFT");
         return productRepository.save(product);
     }
 
@@ -55,6 +59,7 @@ public class ProductService {
     @Transactional
     public Product updateProduct(Integer id, Product updates) {
         Product existing = getProductById(id);
+        productConfigurationService.assertEditable(id);
         if (updates.getProductName() != null) existing.setProductName(updates.getProductName());
         if (updates.getProductCode() != null) existing.setProductCode(updates.getProductCode());
         if (updates.getCategoryId() != null) existing.setCategoryId(updates.getCategoryId());
@@ -70,16 +75,33 @@ public class ProductService {
 
     @Transactional
     public Product updateStatus(Integer id, String status) {
+        if (status == null || status.isBlank()) {
+            throw new InvalidInputException("Product status is required");
+        }
+        String requested = status.trim().toUpperCase(java.util.Locale.ROOT);
         Product existing = getProductById(id);
-        existing.setStatus(status);
+        if ("ACTIVE".equals(requested)) {
+            productConfigurationService.activate(id);
+            return getProductById(id);
+        }
+        if (requested.equalsIgnoreCase(existing.getStatus())) return existing;
+        if (!"INACTIVE".equals(requested)) {
+            throw new InvalidInputException("Unsupported product status transition; use ACTIVE or INACTIVE");
+        }
+        if (!"ACTIVE".equalsIgnoreCase(existing.getStatus())) {
+            throw new InvalidInputException("Only an ACTIVE product can transition to INACTIVE");
+        }
+        existing.setStatus("INACTIVE");
         existing.setUpdatedBy("SYSTEM");
         existing.setUpdatedDate(LocalDateTime.now());
+        existing.setCrudValue("U");
         return productRepository.save(existing);
     }
 
     @Transactional
     public void deleteProduct(Integer id) {
         getProductById(id);
+        productConfigurationService.assertEditable(id);
         productRepository.deleteById(id);
     }
 }

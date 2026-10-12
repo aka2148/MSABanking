@@ -19,7 +19,7 @@ public class RuleOutcome {
     @Column(name = "ro_outcome_type", nullable = false, length = 32)
     private String outcomeType;
 
-    @Column(name = "ro_outcome_value", precision = 15, scale = 4)
+    @Column(name = "ro_outcome_value", precision = 22, scale = 8)
     private BigDecimal outcomeValue;
 
     @Column(name = "ro_unit", length = 16)

@@ -5,6 +5,7 @@ import com.bank.product.dto.request.UpdateProductRuleRequest;
 import com.bank.product.dto.response.ProductRuleResponse;
 import com.bank.product.entity.ProductRule;
 import com.bank.product.repository.ProductRuleRepository;
+import com.bank.product.service.ProductConfigurationIntegrityService;
 import com.bank.product.service.ProductRuleService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,14 +19,18 @@ import java.util.UUID;
 public class ProductRuleServiceImpl implements ProductRuleService {
 
     private final ProductRuleRepository productRuleRepository;
+    private final ProductConfigurationIntegrityService integrity;
 
-    public ProductRuleServiceImpl(ProductRuleRepository productRuleRepository) {
+    public ProductRuleServiceImpl(ProductRuleRepository productRuleRepository,
+                                  ProductConfigurationIntegrityService integrity) {
         this.productRuleRepository = productRuleRepository;
+        this.integrity = integrity;
     }
 
     @Override
     @Transactional
     public ProductRuleResponse createProductRule(Integer productId, CreateProductRuleRequest request) {
+        integrity.assertEditable(productId);
         ProductRule entity = new ProductRule();
         entity.setProductId(productId);
         entity.setRuleTypeId(request.getRuleTypeId());
@@ -66,6 +71,7 @@ public class ProductRuleServiceImpl implements ProductRuleService {
     @Override
     @Transactional
     public ProductRuleResponse updateProductRule(Integer productId, Integer ruleId, UpdateProductRuleRequest request) {
+        integrity.assertEditable(productId);
         ProductRule entity = productRuleRepository.findByRuleIdAndProductId(ruleId, productId)
                 .orElseThrow(() -> new RuntimeException("Rule not found with ID: " + ruleId + " for product: " + productId));
 
@@ -87,6 +93,7 @@ public class ProductRuleServiceImpl implements ProductRuleService {
     @Override
     @Transactional
     public ProductRuleResponse updateProductRuleStatus(Integer productId, Integer ruleId, Boolean isActive) {
+        integrity.assertEditable(productId);
         ProductRule entity = productRuleRepository.findByRuleIdAndProductId(ruleId, productId)
                 .orElseThrow(() -> new RuntimeException("Rule not found with ID: " + ruleId + " for product: " + productId));
 
@@ -102,6 +109,7 @@ public class ProductRuleServiceImpl implements ProductRuleService {
     @Override
     @Transactional
     public void deleteProductRule(Integer productId, Integer ruleId) {
+        integrity.assertEditable(productId);
         ProductRule entity = productRuleRepository.findByRuleIdAndProductId(ruleId, productId)
                 .orElseThrow(() -> new RuntimeException("Rule not found with ID: " + ruleId + " for product: " + productId));
         productRuleRepository.delete(entity);

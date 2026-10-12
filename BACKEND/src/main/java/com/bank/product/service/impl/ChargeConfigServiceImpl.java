@@ -6,6 +6,7 @@ import com.bank.product.dto.response.ChargeConfigResponse;
 import com.bank.product.entity.ChargeConfig;
 import com.bank.product.repository.ChargeConfigRepository;
 import com.bank.product.service.ChargeConfigService;
+import com.bank.product.service.ProductConfigurationIntegrityService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -19,8 +20,12 @@ public class ChargeConfigServiceImpl implements ChargeConfigService {
     @Autowired
     private ChargeConfigRepository chargeConfigRepository;
 
+    @Autowired
+    private ProductConfigurationIntegrityService integrity;
+
     @Override
     public ChargeConfigResponse addChargeConfig(Integer productId, CreateChargeConfigRequest request) {
+        integrity.assertEditable(productId);
         ChargeConfig config = new ChargeConfig();
         config.setProductId(productId);
         config.setChargeCode(request.getChargeCode());
@@ -48,6 +53,7 @@ public class ChargeConfigServiceImpl implements ChargeConfigService {
     public ChargeConfigResponse updateChargeConfig(Integer chargeId, UpdateChargeConfigRequest request) {
         ChargeConfig config = chargeConfigRepository.findById(chargeId)
             .orElseThrow(() -> new EntityNotFoundException("Charge config not found: " + chargeId));
+        integrity.assertEditable(config.getProductId());
 
         config.setChargeCode(request.getChargeCode());
         config.setCalculationBasis(request.getCalculationBasis());
@@ -59,10 +65,10 @@ public class ChargeConfigServiceImpl implements ChargeConfigService {
 
     @Override
     public void deleteChargeConfig(Integer chargeId) {
-        if (!chargeConfigRepository.existsById(chargeId)) {
-            throw new EntityNotFoundException("Charge config not found: " + chargeId);
-        }
-        chargeConfigRepository.deleteById(chargeId);
+        ChargeConfig config = chargeConfigRepository.findById(chargeId)
+                .orElseThrow(() -> new EntityNotFoundException("Charge config not found: " + chargeId));
+        integrity.assertEditable(config.getProductId());
+        chargeConfigRepository.delete(config);
     }
 
     private ChargeConfigResponse toResponse(ChargeConfig config) {

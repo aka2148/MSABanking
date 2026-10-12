@@ -4,7 +4,9 @@ import com.bank.product.dto.request.CreateRuleOutcomeRequest;
 import com.bank.product.dto.request.UpdateRuleOutcomeRequest;
 import com.bank.product.dto.response.RuleOutcomeResponse;
 import com.bank.product.entity.RuleOutcome;
+import com.bank.product.repository.ProductRuleRepository;
 import com.bank.product.repository.RuleOutcomeRepository;
+import com.bank.product.service.ProductConfigurationIntegrityService;
 import com.bank.product.service.RuleOutcomeService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,8 +21,15 @@ public class RuleOutcomeServiceImpl implements RuleOutcomeService {
     @Autowired
     private RuleOutcomeRepository outcomeRepository;
 
+    @Autowired
+    private ProductRuleRepository ruleRepository;
+
+    @Autowired
+    private ProductConfigurationIntegrityService integrity;
+
     @Override
     public RuleOutcomeResponse addOutcome(Integer ruleId, CreateRuleOutcomeRequest request) {
+        guardRule(ruleId);
         RuleOutcome outcome = new RuleOutcome();
         outcome.setRuleId(ruleId);
         outcome.setOutcomeType(request.getOutcomeType());
@@ -50,6 +59,7 @@ public class RuleOutcomeServiceImpl implements RuleOutcomeService {
     public RuleOutcomeResponse updateOutcome(Integer outcomeId, UpdateRuleOutcomeRequest request) {
         RuleOutcome outcome = outcomeRepository.findById(outcomeId)
             .orElseThrow(() -> new EntityNotFoundException("Outcome not found: " + outcomeId));
+        guardRule(outcome.getRuleId());
 
         outcome.setOutcomeType(request.getOutcomeType());
         outcome.setOutcomeValue(request.getOutcomeValue());
@@ -63,10 +73,16 @@ public class RuleOutcomeServiceImpl implements RuleOutcomeService {
 
     @Override
     public void deleteOutcome(Integer outcomeId) {
-        if (!outcomeRepository.existsById(outcomeId)) {
-            throw new EntityNotFoundException("Outcome not found: " + outcomeId);
-        }
-        outcomeRepository.deleteById(outcomeId);
+        RuleOutcome outcome = outcomeRepository.findById(outcomeId)
+                .orElseThrow(() -> new EntityNotFoundException("Outcome not found: " + outcomeId));
+        guardRule(outcome.getRuleId());
+        outcomeRepository.delete(outcome);
+    }
+
+    private void guardRule(Integer ruleId) {
+        Integer productId = ruleRepository.findById(ruleId)
+                .orElseThrow(() -> new EntityNotFoundException("Rule not found: " + ruleId)).getProductId();
+        integrity.assertEditable(productId);
     }
 
     private RuleOutcomeResponse toResponse(RuleOutcome outcome) {

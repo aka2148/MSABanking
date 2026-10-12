@@ -25,7 +25,7 @@ export const routes: Routes = [
     path: 'staff/fd-products',
     canActivate: [authGuard, staffGuard],
     loadComponent: () =>
-      import('./features/staff/fd-products/fd-products').then((m) => m.FdProductsAdmin),
+      import('./features/staff/product-builder/product-builder').then((m) => m.ProductBuilder),
   },
   {
     path: 'fd',

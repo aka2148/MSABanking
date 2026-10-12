@@ -5,6 +5,7 @@ import com.bank.product.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,6 +19,7 @@ public class ProductController {
     private ProductService productService;
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('BANK_OFFICER','ADMIN')")
     public ResponseEntity<Product> createProduct(@RequestBody Product product) {
         return new ResponseEntity<>(productService.createProduct(product), HttpStatus.CREATED);
     }
@@ -41,16 +43,19 @@ public class ProductController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('BANK_OFFICER','ADMIN')")
     public ResponseEntity<Product> updateProduct(@PathVariable Integer id, @RequestBody Product updates) {
         return ResponseEntity.ok(productService.updateProduct(id, updates));
     }
 
     @PatchMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('BANK_OFFICER','ADMIN')")
     public ResponseEntity<Product> updateStatus(@PathVariable Integer id, @RequestBody Map<String, String> body) {
         return ResponseEntity.ok(productService.updateStatus(id, body.get("status")));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteProduct(@PathVariable Integer id) {
         productService.deleteProduct(id);
         return ResponseEntity.noContent().build();

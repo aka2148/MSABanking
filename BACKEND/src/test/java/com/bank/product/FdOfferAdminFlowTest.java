@@ -18,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.hamcrest.Matchers.hasSize;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -91,6 +92,13 @@ class FdOfferAdminFlowTest {
                 .andExpect(jsonPath("$.currency_codes", hasSize(2)))
                 .andReturn().getResponse().getContentAsString();
         long fdProductId = objectMapper.readTree(response).get("fd_product_id").asLong();
+        int catalogProductId = objectMapper.readTree(response).get("catalog_product_id").asInt();
+
+        mockMvc.perform(patch("/api/v1/products/{id}/status", catalogProductId)
+                        .contentType("application/json")
+                        .content("{\"status\":\"ACTIVE\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ACTIVE"));
 
         mockMvc.perform(post("/api/v1/fd-products/{id}/activate", fdProductId))
                 .andExpect(status().isOk())

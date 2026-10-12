@@ -1,0 +1,295 @@
+<app-glass-shell align="center" [focalX]="50" [focalY]="42" [zoom]="1.12">
+  <main class="glass-card glass-card--wide builder-card">
+    <a routerLink="/dashboard" class="glass-link builder-back">← Staff dashboard</a>
+    <header class="builder-header">
+      <div>
+        <p class="builder-eyebrow">Staff workspace</p>
+        <h2>Product and pricing builder</h2>
+        <p class="glass-card__sub">Configure Loan, CASA, FD and Forex variants without product-specific code.</p>
+      </div>
+      <span class="builder-badge">BANK OFFICER</span>
+    </header>
+
+    <p class="glass-error" *ngIf="errorMessage" role="alert">{{ errorMessage }}</p>
+    <p class="builder-success" *ngIf="successMessage" role="status">{{ successMessage }}</p>
+    <div class="builder-validation" *ngIf="validationErrors.length" role="alert">
+      <strong>Configuration needs attention</strong>
+      <ul><li *ngFor="let error of validationErrors">{{ error }}</li></ul>
+    </div>
+    <p class="builder-state" *ngIf="loading">Loading product metadata…</p>
+
+    <form #builderForm="ngForm" *ngIf="!loading && metadata" (ngSubmit)="saveDraft(builderForm)" novalidate>
+      <section class="builder-section">
+        <div class="builder-section__heading">
+          <div><span>1</span><div><p class="builder-eyebrow">Product family</p><h3>Choose a category or variant</h3></div></div>
+          <strong>{{ family }}</strong>
+        </div>
+        <label class="glass-field">
+          <span class="glass-field__label">Category / subcategory</span>
+          <select name="categoryId" [(ngModel)]="categoryId" (ngModelChange)="categoryChanged()" required>
+            <option [ngValue]="null" disabled>Select category</option>
+            <option *ngFor="let category of metadata.categories" [ngValue]="category.id">
+              {{ category.name }} · {{ category.code }} · {{ category.family }}
+            </option>
+          </select>
+        </label>
+        <div class="variant-row">
+          <label class="glass-field"><span class="glass-field__label">New variant code</span>
+            <input name="newCategoryCode" [(ngModel)]="newCategoryCode" placeholder="e.g. HOME_LOAN" maxlength="32" />
+          </label>
+          <label class="glass-field"><span class="glass-field__label">Variant name</span>
+            <input name="newCategoryName" [(ngModel)]="newCategoryName" placeholder="e.g. Home Loan" maxlength="128" />
+          </label>
+          <button type="button" class="glass-btn glass-btn--ghost" (click)="createSubcategory()"
+                  [disabled]="!newCategoryCode.trim() || !newCategoryName.trim()">Add inherited variant</button>
+        </div>
+        <p class="builder-hint">New subcategories explicitly inherit fields from their parent family. Their own attribute definitions can be added through the existing attribute-definition API.</p>
+      </section>
+
+      <section class="builder-section">
+        <div class="builder-section__heading"><div><span>2</span><div><p class="builder-eyebrow">Identity</p><h3>Describe the product</h3></div></div></div>
+        <div class="builder-grid">
+          <label class="glass-field"><span class="glass-field__label">Product code</span>
+            <input name="productCode" [(ngModel)]="productCode" required maxlength="32" placeholder="e.g. FLEXI_LOAN_01" />
+          </label>
+          <label class="glass-field"><span class="glass-field__label">Product name</span>
+            <input name="productName" [(ngModel)]="productName" required maxlength="255" placeholder="Customer-facing name" />
+          </label>
+          <label class="glass-field"><span class="glass-field__label">Effective from</span>
+            <input type="date" name="effectiveFrom" [(ngModel)]="effectiveFrom" />
+          </label>
+          <label class="glass-field"><span class="glass-field__label">Effective to</span>
+            <input type="date" name="effectiveTo" [(ngModel)]="effectiveTo" />
+          </label>
+          <label class="glass-field builder-wide"><span class="glass-field__label">Description</span>
+            <textarea name="description" [(ngModel)]="description" maxlength="1000" rows="2"></textarea>
+          </label>
+        </div>
+      </section>
+
+      <section class="builder-section" *ngIf="attributes.length">
+        <div class="builder-section__heading"><div><span>3</span><div><p class="builder-eyebrow">Terms</p><h3>{{ family }} attributes</h3></div></div></div>
+        <div class="builder-grid">
+          <label class="glass-field" *ngFor="let attribute of attributes">
+            <span class="glass-field__label">{{ attribute.displayName || attribute.key }}
+              <small *ngIf="attribute.unit">{{ attribute.unit }}</small>
+              <small *ngIf="attribute.inherited">inherited</small>
+            </span>
+            <select *ngIf="attribute.choices.length" name="attribute-{{ attribute.id }}"
+                    [(ngModel)]="attributeValues[attribute.id]" [required]="attribute.required">
+              <option value="" disabled>Select value</option>
+              <option *ngFor="let choice of attribute.choices" [value]="choice">{{ choice }}</option>
+            </select>
+            <select *ngIf="!attribute.choices.length && attribute.dataType === 'BOOLEAN'"
+                    name="attribute-{{ attribute.id }}" [(ngModel)]="attributeValues[attribute.id]" [required]="attribute.required">
+              <option value="" disabled>Select value</option><option value="true">Yes</option><option value="false">No</option>
+            </select>
+            <input *ngIf="!attribute.choices.length && attribute.dataType !== 'BOOLEAN'"
+                   [type]="attribute.dataType === 'NUMBER' ? 'number' : attribute.dataType === 'DATE' ? 'date' : 'text'"
+                   name="attribute-{{ attribute.id }}" [(ngModel)]="attributeValues[attribute.id]"
+                   [required]="attribute.required" [min]="attribute.minimumValue" [max]="attribute.maximumValue" />
+          </label>
+        </div>
+      </section>
+
+      <section class="builder-section">
+        <div class="builder-section__heading"><div><span>4</span><div><p class="builder-eyebrow">Money</p><h3>Currencies and limits</h3></div></div></div>
+        <div class="currency-selector">
+          <button type="button" *ngFor="let currency of currencies" class="currency-toggle"
+                  [class.currency-toggle--selected]="currencySelected(currency.code)" (click)="toggleCurrency(currency)">
+            {{ currency.code }} <small>{{ currency.decimalPlaces }} decimals</small>
+          </button>
+        </div>
+        <div class="builder-grid">
+          <label class="glass-field"><span class="glass-field__label">Base currency</span>
+            <select name="baseCurrency" [(ngModel)]="baseCurrencyCode" (ngModelChange)="baseCurrencyChanged()" required>
+              <option *ngFor="let draft of currencyDrafts" [value]="draft.currencyCode">{{ draft.currencyCode }}</option>
+            </select>
+          </label>
+        </div>
+        <div class="currency-card" *ngFor="let draft of currencyDrafts; let index = index">
+          <strong>{{ draft.currencyCode }}</strong>
+          <div class="builder-grid">
+            <label class="glass-field"><span class="glass-field__label">Minimum amount</span>
+              <input type="number" name="currency-{{ index }}-minimum" [(ngModel)]="draft.minimumAmount"
+                     min="0" [step]="currencyStep(draft.currencyCode)" required />
+            </label>
+            <label class="glass-field"><span class="glass-field__label">Maximum amount</span>
+              <input type="number" name="currency-{{ index }}-maximum" [(ngModel)]="draft.maximumAmount"
+                     min="0.001" [step]="currencyStep(draft.currencyCode)" required />
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="builder-section">
+        <div class="builder-section__heading">
+          <div><span>5</span><div><p class="builder-eyebrow">Eligibility</p><h3>Typed customer rules</h3></div></div>
+          <button type="button" class="glass-link builder-text-button" (click)="addEligibilityRule()">+ Add rule</button>
+        </div>
+        <p class="builder-hint">Only facts supplied by customer/application APIs are executable. Income, residency and PAN dependencies are shown by metadata but cannot be activated.</p>
+        <div class="role-selector" *ngIf="metadata.roles.length">
+          <span class="glass-field__label">Applicable account roles</span>
+          <label *ngFor="let role of metadata.roles">
+            <input type="checkbox" name="role-{{ role.id }}" [(ngModel)]="roleSelections[role.id]" />
+            {{ role.code }} <small>{{ role.description }}</small>
+          </label>
+        </div>
+        <div class="editor-row eligibility-row" *ngFor="let rule of eligibilityRules; let index = index">
+          <label class="glass-field"><span class="glass-field__label">Rule name</span>
+            <input name="eligibility-{{ index }}-name" [(ngModel)]="rule.name" required />
+          </label>
+          <label class="glass-field"><span class="glass-field__label">Fact</span>
+            <select name="eligibility-{{ index }}-fact" [(ngModel)]="rule.fact" (ngModelChange)="eligibilityFactChanged(rule)" required>
+              <option *ngFor="let fact of executableFacts" [value]="fact.code">{{ fact.code }}</option>
+            </select>
+          </label>
+          <label class="glass-field"><span class="glass-field__label">Operator</span>
+            <select name="eligibility-{{ index }}-operator" [(ngModel)]="rule.operator" required>
+              <option *ngFor="let operator of metadata.operators" [value]="operator">{{ operator }}</option>
+            </select>
+          </label>
+          <label class="glass-field"><span class="glass-field__label">Value from / expected</span>
+            <input name="eligibility-{{ index }}-from" [(ngModel)]="rule.valueFrom" />
+          </label>
+          <label class="glass-field" *ngIf="rule.operator === 'BETWEEN_INCLUSIVE'"><span class="glass-field__label">Value to</span>
+            <input name="eligibility-{{ index }}-to" [(ngModel)]="rule.valueTo" />
+          </label>
+          <label class="glass-field" *ngIf="rule.operator === 'IN'"><span class="glass-field__label">Comma-separated values</span>
+            <input name="eligibility-{{ index }}-set" [(ngModel)]="rule.valueSet" />
+          </label>
+          <button type="button" class="remove-button" (click)="eligibilityRules.splice(index, 1)">Remove</button>
+        </div>
+      </section>
+
+      <section class="builder-section">
+        <div class="builder-section__heading">
+          <div><span>6</span><div><p class="builder-eyebrow">Pricing</p><h3>Rates, outcomes, charges and slabs</h3></div></div>
+          <button type="button" class="glass-link builder-text-button" (click)="addPricingBand()">+ Add pricing band</button>
+        </div>
+        <p class="builder-hint">Enter percentages for display (6.25 means 6.25%). The API stores 0.0625 with unit DECIMAL_FRACTION.</p>
+        <div class="editor-row pricing-row" *ngFor="let band of pricingDrafts; let index = index">
+          <label class="glass-field"><span class="glass-field__label">Currency</span>
+            <select name="pricing-{{ index }}-currency" [(ngModel)]="band.currencyCode" required>
+              <option *ngFor="let code of previewCurrencyCodes()" [value]="code">{{ code }}</option>
+            </select>
+          </label>
+          <label class="glass-field"><span class="glass-field__label">{{ pricingLabel() }} from</span>
+            <input type="number" name="pricing-{{ index }}-from" [(ngModel)]="band.valueFrom" min="0" required />
+          </label>
+          <label class="glass-field"><span class="glass-field__label">To</span>
+            <input type="number" name="pricing-{{ index }}-to" [(ngModel)]="band.valueTo" min="0" required />
+          </label>
+          <label class="glass-field"><span class="glass-field__label">{{ family === 'FOREX' ? 'Markup' : 'Annual rate' }} (%)</span>
+            <input type="number" name="pricing-{{ index }}-rate" [(ngModel)]="band.ratePercent" min="0" max="100" step="0.0001" required />
+          </label>
+          <button type="button" class="remove-button" (click)="removePricingBand(index)" [disabled]="pricingDrafts.length === 1">Remove</button>
+        </div>
+
+        <div class="subheading"><h4>Charges</h4><button type="button" class="glass-link builder-text-button" (click)="addCharge()">+ Add charge slab</button></div>
+        <div class="editor-row charge-row" *ngFor="let charge of charges; let index = index">
+          <label class="glass-field"><span class="glass-field__label">Charge code</span>
+            <input name="charge-{{ index }}-code" [(ngModel)]="charge.chargeCode" required />
+          </label>
+          <label class="glass-field"><span class="glass-field__label">Basis</span>
+            <select name="charge-{{ index }}-basis" [(ngModel)]="charge.calculationBasis">
+              <option value="FIXED">Fixed amount</option><option value="PERCENTAGE">Percentage</option>
+            </select>
+          </label>
+          <label class="glass-field"><span class="glass-field__label">Currency</span>
+            <select name="charge-{{ index }}-currency" [(ngModel)]="charge.currencyCode">
+              <option *ngFor="let draft of currencyDrafts" [value]="draft.currencyCode">{{ draft.currencyCode }}</option>
+            </select>
+          </label>
+          <label class="glass-field"><span class="glass-field__label">Slab from</span>
+            <input type="number" name="charge-{{ index }}-from" [(ngModel)]="charge.valueFrom" min="0" required />
+          </label>
+          <label class="glass-field"><span class="glass-field__label">Slab to</span>
+            <input type="number" name="charge-{{ index }}-to" [(ngModel)]="charge.valueTo" min="0" required />
+          </label>
+          <label class="glass-field"><span class="glass-field__label">{{ charge.calculationBasis === 'PERCENTAGE' ? 'Charge (%)' : 'Charge amount' }}</span>
+            <input type="number" name="charge-{{ index }}-value" [(ngModel)]="charge.value" min="0" step="0.0001" required />
+          </label>
+          <label class="glass-field"><span class="glass-field__label">Floor</span>
+            <input type="number" name="charge-{{ index }}-floor" [(ngModel)]="charge.floor" min="0" />
+          </label>
+          <label class="glass-field"><span class="glass-field__label">Cap</span>
+            <input type="number" name="charge-{{ index }}-cap" [(ngModel)]="charge.cap" min="0" />
+          </label>
+          <button type="button" class="remove-button" (click)="charges.splice(index, 1)">Remove</button>
+        </div>
+      </section>
+
+      <section class="builder-section">
+        <div class="builder-section__heading"><div><span>7</span><div><p class="builder-eyebrow">Review</p><h3>Validate and preview</h3></div></div></div>
+        <div class="builder-grid preview-inputs">
+          <label class="glass-field" *ngIf="family !== 'FOREX'"><span class="glass-field__label">Sample amount</span>
+            <input name="previewAmount" [(ngModel)]="previewFacts['AMOUNT']" />
+          </label>
+          <label class="glass-field" *ngIf="family === 'LOAN' || family === 'FIXED_DEPOSIT'"><span class="glass-field__label">Sample tenure (months)</span>
+            <input name="previewTenure" [(ngModel)]="previewFacts['TENURE_MONTHS']" />
+          </label>
+          <label class="glass-field" *ngIf="family === 'CASA'"><span class="glass-field__label">Sample balance</span>
+            <input name="previewBalance" [(ngModel)]="previewFacts['BALANCE']" />
+          </label>
+          <label class="glass-field" *ngIf="family === 'FOREX'"><span class="glass-field__label">{{ baseCurrencyCode }} conversion principal / budget</span>
+            <input name="previewTransfer" [(ngModel)]="previewFacts['TRANSFER_AMOUNT']" />
+          </label>
+          <label class="glass-field" *ngIf="family === 'FOREX'"><span class="glass-field__label">Amount mode</span>
+            <select name="previewForexMode" [(ngModel)]="previewFacts['FOREX_AMOUNT_MODE']">
+              <option value="CONVERSION_PRINCIPAL">Conversion principal (fees added)</option>
+              <option value="TOTAL_BUDGET">Total funding budget (fees deducted)</option>
+            </select>
+          </label>
+          <label class="glass-field" *ngIf="family === 'FOREX'"><span class="glass-field__label">Supplied reference rate (not live)</span>
+            <input name="previewReferenceRate" [(ngModel)]="previewFacts['REFERENCE_RATE']" />
+          </label>
+          <label class="glass-field"><span class="glass-field__label">{{ family === 'FOREX' ? 'Destination currency' : 'Pricing currency' }}</span>
+            <select name="previewCurrency" [(ngModel)]="previewFacts[family === 'FOREX' ? 'DESTINATION_CURRENCY' : 'CURRENCY']">
+              <option *ngFor="let code of previewCurrencyCodes()" [value]="code">{{ code }}</option>
+            </select>
+          </label>
+          <label class="glass-field" *ngFor="let rule of eligibilityRules"><span class="glass-field__label">{{ rule.fact }} sample</span>
+            <input name="previewFact-{{ rule.fact }}" [(ngModel)]="previewFacts[rule.fact]" />
+          </label>
+        </div>
+        <button type="button" class="glass-btn glass-btn--ghost" (click)="runPreview(builderForm)" [disabled]="previewing">
+          {{ previewing ? 'Calculating…' : 'Run pricing preview' }}
+        </button>
+        <article class="preview-result" *ngIf="previewResult as preview">
+          <div><strong>{{ preview.status }}</strong><span>{{ preview.calculationMethod || 'Eligibility dependency' }}</span></div>
+          <p *ngIf="preview.family === 'FOREX'">{{ preview.fundingCurrencyCode }} funding â†’ {{ preview.destinationCurrencyCode }} destination</p>
+          <dl><ng-container *ngFor="let value of preview.values | keyvalue"><dt>{{ value.key }}</dt><dd>{{ value.value }}</dd></ng-container></dl>
+          <p *ngFor="let message of preview.messages">{{ message }}</p>
+        </article>
+      </section>
+
+      <section class="builder-section">
+        <div class="builder-section__heading"><div><span>8</span><div><p class="builder-eyebrow">Publish</p><h3>Save draft and activate</h3></div></div></div>
+        <div class="builder-actions">
+          <button type="submit" class="glass-btn" [disabled]="saving || !!createdProduct">{{ saving ? 'Saving…' : 'Save complete draft' }}</button>
+          <button type="button" class="glass-btn" *ngIf="createdProduct?.status === 'DRAFT'"
+                  [disabled]="activatingId === createdProduct?.productId" (click)="activate(createdProduct!)">
+            {{ activatingId === createdProduct?.productId ? 'Activating…' : 'Validate and activate' }}
+          </button>
+        </div>
+        <article class="created-product" *ngIf="createdProduct as product">
+          <div><strong>{{ product.productName }}</strong><span>{{ product.productCode }} · {{ product.family }} · revision {{ product.revision }}</span></div>
+          <span class="status-chip" [attr.data-status]="product.status">{{ product.status }}</span>
+        </article>
+      </section>
+    </form>
+
+    <section class="builder-section" *ngIf="!loading">
+      <div class="builder-section__heading"><div><span>✓</span><div><p class="builder-eyebrow">Catalogue</p><h3>Configured products</h3></div></div></div>
+      <p class="builder-hint" *ngIf="products.length === 0">No catalogue products are configured yet.</p>
+      <article class="catalog-row" *ngFor="let product of products">
+        <div><strong>{{ product.productName }}</strong><span>{{ product.productCode }} · {{ product.family }} · {{ product.currencyCodes.join(' / ') }} · base {{ product.baseCurrencyCode }}</span></div>
+        <div class="catalog-actions"><span class="status-chip" [attr.data-status]="product.status">{{ product.status }}</span>
+          <button type="button" class="glass-btn glass-btn--ghost" *ngIf="product.status === 'DRAFT' && product.revision > 0"
+                  [disabled]="activatingId === product.productId" (click)="activate(product)">Activate</button>
+        </div>
+      </article>
+    </section>
+  </main>
+</app-glass-shell>
