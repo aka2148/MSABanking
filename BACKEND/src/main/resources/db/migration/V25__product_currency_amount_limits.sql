@@ -8,6 +8,7 @@ BEGIN
         SELECT 1
         FROM pg_constraint
         WHERE conname = 'ck_product_currency_config_amount_limits'
+          AND conrelid = 'public.product_currency_config'::regclass
     ) THEN
         ALTER TABLE public.product_currency_config
             ADD CONSTRAINT ck_product_currency_config_amount_limits

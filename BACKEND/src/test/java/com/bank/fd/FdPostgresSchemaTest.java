@@ -66,6 +66,10 @@ class FdPostgresSchemaTest {
                     "SELECT tt_txn_type_code FROM public.transaction_types "
                             + "WHERE tt_txn_type_code = 'DEPOSIT'"));
             assertTrue(tableExists(connection, "product_configuration_revision"));
+            assertEquals("jsonb", scalar(connection,
+                    "SELECT data_type FROM information_schema.columns "
+                            + "WHERE table_schema = 'public' AND table_name = 'product_configuration_revision' "
+                            + "AND column_name = 'pcr_snapshot_json'"));
             assertEquals("numeric", scalar(connection,
                     "SELECT data_type FROM information_schema.columns "
                             + "WHERE table_schema = 'public' AND table_name = 'product_currency_config' "
@@ -76,6 +80,8 @@ class FdPostgresSchemaTest {
                             + "AND column_name = 'pcc_maximum_amount'"));
             assertEquals("KWD", scalar(connection,
                     "SELECT cur_iso_code FROM public.currency WHERE cur_iso_code = 'KWD'"));
+            assertEquals("3", scalar(connection,
+                    "SELECT cur_decimal_places FROM public.currency WHERE cur_iso_code = 'KWD'"));
             assertTrue(constraintExists(connection, "product_currency_config",
                     "ck_product_currency_config_amount_limits"));
 
