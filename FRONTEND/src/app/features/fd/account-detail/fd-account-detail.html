@@ -31,12 +31,6 @@
           <button type="button" class="glass-btn" *ngIf="actions.includes('FUND')" (click)="fund()" [disabled]="!!busyAction">
             {{ busyAction === 'FUND' ? 'Recording…' : 'Fund exact principal' }}
           </button>
-          <button type="button" class="glass-btn" *ngIf="actions.includes('ACCRUE')" (click)="runAccrual()" [disabled]="!!busyAction">
-            {{ busyAction === 'ACCRUE' ? 'Running…' : 'Run accrual' }}
-          </button>
-          <button type="button" class="glass-btn" *ngIf="actions.includes('MATURE')" (click)="mature()" [disabled]="!!busyAction">
-            {{ busyAction === 'MATURE' ? 'Processing…' : 'Process maturity' }}
-          </button>
           <button type="button" class="glass-btn" *ngIf="actions.includes('CLOSE')" (click)="close()" [disabled]="!!busyAction">
             {{ busyAction === 'CLOSE' ? 'Closing…' : 'Close at maturity' }}
           </button>
@@ -94,7 +88,6 @@
         <h3>{{ currentResult.kind | titlecase }}</h3>
         <ng-container [ngSwitch]="currentResult.kind">
           <p *ngSwitchCase="'funding'">{{ fundingResult?.funding_description }}</p>
-          <p *ngSwitchCase="'accrual'">Accrued {{ accrualResult?.accrued_amount | number:'1.2-2' }} {{ accrualResult?.currency_code }}; cumulative {{ accrualResult?.cumulative_accrued | number:'1.2-2' }}. Maturity amount: {{ accrualResult?.maturity_amount | number:'1.2-2' }} {{ accrualResult?.currency_code }}.</p>
           <p *ngSwitchCase="'closure'">Settlement: {{ closureResult?.settlement_amount | number:'1.2-2' }} {{ closureResult?.currency_code }}. {{ closureResult?.remark }}</p>
           <p *ngSwitchCase="'premature'">Status {{ prematureResult?.status }}; penalty {{ prematureResult?.penalty_amount | number:'1.2-2' }} {{ prematureResult?.currency_code }}, net payable {{ prematureResult?.net_payable_amount | number:'1.2-2' }} {{ prematureResult?.currency_code }}.</p>
         </ng-container>

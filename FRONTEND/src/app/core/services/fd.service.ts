@@ -4,7 +4,6 @@ import { Observable } from 'rxjs';
 import {
   AccountResponse,
   AccrualResponse,
-  AccrualRunRequest,
   ApiErrorEnvelope,
   ApiErrorResponse,
   BookingRequest,
@@ -67,20 +66,12 @@ export class FdService {
     return this.http.get<AccountResponse>(this.path(`/accounts/${accountId}`));
   }
 
-  runAccrual(accountId: number, request?: AccrualRunRequest): Observable<AccrualResponse> {
-    return this.write<AccrualResponse>(`/accounts/${accountId}/accrual/run`, request);
-  }
-
   listAccrual(accountId: number): Observable<AccrualResponse[]> {
     return this.http.get<AccrualResponse[]>(this.path(`/accounts/${accountId}/accrual`));
   }
 
   getCumulativeAccrual(accountId: number): Observable<AccrualResponse> {
     return this.http.get<AccrualResponse>(this.path(`/accounts/${accountId}/accrual/cumulative`));
-  }
-
-  mature(accountId: number): Observable<AccrualResponse> {
-    return this.write<AccrualResponse>(`/accounts/${accountId}/mature`);
   }
 
   close(accountId: number): Observable<ClosureResponse> {

@@ -138,11 +138,11 @@ class FdV1AccrualMaturityContractTest {
         var runAccrual = FdV1ContractController.class.getDeclaredMethod("runAccrual", Long.class,
                 java.util.Map.class, String.class, Authentication.class);
         assertEquals("/accounts/{accountId}/accrual/run", runAccrual.getAnnotation(PostMapping.class).value()[0]);
-        assertEquals("hasAnyRole('CUSTOMER','BANK_OFFICER','ADMIN')", runAccrual.getAnnotation(PreAuthorize.class).value());
+        assertEquals("hasAnyRole('BANK_OFFICER','ADMIN')", runAccrual.getAnnotation(PreAuthorize.class).value());
 
         var mature = FdV1ContractController.class.getDeclaredMethod("matureAccount", Long.class,
                 String.class, Authentication.class);
-        assertEquals("hasAnyRole('CUSTOMER','BANK_OFFICER','ADMIN')", mature.getAnnotation(PreAuthorize.class).value());
+        assertEquals("hasAnyRole('BANK_OFFICER','ADMIN')", mature.getAnnotation(PreAuthorize.class).value());
 
         var list = FdV1ContractController.class.getDeclaredMethod("listAccrual", Long.class,
                 Authentication.class);

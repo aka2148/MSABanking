@@ -192,7 +192,7 @@ public class FdV1ContractController {
     public ResponseEntity<ApiErrorResponse> activateAccount(@PathVariable Long accountId) { return notImplemented("activateAccount"); }
 
     @PostMapping("/accounts/{accountId}/mature")
-    @PreAuthorize("hasAnyRole('CUSTOMER','BANK_OFFICER','ADMIN')")
+    @PreAuthorize("hasAnyRole('BANK_OFFICER','ADMIN')")
     public ResponseEntity<AccrualResponse> matureAccount(@PathVariable Long accountId,
                                                           @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
                                                           Authentication authentication) {
@@ -262,7 +262,7 @@ public class FdV1ContractController {
     public ResponseEntity<ApiErrorResponse> listTransactionTypes() { return notImplemented("listTransactionTypes"); }
 
     @PostMapping("/accounts/{accountId}/accrual/run")
-    @PreAuthorize("hasAnyRole('CUSTOMER','BANK_OFFICER','ADMIN')")
+    @PreAuthorize("hasAnyRole('BANK_OFFICER','ADMIN')")
     public ResponseEntity<AccrualResponse> runAccrual(@PathVariable Long accountId,
                                                        @RequestBody(required = false) Map<String, Object> body,
                                                        @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,

@@ -3,8 +3,12 @@ package com.bank.fd;
 import com.bank.fd.application.ProductTerms;
 import com.bank.fd.application.ProductTermsPort;
 import com.bank.fd.application.ProductTermsQuery;
+import com.bank.fd.application.FdBatchProcessingService;
+import com.bank.fd.application.FdBatchRunResponse;
+import com.bank.fd.domain.FdTimePolicy;
 import com.bank.fd.entity.FdAccount;
 import com.bank.fd.entity.FdCurrencyReference;
+import com.bank.fd.entity.FdStatus;
 import com.bank.fd.repository.FdAccountRepository;
 import com.bank.fd.repository.FdCurrencyReferenceRepository;
 import com.bank.fd.repository.FdInterestAccrualRepository;
@@ -55,9 +59,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * <p>Boot-managed datasource pointed at the Testcontainers database with the
  * Flyway migration chain applied (no H2, no DDL generation): end-to-end
- * book → fund → accrue → mature → close → timeline over MockMvc with fixed
- * {@code Idempotency-Key} values per operation, timeline linkage back to the
- * same account, and same-key replay safety for all five operations proven by
+ * booking, funding, batch accrual/maturity, closure, and history inspection.
+ * Customer operations use MockMvc and fixed {@code Idempotency-Key} values;
+ * the EOD runner is invoked directly against the same real database. Timeline
+ * linkage and same-key replay safety for customer operations are proven by
  * byte-identical bodies plus unchanged row counts in
  * {@code fd_operation_idempotency}, {@code fd_transaction}, and
  * {@code fd_interest_accrual}.</p>
@@ -136,6 +141,12 @@ class FdPhase5ProtectionIT {
     @Autowired
     private FdOperationIdempotencyRepository idempotencyRepository;
 
+    @Autowired
+    private FdBatchProcessingService batchProcessingService;
+
+    @Autowired
+    private FdTimePolicy timePolicy;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private String token;
@@ -175,11 +186,11 @@ class FdPhase5ProtectionIT {
 
     @Test
     @Order(2)
-    void fullLifecycleWithFiveOperationDuplicateSafety() throws Exception {
+    void customerLifecycleAndEodBatchWithDuplicateSafety() throws Exception {
         String bookBody = "{\"product_id\": 7, \"principal_amount\": 1000.00,"
                 + " \"tenure_months\": 12, \"currency_code\": \"USD\"}";
         String fundBody = "{\"amount\": 1000.00, \"currency_code\": \"USD\"}";
-        String accrualBody = "{\"business_date\": \"" + LocalDate.now() + "\"}";
+        LocalDate businessDate = timePolicy.businessDate();
 
         // BOOKING: 201 then byte-identical replay with zero new idempotency rows.
         long idemBefore = idempotencyRepository.count();
@@ -227,59 +238,45 @@ class FdPhase5ProtectionIT {
                 "Funding replay must not record a second transaction");
         assertEquals(idemBefore + 1, idempotencyRepository.count());
 
-        // ACCRUAL: 200 then byte-identical replay with exactly one accrual row.
-        idemBefore = idempotencyRepository.count();
+        // Customer-owned accounts cannot invoke accrual directly; EOD batch owns the run.
         long accrualBefore = accrualRepository.count();
-        String accrued = mockMvc.perform(post("/fd/v1/accounts/" + accountId + "/accrual/run")
+        long transactionBeforeBatch = transactionRepository.count();
+        long idemBeforeBatch = idempotencyRepository.count();
+        mockMvc.perform(post("/fd/v1/accounts/" + accountId + "/accrual/run")
                         .header("Authorization", "Bearer " + token)
-                        .header("Idempotency-Key", "it-accrue-1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(accrualBody))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-        assertEquals(1, accrualRepository.findByAccountIdOrderByAccrualDateAscIdAsc(accountId).size());
-        String accruedReplay = mockMvc.perform(post("/fd/v1/accounts/" + accountId + "/accrual/run")
-                        .header("Authorization", "Bearer " + token)
-                        .header("Idempotency-Key", "it-accrue-1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(accrualBody))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-        assertEquals(accrued, accruedReplay, "Accrual replay must be byte-identical");
-        assertEquals(accrualBefore + 1, accrualRepository.count(),
-                "Accrual replay must not add accrual rows");
-        assertEquals(idemBefore + 1, idempotencyRepository.count());
+                        .header("Idempotency-Key", "it-accrue-1"))
+                .andExpect(status().isForbidden());
+        assertEquals(accrualBefore, accrualRepository.count(),
+                "A rejected customer accrual request must not create accrual rows");
+        assertEquals(idemBeforeBatch, idempotencyRepository.count(),
+                "A rejected customer accrual request must not claim an idempotency key");
 
-        // Time travel so maturity is reachable: backdate the maturity date.
+        // Make this account due today and process its accrual and maturity through EOD.
         FdAccount account = accountRepository.findById(accountId).orElseThrow();
-        account.setMaturityDate(LocalDate.now().minusDays(1));
+        account.setMaturityDate(businessDate);
         accountRepository.save(account);
 
-        // MATURITY: 200 then byte-identical replay with unchanged row counts.
-        idemBefore = idempotencyRepository.count();
-        long txnBefore = transactionRepository.count();
-        accrualBefore = accrualRepository.count();
-        String matured = mockMvc.perform(post("/fd/v1/accounts/" + accountId + "/mature")
+        FdBatchRunResponse batchRun = batchProcessingService.runDaily(businessDate);
+        assertEquals(1, batchRun.accountsExamined());
+        assertEquals(1, batchRun.accrualsProcessed());
+        assertEquals(1, batchRun.maturitiesProcessed());
+        assertEquals(0, batchRun.accountsFailed());
+        assertEquals(accrualBefore + 1, accrualRepository.count());
+        assertEquals(transactionBeforeBatch + 1, transactionRepository.count(),
+                "EOD maturity must record one maturity transaction");
+        assertEquals(idemBeforeBatch, idempotencyRepository.count(),
+                "System batch processing does not use customer operation idempotency claims");
+        assertEquals(FdStatus.MATURED, accountRepository.findById(accountId).orElseThrow().getStatus());
+
+        // Customers also cannot invoke the maturity transition directly.
+        mockMvc.perform(post("/fd/v1/accounts/" + accountId + "/mature")
                         .header("Authorization", "Bearer " + token)
                         .header("Idempotency-Key", "it-mature-1"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("MATURED"))
-                .andReturn().getResponse().getContentAsString();
-        String maturedReplay = mockMvc.perform(post("/fd/v1/accounts/" + accountId + "/mature")
-                        .header("Authorization", "Bearer " + token)
-                        .header("Idempotency-Key", "it-mature-1"))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-        assertEquals(matured, maturedReplay, "Maturity replay must be byte-identical");
-        assertEquals(txnBefore, transactionRepository.count(),
-                "Maturity replay must not add transactions");
-        assertEquals(accrualBefore, accrualRepository.count(),
-                "Maturity replay must not add accrual rows");
-        assertEquals(idemBefore + 1, idempotencyRepository.count());
+                .andExpect(status().isForbidden());
 
         // CLOSURE: 200 then byte-identical replay with unchanged row counts.
         idemBefore = idempotencyRepository.count();
-        txnBefore = transactionRepository.count();
+        long txnBefore = transactionRepository.count();
         String closed = mockMvc.perform(post("/fd/v1/accounts/" + accountId + "/close")
                         .header("Authorization", "Bearer " + token)
                         .header("Idempotency-Key", "it-close-1"))
@@ -309,8 +306,8 @@ class FdPhase5ProtectionIT {
                 "Timeline must link all lifecycle entries, saw " + entryTypes);
         assertEquals(3, transactionRepository.findByAccountIdOrderByTransactionDateAscIdAsc(accountId).size(),
                 "Exactly one transaction per money movement (fund/mature/close)");
-        assertEquals(2, accrualRepository.findByAccountIdOrderByAccrualDateAscIdAsc(accountId).size(),
-                "Accrual plus maturity-closing accrual rows");
+        assertEquals(1, accrualRepository.findByAccountIdOrderByAccrualDateAscIdAsc(accountId).size(),
+                "EOD accrual and maturity on the same business date must be idempotent");
 
         // Same key on a different funding body (different account) is a 409.
         MvcResult second = mockMvc.perform(post("/fd/v1/accounts")
@@ -336,9 +333,9 @@ class FdPhase5ProtectionIT {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message", containsString("existing settlement recorded")));
 
-        // fd_operation_idempotency proves durable claims for the five operations.
-        assertEquals(6, idempotencyRepository.count(),
-                "BOOKING/FUNDING/ACCRUAL/MATURITY/CLOSURE plus the second booking claim");
+        // fd_operation_idempotency proves durable claims for customer operations only.
+        assertEquals(4, idempotencyRepository.count(),
+                "BOOKING/FUNDING/CLOSURE plus the second booking claim");
     }
 
     private void register(String username, String email) throws Exception {

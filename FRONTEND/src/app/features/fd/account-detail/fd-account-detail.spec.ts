@@ -7,8 +7,10 @@ describe('FdAccountDetail lifecycle actions', () => {
     expect(FdAccountDetail.actionsForStatus('PENDING')).not.toContain('CLOSE');
   });
 
-  it('allows processing and premature request while active', () => {
-    expect(FdAccountDetail.actionsForStatus('ACTIVE')).toEqual(['ACCRUE', 'MATURE', 'REQUEST_PREMATURE']);
+  it('leaves accrual and maturity processing to the batch while active', () => {
+    expect(FdAccountDetail.actionsForStatus('ACTIVE')).toEqual(['REQUEST_PREMATURE']);
+    expect(FdAccountDetail.actionsForStatus('ACTIVE')).not.toContain('ACCRUE');
+    expect(FdAccountDetail.actionsForStatus('ACTIVE')).not.toContain('MATURE');
     expect(FdAccountDetail.actionsForStatus('ACTIVE')).not.toContain('CLOSE');
   });
 
@@ -27,8 +29,6 @@ describe('FdAccountDetail lifecycle actions', () => {
     expect(FdAccountDetail.requiresConfirmation('CLOSE')).toBeTrue();
     expect(FdAccountDetail.requiresConfirmation('REQUEST_PREMATURE')).toBeTrue();
     expect(FdAccountDetail.requiresConfirmation('APPROVE_PREMATURE')).toBeTrue();
-    expect(FdAccountDetail.requiresConfirmation('ACCRUE')).toBeFalse();
-    expect(FdAccountDetail.requiresConfirmation('MATURE')).toBeFalse();
   });
 
   it('labels quarterly capitalization as a customer-readable history item', () => {

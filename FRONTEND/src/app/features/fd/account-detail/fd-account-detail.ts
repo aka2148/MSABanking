@@ -4,7 +4,6 @@ import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import {
   AccountResponse,
-  AccrualResponse,
   ApiErrorResponse,
   ClosureResponse,
   FdStatus,
@@ -15,10 +14,9 @@ import {
 import { FdService, normalizeApiError } from '../../../core/services/fd.service';
 import { GlassShell } from '../../../shared/components/glass-shell/glass-shell';
 
-export type AccountAction = 'FUND' | 'ACCRUE' | 'MATURE' | 'CLOSE' | 'REQUEST_PREMATURE' | 'APPROVE_PREMATURE';
+export type AccountAction = 'FUND' | 'CLOSE' | 'REQUEST_PREMATURE' | 'APPROVE_PREMATURE';
 type Result =
   | { kind: 'funding'; value: FundingResponse }
-  | { kind: 'accrual'; value: AccrualResponse }
   | { kind: 'closure'; value: ClosureResponse }
   | { kind: 'premature'; value: PrematureClosureResponse };
 
@@ -32,7 +30,7 @@ type Result =
 export class FdAccountDetail implements OnInit {
   private static readonly ACTIONS: Record<FdStatus, readonly AccountAction[]> = {
     PENDING: ['FUND'],
-    ACTIVE: ['ACCRUE', 'MATURE', 'REQUEST_PREMATURE'],
+    ACTIVE: ['REQUEST_PREMATURE'],
     MATURED: ['CLOSE', 'REQUEST_PREMATURE'],
     CLOSED: [],
     PREMATURELY_CLOSED: [],
@@ -95,10 +93,6 @@ export class FdAccountDetail implements OnInit {
     return this.result?.kind === 'funding' ? this.result.value : null;
   }
 
-  get accrualResult(): AccrualResponse | null {
-    return this.result?.kind === 'accrual' ? this.result.value : null;
-  }
-
   get closureResult(): ClosureResponse | null {
     return this.result?.kind === 'closure' ? this.result.value : null;
   }
@@ -109,9 +103,7 @@ export class FdAccountDetail implements OnInit {
 
   beginAction(action: AccountAction): void {
     if (!this.actions.includes(action) && action !== 'APPROVE_PREMATURE') return;
-    if (action === 'ACCRUE') this.runAccrual();
-    else if (action === 'MATURE') this.mature();
-    else if (action === 'FUND') this.fund();
+    if (action === 'FUND') this.fund();
     else if (action === 'CLOSE') this.close();
     else if (action === 'REQUEST_PREMATURE') this.requestPrematureClosure();
     else this.approvePrematureClosure();
@@ -134,22 +126,6 @@ export class FdAccountDetail implements OnInit {
   fund(): void {
     if (!this.requireConfirmation('FUND')) return;
     this.executeFunding();
-  }
-
-  runAccrual(): void {
-    if (!this.isAllowed('ACCRUE')) return;
-    this.execute('ACCRUE', () => this.fdService.runAccrual(this.accountId), (value) => {
-      this.result = { kind: 'accrual', value };
-      this.successMessage = 'Accrual was recorded from the server response.';
-    });
-  }
-
-  mature(): void {
-    if (!this.isAllowed('MATURE')) return;
-    this.execute('MATURE', () => this.fdService.mature(this.accountId), (value) => {
-      this.result = { kind: 'accrual', value };
-      this.successMessage = 'Maturity processing returned an updated server result.';
-    });
   }
 
   close(): void {

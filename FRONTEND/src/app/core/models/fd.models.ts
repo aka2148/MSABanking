@@ -37,10 +37,6 @@ export interface FundingRequest {
   currency_code: string;
 }
 
-export interface AccrualRunRequest {
-  business_date?: string;
-}
-
 export interface PrematureClosureRequest {
   reason?: string;
 }

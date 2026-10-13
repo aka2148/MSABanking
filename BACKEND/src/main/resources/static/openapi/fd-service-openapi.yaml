@@ -204,7 +204,7 @@ paths:
       - $ref: '#/components/parameters/AccountId'
     post:
       tags: [Accounts]
-      summary: Trigger maturity processing for an account
+      summary: Staff-trigger maturity processing for an account
       operationId: matureAccount
       responses:
         '200':
@@ -216,7 +216,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
-          description: Caller does not own this FD account
+          description: BANK_OFFICER or ADMIN role required, or caller does not own this FD account
           content:
             application/json:
               schema:
@@ -417,7 +417,7 @@ paths:
       - $ref: '#/components/parameters/AccountId'
     post:
       tags: [Interest Accrual]
-      summary: Run (trigger) interest accrual for an account (idempotent per accrual_date)
+      summary: Staff-trigger interest accrual for an account (idempotent per accrual_date)
       operationId: runAccrual
       requestBody:
         content:
@@ -437,7 +437,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
-          description: Caller does not own this FD account
+          description: BANK_OFFICER or ADMIN role required, or caller does not own this FD account
           content:
             application/json:
               schema:
