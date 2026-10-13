@@ -65,7 +65,7 @@ INSERT INTO public.attribute_definitions
     (ad_category_id, ad_attribute_key, ad_data_type, ad_display_name, ad_is_required,
      ad_choice_values, ad_unit, ad_min_value, ad_max_value, ad_display_order, ad_behavior_key)
 SELECT pc_category_id, values.attribute_key, values.data_type, values.display_name, values.required,
-       values.choice_values, values.unit, values.min_value, values.max_value, values.display_order,
+       values.choice_values, values.unit, values.min_value, values.max_value::NUMERIC(22, 8), values.display_order,
        values.behavior_key
 FROM public.product_category
 JOIN (VALUES

@@ -221,7 +221,7 @@ public class NormalizedProductTermsAdapter implements ProductTermsPort {
 
         private List<NormalizedOffer> query(Long productId, String currencyCode, LocalDate effectiveDate) {
             LocalDateTime date = effectiveDate.atStartOfDay();
-            Object[] args = {date, date, productId, productId, currencyCode, currencyCode};
+            Object[] args = {date, date, productId, currencyCode};
             List<NormalizedOffer> rows = new ArrayList<>(jdbcTemplate.query(TIERED_SQL, this::mapTier, args));
             rows.addAll(jdbcTemplate.query(LEGACY_SQL, this::mapLegacy, args));
             return rows;
