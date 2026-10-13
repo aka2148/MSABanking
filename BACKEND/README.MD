@@ -32,6 +32,8 @@ USD and INR currency references and a `FIXED_DEPOSIT` category are provisioned b
 
 Set up illustrative rates that suit the lab demonstration; no rate bands or percentages are hard-coded as a market recommendation. Only `BANK_OFFICER` and `ADMIN` roles can configure products or invoke `POST /api/admin/batch/run`. The scheduler accrues active accounts daily and processes eligible maturities. Batch runs are repeat-safe per account/date and report per-account failures without stopping other accounts.
 
+For an on-demand EOD demonstration, an `ADMIN` can inspect the effective time with `GET /api/admin/clock` and advance it with `POST /api/admin/clock/advance` using `{"days":1}`. Advancing the clock automatically runs the accrual and due-maturity batch for the resulting business date; the response includes a `batch_run` summary. `POST /api/admin/clock/reset` or an application restart clears the in-memory time offset, while persisted accrual and transaction records remain. In normal operation, the scheduler runs accrual at 00:00 UTC and maturity processing at 01:00 UTC; the manual batch endpoint remains available for authorized testing or recovery.
+
 ## Login Service API contract
 
 The Login Module OpenAPI document is [openapi/login-service-openapi.yaml](src/main/resources/static/openapi/login-service-openapi.yaml). Import this file directly into SwaggerHub, Swagger Editor, or another API-management platform.
