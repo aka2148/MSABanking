@@ -95,6 +95,20 @@
 .fd-currency-editor__heading { align-items: center; margin-bottom: 12px; }
 .fd-currency-editor__heading h4 { font-size: var(--fs-lg); }
 .fd-admin-fields--amounts { max-width: 680px; }
+.fd-currency-picker { max-width: 360px; }
+.fd-admin-warning {
+  margin: 10px 0;
+  color: var(--gold-100);
+  font-size: var(--fs-sm);
+}
+.fd-admin-warning[hidden] { display: none; }
+.fd-admin-fixed-term {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  color: var(--gold-100);
+  font-family: var(--font-mono);
+}
 
 .fd-rate-editor-heading {
   display: flex;
@@ -110,7 +124,7 @@
 
 .fd-rate-band-row {
   display: grid;
-  grid-template-columns: minmax(90px, .8fr) minmax(90px, .8fr) minmax(130px, 1.2fr) auto;
+  grid-template-columns: minmax(130px, .8fr) minmax(130px, 1.2fr);
   align-items: start;
   gap: 12px;
   padding: 12px 0 2px;
@@ -167,8 +181,6 @@
   .fd-admin-fields { grid-template-columns: 1fr; }
   .fd-admin-description { grid-column: auto; }
   .fd-rate-band-row { grid-template-columns: 1fr 1fr; gap: 0 10px; }
-  .fd-rate-band-row .glass-field:nth-child(3) { grid-column: 1 / -1; }
-  .fd-remove-band { margin: 0 0 12px; justify-self: start; }
   .fd-admin-actions { flex-direction: column; }
   .fd-admin-actions .glass-btn { width: 100%; }
 }

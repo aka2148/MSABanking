@@ -170,14 +170,15 @@ export class FdBooking implements OnInit {
     this.selectedCurrencyOffer = currency;
     this.selectedRateTier = tier;
     this.tenureOptions = [];
-    for (let month = tier.minimum_tenure_months; month <= tier.maximum_tenure_months; month += 1) {
-      this.tenureOptions.push({ label: `${month} months`, value: String(month) });
-    }
+    this.tenureOptions.push({
+      label: `${tier.maximum_tenure_months} months`,
+      value: String(tier.maximum_tenure_months),
+    });
     this.bookingForm.controls.principalAmount.setValidators([
       this.requiredValue(), this.amountBounds(currency.minimum_amount, currency.maximum_amount),
     ]);
     this.bookingForm.controls.tenureMonths.setValidators([
-      this.requiredValue(), this.tenureBounds(tier.minimum_tenure_months, tier.maximum_tenure_months),
+      this.requiredValue(), this.tenureBounds(tier.maximum_tenure_months, tier.maximum_tenure_months),
     ]);
     this.bookingForm.updateValueAndValidity();
   }

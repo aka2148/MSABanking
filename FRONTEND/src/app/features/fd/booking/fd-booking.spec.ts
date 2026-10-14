@@ -45,6 +45,6 @@ describe('FdBooking', () => {
 
     expect(component.selectedCurrencyOffer?.currency_code).toBe('INR');
     expect(component.selectedRateTier?.annual_rate).toBe(0.05);
-    expect(component.tenureOptions.map((option) => option.value)).toEqual(['6', '7', '8', '9', '10', '11', '12']);
+    expect(component.tenureOptions.map((option) => option.value)).toEqual(['12']);
   });
 });

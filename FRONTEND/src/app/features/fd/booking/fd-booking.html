@@ -30,7 +30,7 @@
           <span class="fd-currency">{{ selectedCurrencyOffer?.currency_code }}</span>
         </div>
         <dl class="fd-option-summary" *ngIf="selectedCurrencyOffer as currency">
-          <div><dt>Selected term band</dt><dd>{{ selectedRateTier?.minimum_tenure_months }}–{{ selectedRateTier?.maximum_tenure_months }} months</dd></div>
+          <div><dt>Selected term</dt><dd>{{ selectedRateTier?.maximum_tenure_months }} months</dd></div>
           <div><dt>Annual rate</dt><dd>{{ selectedRateTier ? (selectedRateTier.annual_rate * 100 | number:'1.2-2') + '%' : '—' }}</dd></div>
           <div><dt>Deposit range</dt><dd>{{ currency.minimum_amount | number:'1.2-2' }}–{{ currency.maximum_amount | number:'1.2-2' }} {{ currency.currency_code }}</dd></div>
           <div><dt>Interest</dt><dd>{{ selectedRateTier?.compounding_frequency | lowercase }} compounding · paid at maturity</dd></div>
@@ -53,7 +53,7 @@
         </div>
         <p class="fd-range-note" *ngIf="selectedCurrencyOffer as currency">
           You selected {{ currency.currency_code }} with a {{ selectedRateTier ? (selectedRateTier.annual_rate * 100 | number:'1.2-2') + '%' : 'tiered rate' }} annual rate band.
-          Choose a term from {{ selectedRateTier?.minimum_tenure_months }} to {{ selectedRateTier?.maximum_tenure_months }} months.
+          This rate band is labelled {{ selectedRateTier?.maximum_tenure_months }} months; the selected booking term uses that exact duration.
         </p>
       </form>
 

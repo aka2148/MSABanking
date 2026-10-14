@@ -12,15 +12,14 @@ import {
 import { GlassShell } from '../../../shared/components/glass-shell/glass-shell';
 
 interface RateBandDraft {
-  minimumTenureMonths: number | null;
-  maximumTenureMonths: number | null;
+  durationMonths: 6 | 12 | 18 | 24 | 30;
   annualRatePercent: number | null;
 }
 
 interface CurrencyScheduleDraft {
   currencyCode: 'USD' | 'INR';
-  minimumAmount: number | null;
-  maximumAmount: number | null;
+  minimumAmount: string;
+  maximumAmount: string;
   rateBands: RateBandDraft[];
 }
 
@@ -32,6 +31,7 @@ interface CurrencyScheduleDraft {
   styleUrl: './fd-products.scss',
 })
 export class FdProductsAdmin implements OnInit {
+  private readonly bandDurations = [6, 12, 18, 24, 30] as const;
   categories: ProductCategoryOption[] = [];
   offers: FdOfferAdmin[] = [];
   categoryId: number | null = null;
@@ -39,6 +39,7 @@ export class FdProductsAdmin implements OnInit {
   productName = '';
   description = '';
   currencySchedules: CurrencyScheduleDraft[] = [this.newSchedule('USD'), this.newSchedule('INR')];
+  selectedCurrencyCode: 'USD' | 'INR' = 'USD';
   createdOffer: FdOfferAdmin | null = null;
   loading = true;
   saving = false;
@@ -50,6 +51,14 @@ export class FdProductsAdmin implements OnInit {
 
   get listedOffers(): FdOfferAdmin[] {
     return this.offers.filter((offer) => offer.fd_product_id !== this.createdOffer?.fd_product_id);
+  }
+
+  get selectedSchedule(): CurrencyScheduleDraft | undefined {
+    return this.currencySchedules.find((schedule) => schedule.currencyCode === this.selectedCurrencyCode);
+  }
+
+  get otherCurrencySchedule(): CurrencyScheduleDraft | undefined {
+    return this.currencySchedules.find((schedule) => schedule.currencyCode !== this.selectedCurrencyCode);
   }
 
   ngOnInit(): void {
@@ -78,15 +87,22 @@ export class FdProductsAdmin implements OnInit {
     });
   }
 
-  addRateBand(schedule: CurrencyScheduleDraft): void {
-    const last = schedule.rateBands[schedule.rateBands.length - 1];
-    const minimum = last?.maximumTenureMonths == null ? null : last.maximumTenureMonths + 1;
-    const maximum = minimum == null ? null : minimum + 5;
-    schedule.rateBands.push({ minimumTenureMonths: minimum, maximumTenureMonths: maximum, annualRatePercent: null });
+  selectCurrency(currencyCode: 'USD' | 'INR'): void {
+    this.selectedCurrencyCode = currencyCode;
   }
 
-  removeRateBand(schedule: CurrencyScheduleDraft, index: number): void {
-    if (schedule.rateBands.length > 1) schedule.rateBands.splice(index, 1);
+  unformatAmount(schedule: CurrencyScheduleDraft, field: 'minimumAmount' | 'maximumAmount'): void {
+    const amount = this.parseAmount(schedule[field]);
+    if (amount !== null) schedule[field] = String(amount);
+  }
+
+  formatAmount(schedule: CurrencyScheduleDraft, field: 'minimumAmount' | 'maximumAmount'): void {
+    const amount = this.parseAmount(schedule[field]);
+    if (amount === null) return;
+    const locale = schedule.currencyCode === 'INR' ? 'en-IN' : 'en-US';
+    schedule[field] = new Intl.NumberFormat(locale, {
+      style: 'currency', currency: schedule.currencyCode, minimumFractionDigits: 2, maximumFractionDigits: 2,
+    }).format(amount);
   }
 
   canSubmit(form: NgForm): boolean {
@@ -99,7 +115,7 @@ export class FdProductsAdmin implements OnInit {
     this.errorMessage = '';
     if (!this.canSubmit(form)) {
       form.control.markAllAsTouched();
-      this.errorMessage = 'Complete both currency schedules with valid, consecutive term bands before saving.';
+      this.errorMessage = 'Complete both currency schedules, amount limits, and all five rate bands before saving.';
       return;
     }
 
@@ -110,13 +126,13 @@ export class FdProductsAdmin implements OnInit {
       description: this.description.trim(),
       currencies: this.currencySchedules.map((schedule) => ({
         currencyCode: schedule.currencyCode,
-        minimumAmount: schedule.minimumAmount!,
-        maximumAmount: schedule.maximumAmount!,
+        minimumAmount: this.parseAmount(schedule.minimumAmount)!,
+        maximumAmount: this.parseAmount(schedule.maximumAmount)!,
         rateBands: [...schedule.rateBands]
-          .sort((left, right) => left.minimumTenureMonths! - right.minimumTenureMonths!)
+          .sort((left, right) => left.durationMonths - right.durationMonths)
           .map((band) => ({
-            minimumTenureMonths: band.minimumTenureMonths!,
-            maximumTenureMonths: band.maximumTenureMonths!,
+            minimumTenureMonths: band.durationMonths - 5,
+            maximumTenureMonths: band.durationMonths,
             annualRate: band.annualRatePercent! / 100,
           })),
       })),
@@ -164,27 +180,23 @@ export class FdProductsAdmin implements OnInit {
     this.categoryId = this.categories.find((category) => category.categoryCode === 'FIXED_DEPOSIT')?.categoryId
       ?? this.categories[0]?.categoryId ?? null;
     this.currencySchedules = [this.newSchedule('USD'), this.newSchedule('INR')];
+    this.selectedCurrencyCode = 'USD';
     this.successMessage = '';
     this.errorMessage = '';
   }
 
-  private scheduleIsValid(schedule: CurrencyScheduleDraft): boolean {
-    if (!this.positive(schedule.minimumAmount) || !this.positive(schedule.maximumAmount)
-        || schedule.minimumAmount! > schedule.maximumAmount! || schedule.rateBands.length === 0) return false;
-    const bands = [...schedule.rateBands].sort((left, right) => left.minimumTenureMonths! - right.minimumTenureMonths!);
-    return bands.every((band, index) => {
-      const validBand = Number.isInteger(band.minimumTenureMonths)
-        && Number.isInteger(band.maximumTenureMonths)
-        && band.minimumTenureMonths! > 0
-        && band.maximumTenureMonths! >= band.minimumTenureMonths!
+  scheduleIsValid(schedule: CurrencyScheduleDraft): boolean {
+    const minimum = this.parseAmount(schedule.minimumAmount);
+    const maximum = this.parseAmount(schedule.maximumAmount);
+    if (!this.positive(minimum) || !this.positive(maximum) || minimum! > maximum!
+        || schedule.rateBands.length !== this.bandDurations.length) return false;
+    return schedule.rateBands.every((band, index) => {
+      return band.durationMonths === this.bandDurations[index]
         && band.annualRatePercent !== null
         && Number.isFinite(band.annualRatePercent)
         && band.annualRatePercent >= 0
         && band.annualRatePercent <= 100
         && Math.round(band.annualRatePercent * 100) === band.annualRatePercent * 100;
-      const followsPrevious = index === 0
-        || band.minimumTenureMonths === bands[index - 1].maximumTenureMonths! + 1;
-      return validBand && followsPrevious;
     });
   }
 
@@ -192,12 +204,19 @@ export class FdProductsAdmin implements OnInit {
     return value !== null && Number.isFinite(value) && value > 0;
   }
 
+  private parseAmount(value: string): number | null {
+    const normalized = value.replace(/[^\d.-]/g, '');
+    if (!normalized || !/^\d+(\.\d{0,2})?$/.test(normalized)) return null;
+    const amount = Number(normalized);
+    return Number.isFinite(amount) ? amount : null;
+  }
+
   private newSchedule(currencyCode: 'USD' | 'INR'): CurrencyScheduleDraft {
     return {
       currencyCode,
-      minimumAmount: null,
-      maximumAmount: null,
-      rateBands: [{ minimumTenureMonths: null, maximumTenureMonths: null, annualRatePercent: null }],
+      minimumAmount: '',
+      maximumAmount: '',
+      rateBands: this.bandDurations.map((durationMonths) => ({ durationMonths, annualRatePercent: null })),
     };
   }
 

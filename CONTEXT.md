@@ -1,263 +1,68 @@
-# BankingTechnology Project Context
+# Banking Lab — Codebase Context
 
-## Project Overview
-**Project Name:** Banking Lab  
-**Location:** `c:\bankingtech\BankingTechnology`  
-**Purpose:** A full-stack banking application with frontend and backend components.
+Last reviewed: 2026-10-10. This is a working orientation grounded in the repository. The planning source of truth is .planning/PROJECT.md, REQUIREMENTS.md, ROADMAP.md, STATE.md, and phase artifacts.
 
----
+## What this app is
 
-## Architecture Overview
+Banking Lab (backend artifact name MoneyPal) is a college banking application in a single repository. Its current focus is an end-to-end fixed-deposit demonstration: a customer signs in, browses eligible server-configured offers, books and funds an FD, accrues interest, processes maturity, closes it, and reads transaction history. Existing domains also include authentication, customers, general banking products/configuration, calculators, reports, staff FD product administration, and legacy FD code. Extend the current system and preserve working behavior.
 
-### Directory Structure
-```
-BankingTechnology/
-├── BACKEND/                    # Backend services (currently minimal)
-│   └── README.MD              # (empty)
-├── FRONTEND/                   # Angular frontend application
-│   └── app/                    # Main Angular app
-│       ├── src/                # Source code
-│       ├── public/             # Static assets
-│       ├── angular.json        # Angular CLI configuration
-│       ├── package.json        # NPM dependencies
-│       ├── tsconfig.json       # TypeScript configuration
-│       └── .env                # Environment variables
-├── .git/                       # Git repository
-└── README.MD                   # Project root documentation
-```
+The planning state records the v1 milestone complete (six phases, 21 plans). The supplied AGENTS.md says Phase 1 is current, which conflicts with .planning/STATE.md; consult planning state and relevant phase artifacts before new milestone work.
 
----
+## Repository map
 
-## Tech Stack
+- BACKEND/: Java 17 Spring Boot 3.5.5 modular monolith; Maven project com.bank:moneypal.
+- FRONTEND/: Angular 18 standalone app; source is under FRONTEND/src/.
+- .planning/: project intent, requirements, roadmap/state, phase artifacts, research, and codebase maps.
+- BACKEND/src/main/resources/db/migration/: ordered Flyway migrations V1–V21. Hibernate validates schema; Flyway owns changes.
+- BACKEND/src/main/resources/static/openapi/: FD, FD product administration, and login API specifications.
+- BACKEND/postman/: REST demonstration collection(s).
 
-### Frontend
-- **Framework:** Angular 21.2.0 (latest)
-- **Language:** TypeScript 5.9.2
-- **Styling:** 
-  - Tailwind CSS 4.1.12 (with PostCSS)
-  - Custom CSS with design tokens (OKLch colors)
-- **Backend Integration:** Supabase (via @supabase/supabase-js 2.109.0)
-- **Server-Side Rendering:** Angular SSR (@angular/ssr 21.2.8) with Express 5.1.0
-- **State Management:** RxJS 7.8.0
-- **Testing:** 
-  - Vitest 4.0.8 (unit tests)
-  - jsdom 28.0.0 (DOM testing environment)
-- **Development Tools:**
-  - Angular CLI 21.2.8
-  - Prettier 3.8.1 (code formatting)
-  - Node.js 20.17.19+
+## Architecture
 
 ### Backend
-- **Status:** Placeholder structure only
-- **Runtime:** Node.js based (Express configured for frontend SSR)
 
-### Database & Services
-- **Backend-as-a-Service:** Supabase
-  - URL: `https://pssucganiyfzalolmeav.supabase.co`
-  - Authentication: Anon key based (safe for frontend)
+One Spring application starts at com.bank.MoneyPalApplication. Packages are grouped by domain and use controller → service → Spring Data repository → JPA entity layers. Key domains include security, customer, fd, product, calculator, reports, and common.
 
----
+Stack: Spring MVC, Spring Data JPA/Hibernate, Spring Security, validation, JWT (jjwt), PostgreSQL/Supabase, Flyway, springdoc OpenAPI, Maven. Configuration lives in BACKEND/src/main/resources/application.yml. Database credentials and JWT signing secrets are supplied through environment variables; never copy them into source or docs.
 
-## Frontend Application Details
+The primary FD demonstration API is /fd/v1, implemented at fd/api/controller/FdV1ContractController.java with focused services and domain types under fd/. Implemented core paths include offers, booking, funding, account reads, accrual, maturity, closure, premature-closure request/approval, and unified history. The controller also preserves a wider schema-shaped contract; many extended operations intentionally return 501 NOT_IMPLEMENTED. Check each endpoint and service before assuming it works. Staff product administration is separate under /api/v1/fd-products. Auth APIs include /api/v1/auth and existing /auth contract surfaces.
 
-### Project Setup
-- **Angular Version:** 21.2.0 with Server-Side Rendering
-- **Build System:** @angular/build
-- **Package Manager:** npm 10.8.2
-- **Output Mode:** Server-side rendering enabled
+FD policy decisions recorded in STATE.md: rates are decimal fractions (0.0650 means 6.50% annually), Actual/365, opening date included and maturity date excluded, UTC business timezone, currency scale 2, HALF_UP rounding. Terms/rates are server-owned. Funding records an internal academic transaction and does not claim external payment settlement. Idempotency and ownership/role checks protect the demonstration workflow.
 
-### File Structure (src/)
-```
-src/
-├── index.html              # Entry HTML template
-├── main.ts                 # Client bootstrap
-├── main.server.ts          # Server bootstrap
-├── server.ts               # Express SSR configuration
-├── styles.css              # Global styles
-├── env.d.ts                # Environment type definitions
-├── app/
-│   ├── app.ts             # Root component
-│   ├── app.html           # Root template (placeholder)
-│   ├── app.css            # Root styles
-│   ├── app.routes.ts      # Route definitions (currently empty)
-│   ├── app.routes.server.ts # SSR routes
-│   ├── app.config.ts      # Angular configuration
-│   ├── app.config.server.ts # SSR configuration
-│   ├── app.spec.ts        # Component tests
-│   └── services/
-│       └── supabase.service.ts # Supabase client service
-└── environments/
-    └── environment.ts      # Environment configuration
-```
+Legacy FD code remains for compatibility, but some write/batch paths explicitly direct users to /fd/v1. Do not assume same-named legacy endpoints implement the primary lifecycle.
 
-### Root Component (App)
-- **Selector:** `app-root`
-- **Features:**
-  - Signal-based state (Angular 21 standalone)
-  - Router integration with RouterOutlet
-  - Responsive design with custom OKLch color system
+### Frontend
 
-### Environment Configuration
-```typescript
-// Reads from .env variables (NG_APP_* prefix)
-{
-  production: boolean,
-  supabase: {
-    url: string,
-    anonKey: string
-  }
-}
-```
+Standalone Angular 18 with lazy-loaded routes, feature folders, RxJS, and a small core/shared split. FRONTEND/src/main.ts bootstraps the root component; routes are in FRONTEND/src/app/app.routes.ts. Features include landing, login/signup, dashboard, staff FD product administration, and customer FD browsing, booking, lifecycle, and history. Shared GlassShell and tokens/styles are under shared/.
 
-### Supabase Service
-- **Location:** `src/app/services/supabase.service.ts`
-- **Initialization:** Validates required environment variables at construction
-- **Exports:** `getClient()` method for Supabase API access
-- **Error Handling:** Throws if `NG_APP_SUPABASE_URL` or `NG_APP_SUPABASE_ANON_KEY` missing
+AuthService calls the backend auth API; auth interceptor and guards protect routes. FdService is the typed /fd/v1 transport and attaches idempotency keys on writes. Its code default is http://localhost:8080/fd/v1; confirm runtime configuration before changing API origins.
 
-### Design System
-Uses OKLch color space with predefined tokens:
-- Primary Colors: Bright Blue, Electric Violet, French Violet
-- Accent Colors: Vivid Pink, Hot Red, Orange Red
-- Neutral: Gray 900, 700, 400
-- Gradients: Red-to-Pink-to-Purple (vertical/horizontal)
-- Typography: Inter font with antialiasing
+## Useful entry points
 
-### Current State
-- **Routes:** Empty (no routes defined yet)
-- **UI:** Placeholder template in place
-- **Features:** Foundation laid for Supabase integration
+- Backend startup: BACKEND/src/main/java/com/bank/MoneyPalApplication.java
+- FD REST boundary: BACKEND/src/main/java/com/bank/fd/api/controller/FdV1ContractController.java
+- FD lifecycle implementation: BACKEND/src/main/java/com/bank/fd/
+- Security: BACKEND/src/main/java/com/bank/security/config/SecurityConfig.java
+- FD product administration: BACKEND/src/main/java/com/bank/product/controller/FdProductController.java and FdOfferAdminController.java
+- FD API contract: BACKEND/src/main/resources/static/openapi/fd-service-openapi.yaml
+- Frontend routes: FRONTEND/src/app/app.routes.ts
+- Frontend auth and FD transport: FRONTEND/src/app/core/services/auth.service.ts and fd.service.ts
+- Backend setup/API notes: BACKEND/README.MD
+- Planning: .planning/PROJECT.md, REQUIREMENTS.md, ROADMAP.md, STATE.md
 
----
+## Local development
 
-## Environment Variables
+- Backend: from BACKEND/, run mvn spring-boot:run after configuring PostgreSQL connection variables and JWT_SECRET. See BACKEND/README.MD for setup and safe staff bootstrap details.
+- Frontend: from FRONTEND/, npm start runs Angular dev server and npm run build creates the build.
+- Keep DB passwords, JWT secrets, access tokens, and customer data out of context files, tests, logs, and committed config.
 
-### Required (.env file)
-```
-NG_APP_SUPABASE_URL=https://your-project-ref.supabase.co
-NG_APP_SUPABASE_ANON_KEY=<your-anon-key>
-NG_APP_ENV=development|production
-```
+## Working conventions
 
-**Current Configuration:**
-- Supabase URL: https://pssucganiyfzalolmeav.supabase.co
-- Environment: development
+Read project/requirements and relevant phase plans before FD changes; plan phases before implementation and verify against success criteria. Reuse existing services, entities, repositories, calculators, auth, Flyway, and API contracts. Prefer additive schema changes and simple service rules. Use BigDecimal with explicit scale/rounding for money. Validate transitions, ownership, roles, and duplicate behavior. Preserve established non-FD behavior and keep academic scope: no real payment rails, distributed locks, workflow engines, event/outbox infrastructure, or broad auth rewrite.
 
----
+## Caveats
 
-## Build & Run Configuration
-
-### Available Scripts
-- **`npm start`** - Start development server (`ng serve`)
-- **`npm build`** - Production build (`ng build`)
-- **`npm watch`** - Development watch mode
-- **`npm test`** - Run tests via Vitest
-- **`npm run serve:ssr:app`** - Run SSR server (`node dist/app/server/server.mjs`)
-
-### Build Budgets
-- Initial bundle: 500kB warning / 1MB error
-- Component styles: 4kB warning / 8kB error
-
-### Assets & Styles
-- Public assets from `public/` folder
-- Global styles: `src/styles.css`
-- Tailwind CSS with custom design tokens
-
----
-
-## Backend Status
-
-### Current State
-- Minimal placeholder structure
-- No implementation details available
-- Likely intended for backend API services
-
-### Integration Points
-- Frontend will consume backend APIs via Supabase or direct endpoints
-- Express server used for frontend SSR only (not primary backend runtime)
-
----
-
-## Development Workflow
-
-### First-Time Setup
-```bash
-cd FRONTEND/app
-npm install
-# Configure .env with Supabase credentials
-npm start
-```
-
-### Build for Production
-```bash
-npm run build
-npm run serve:ssr:app  # Serve SSR version
-```
-
-### Testing
-```bash
-npm test
-```
-
----
-
-## Key Integration Points
-
-1. **Supabase Service**: Central point for all backend communication
-2. **Environment Loading**: Uses Vite's `import.meta.env` for environment variables
-3. **Routing**: Currently empty but Router is imported and ready
-4. **SSR Compatibility**: All components designed for server-side rendering
-
----
-
-## Dependencies at a Glance
-
-### Core Angular (21.2.0)
-- @angular/core, @angular/common, @angular/forms
-- @angular/router, @angular/platform-browser, @angular/platform-server
-
-### Database & Auth
-- @supabase/supabase-js (v2.109.0) - Real-time database, auth, storage
-
-### Styling
-- tailwindcss (v4.1.12)
-- @tailwindcss/postcss
-- postcss
-
-### Runtime
-- express (v5.1.0)
-- rxjs (v7.8.0)
-
-### Development
-- typescript (v5.9.2)
-- vitest (v4.0.8)
-- prettier (v3.8.1)
-
----
-
-## Known Constraints & Notes
-
-1. **Supabase Anon Key Exposure**: The .env contains an anon key visible in git - should be rotated in production
-2. **No Routes Defined**: Application structure is ready but no actual routes are configured
-3. **Empty README Files**: BACKEND and FRONTEND documentation is empty
-4. **Placeholder UI**: App template is still in place and needs replacement with actual components
-5. **SSR Configured**: Application is set up for server-side rendering but may need additional configuration for deployment
-
----
-
-## Next Steps for Development
-
-- [ ] Define application routes in `app.routes.ts`
-- [ ] Create feature components and pages
-- [ ] Implement Supabase data access layer
-- [ ] Configure authentication flow
-- [ ] Build backend API or define Supabase policies
-- [ ] Add tests for components and services
-- [ ] Replace placeholder UI with actual banking interface
-- [ ] Configure production environment variables
-- [ ] Set up CI/CD pipeline
-
----
-
-*Last Updated: 2026-09-04*  
-*Project Location: c:\bankingtech\BankingTechnology*
+- The old root CONTEXT.md described an unrelated Angular 21/Supabase-only placeholder and was stale; this file replaces that overview.
+- Root README.MD remains minimal; use BACKEND/README.MD and .planning/ for useful operational and milestone details.
+- The /fd/v1 controller contains both working workflows and intentionally unimplemented contract operations; inspect implementation rather than inferring from route/spec presence.
+- Supabase is the PostgreSQL hosting option described by backend docs, not a browser-side Supabase SDK architecture.

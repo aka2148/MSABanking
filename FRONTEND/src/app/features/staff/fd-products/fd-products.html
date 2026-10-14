@@ -5,7 +5,7 @@
       <div>
         <p class="fd-eyebrow">Staff workspace</p>
         <h2>Fixed-deposit products</h2>
-        <p class="glass-card__sub">Create a USD and INR offer with customer-selectable tenure rates.</p>
+        <p class="glass-card__sub">Create an offer with separate USD and INR amount limits and fixed six-month rate bands.</p>
       </div>
       <span class="fd-admin-badge">BANK OFFICER</span>
     </header>
@@ -56,11 +56,25 @@
             </label>
           </div>
 
-          <section class="fd-currency-editor" *ngFor="let schedule of currencySchedules; let currencyIndex = index"
+          <label class="glass-field fd-currency-picker">
+            <span class="glass-field__label">Currency schedule</span>
+            <select name="selectedCurrencyCode" [(ngModel)]="selectedCurrencyCode"
+                    (ngModelChange)="selectCurrency($event)">
+              <option *ngFor="let schedule of currencySchedules" [ngValue]="schedule.currencyCode">
+                {{ schedule.currencyCode }}{{ scheduleIsValid(schedule) ? '' : ' — incomplete' }}
+              </option>
+            </select>
+          </label>
+          <p class="fd-admin-warning" *ngIf="otherCurrencySchedule as otherSchedule"
+             [hidden]="scheduleIsValid(otherSchedule)" role="status">
+            {{ otherSchedule.currencyCode }} schedule incomplete. Complete it before saving or activating this offer.
+          </p>
+
+          <section class="fd-currency-editor" *ngIf="selectedSchedule as schedule"
                    [attr.aria-labelledby]="'currency-heading-' + schedule.currencyCode">
             <div class="fd-currency-editor__heading">
               <div>
-                <p class="fd-eyebrow">Currency schedule {{ currencyIndex + 1 }}</p>
+                <p class="fd-eyebrow">Currency schedule</p>
                 <h4 [id]="'currency-heading-' + schedule.currencyCode">{{ schedule.currencyCode }}</h4>
               </div>
               <span class="fd-admin-note">Currency-specific amount limits and rates</span>
@@ -69,43 +83,34 @@
             <div class="fd-admin-fields fd-admin-fields--amounts">
               <label class="glass-field">
                 <span class="glass-field__label">Minimum deposit <small>{{ schedule.currencyCode }}</small></span>
-                <input type="number" name="{{ schedule.currencyCode }}-minimum" [(ngModel)]="schedule.minimumAmount"
-                       min="0.01" step="0.01" required />
+                <input type="text" inputmode="decimal" name="{{ schedule.currencyCode }}-minimum"
+                       [(ngModel)]="schedule.minimumAmount" (focus)="unformatAmount(schedule, 'minimumAmount')"
+                       (blur)="formatAmount(schedule, 'minimumAmount')" required />
               </label>
               <label class="glass-field">
                 <span class="glass-field__label">Maximum deposit <small>{{ schedule.currencyCode }}</small></span>
-                <input type="number" name="{{ schedule.currencyCode }}-maximum" [(ngModel)]="schedule.maximumAmount"
-                       min="0.01" step="0.01" required />
+                <input type="text" inputmode="decimal" name="{{ schedule.currencyCode }}-maximum"
+                       [(ngModel)]="schedule.maximumAmount" (focus)="unformatAmount(schedule, 'maximumAmount')"
+                       (blur)="formatAmount(schedule, 'maximumAmount')" required />
               </label>
             </div>
 
             <div class="fd-rate-editor-heading">
               <div><span>Term band</span><span>Annual rate (%)</span></div>
-              <button type="button" class="glass-link fd-text-button" (click)="addRateBand(schedule)">+ Add term band</button>
             </div>
-            <div class="fd-rate-band-row" *ngFor="let band of schedule.rateBands; let bandIndex = index">
-              <label class="glass-field">
-                <span class="glass-field__label">From month</span>
-                <input type="number" name="{{ schedule.currencyCode }}-{{ bandIndex }}-from"
-                       [(ngModel)]="band.minimumTenureMonths" min="1" step="1" required />
-              </label>
-              <label class="glass-field">
-                <span class="glass-field__label">To month</span>
-                <input type="number" name="{{ schedule.currencyCode }}-{{ bandIndex }}-to"
-                       [(ngModel)]="band.maximumTenureMonths" min="1" step="1" required />
+            <div class="fd-rate-band-row" *ngFor="let band of schedule.rateBands">
+              <label class="glass-field fd-rate-band-duration">
+                <span class="glass-field__label">Duration</span>
+                <span class="fd-admin-fixed-term">{{ band.durationMonths }} months</span>
               </label>
               <label class="glass-field">
                 <span class="glass-field__label">Annual rate <small>% p.a.</small></span>
-                <input type="number" name="{{ schedule.currencyCode }}-{{ bandIndex }}-rate"
+                <input type="number" name="{{ schedule.currencyCode }}-{{ band.durationMonths }}-rate"
                        [(ngModel)]="band.annualRatePercent" min="0" max="100" step="0.01"
                        placeholder="e.g. 6.50" required />
               </label>
-              <button type="button" class="fd-remove-band" [disabled]="schedule.rateBands.length < 2"
-                      (click)="removeRateBand(schedule, bandIndex)" [attr.aria-label]="'Remove ' + schedule.currencyCode + ' rate band ' + (bandIndex + 1)">
-                Remove
-              </button>
             </div>
-            <p class="fd-admin-hint">Bands must be consecutive and non-overlapping. Enter percentages (6.50 means 6.50%); the server stores decimal fractions.</p>
+            <p class="fd-admin-hint">Each rate applies to its six-month range ending at the displayed duration (for example, 7–12 months uses the 12-month rate). Enter percentages (6.50 means 6.50%); the server stores decimal fractions.</p>
           </section>
 
           <div class="fd-admin-actions">
