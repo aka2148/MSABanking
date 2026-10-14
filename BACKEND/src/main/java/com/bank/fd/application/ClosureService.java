@@ -32,7 +32,10 @@ public class ClosureService {
 
     private static final String CLOSURE = "CLOSURE";
     private static final String INTERNAL_REMARK =
-            "Internal academic closure settlement; no external payment rail was called.";
+            "Internal FD settlement to original savings account; no external payment rail was called.";
+
+    @Autowired
+    private FdAccountingService accounting;
 
     private final FdAccountRepository accountRepository;
     private final FdTransactionRepository transactionRepository;
@@ -90,7 +93,10 @@ public class ClosureService {
             String currencyCode = currencyRepository.findById(stored.getCurrencyId())
                     .orElseThrow(() -> new ResourceNotFoundException("FD account currency not found"))
                     .getIsoCode();
-            return ClosureResponse.closed(stored, settlement, currencyCode, timePolicy.businessDate());
+            LocalDate originalDate = accounting == null ? timePolicy.businessDate() : accounting.settlement(stored.getId())
+                    .orElseThrow(() -> new InvalidInputException("Closure has no savings settlement receipt"))
+                    .getPostedAt().atZoneSameInstant(timePolicy.businessZone()).toLocalDate();
+            return ClosureResponse.closed(stored, settlement, currencyCode, originalDate);
         }
         if (account.getStatus() == FdStatus.CLOSED && (idempotencyKey == null || idempotencyKey.isBlank())) {
             throw new InvalidFdTransitionException("FD account is already CLOSED; existing settlement recorded for account: "
@@ -112,13 +118,15 @@ public class ClosureService {
                 .orElseThrow(() -> new ResourceNotFoundException("FD account currency not found"))
                 .getIsoCode();
 
-        LocalDate closedDate = timePolicy.businessDate();
+        var receipt = accounting == null ? null : accounting.settle(account, settlement);
+        LocalDate closedDate = receipt == null ? timePolicy.businessDate()
+                : receipt.getPostedAt().atZoneSameInstant(timePolicy.businessZone()).toLocalDate();
         FdTransaction transaction = new FdTransaction();
         transaction.setAccountId(account.getId());
         transaction.setTransactionTypeId(closureTypeId);
         transaction.setAmount(settlement);
         transaction.setTransactionDate(OffsetDateTime.ofInstant(timePolicy.now(), ZoneOffset.UTC));
-        transaction.setBalanceAfter(settlement);
+        transaction.setBalanceAfter(BigDecimal.ZERO.setScale(4));
         transaction.setCurrencyId(account.getCurrencyId());
         transaction.setRemarks(INTERNAL_REMARK);
         transaction.setUuid(UUID.randomUUID().toString());

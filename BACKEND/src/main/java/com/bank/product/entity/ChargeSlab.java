@@ -25,8 +25,17 @@ public class ChargeSlab {
     @Column(name = "cs_value_to", precision = 15, scale = 4)
     private BigDecimal valueTo;
 
-    @Column(name = "cs_charge_amount", precision = 15, scale = 4)
+    @Column(name = "cs_charge_amount", precision = 22, scale = 8)
     private BigDecimal chargeAmount;
+
+    @Column(name = "cs_charge_unit", nullable = false, length = 30)
+    private String chargeUnit = "FIXED_AMOUNT";
+
+    @Column(name = "cs_minimum_charge", precision = 22, scale = 8)
+    private BigDecimal minimumCharge;
+
+    @Column(name = "cs_maximum_charge", precision = 22, scale = 8)
+    private BigDecimal maximumCharge;
 
     @Column(name = "cs_currency_id")
     private Integer currencyId;
@@ -87,6 +96,12 @@ public class ChargeSlab {
     public BigDecimal getChargeAmount() { return chargeAmount; }
     public void setChargeAmount(BigDecimal chargeAmount) { this.chargeAmount = chargeAmount; }
 
+    public String getChargeUnit() { return chargeUnit; }
+    public void setChargeUnit(String chargeUnit) { this.chargeUnit = chargeUnit; }
+    public BigDecimal getMinimumCharge() { return minimumCharge; }
+    public void setMinimumCharge(BigDecimal minimumCharge) { this.minimumCharge = minimumCharge; }
+    public BigDecimal getMaximumCharge() { return maximumCharge; }
+    public void setMaximumCharge(BigDecimal maximumCharge) { this.maximumCharge = maximumCharge; }
     public Integer getCurrencyId() { return currencyId; }
     public void setCurrencyId(Integer currencyId) { this.currencyId = currencyId; }
 

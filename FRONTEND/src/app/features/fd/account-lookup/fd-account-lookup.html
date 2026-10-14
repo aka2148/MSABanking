@@ -2,16 +2,16 @@
   <main class="glass-card fd-lookup-card">
     <p class="fd-eyebrow">Your deposits</p>
     <h2>Open an existing deposit</h2>
-    <p class="glass-card__sub">Enter the account ID you received after booking to view its status and manage it.</p>
+    <p class="glass-card__sub">Enter the numeric reference from your booking to view and manage your deposit.</p>
 
     <p class="glass-error" *ngIf="errorMessage" role="alert">{{ errorMessage }}</p>
 
     <form [formGroup]="form" (ngSubmit)="openAccount()" novalidate>
       <label class="glass-field">
-        <span class="glass-field__label">FD account id</span>
+        <span class="glass-field__label">Deposit reference</span>
         <input type="number" min="1" step="1" formControlName="accountId" inputmode="numeric" placeholder="Example: 1042" />
         <span class="glass-field__error" *ngIf="form.controls.accountId.touched && form.controls.accountId.invalid">
-          Use a positive numeric account id.
+          Use a positive numeric deposit reference.
         </span>
       </label>
 
@@ -20,7 +20,6 @@
       </button>
     </form>
 
-    <p class="fd-lookup-note">Ownership is checked by the backend. No account totals are inferred here.</p>
     <p class="glass-card__footer"><a routerLink="/fd" class="glass-link">Back to FD products</a></p>
   </main>
 </app-glass-shell>

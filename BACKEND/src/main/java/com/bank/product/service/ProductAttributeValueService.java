@@ -18,14 +18,17 @@ public class ProductAttributeValueService {
     private final ProductAttributeValueRepository repo;
     private final ProductRepository products;
     private final AttributeDefinitionRepository defs;
+    private final ProductConfigurationIntegrityService integrity;
 
     public ProductAttributeValueService(
             ProductAttributeValueRepository repo,
             ProductRepository products,
-            AttributeDefinitionRepository defs) {
+            AttributeDefinitionRepository defs,
+            ProductConfigurationIntegrityService integrity) {
         this.repo = repo;
         this.products = products;
         this.defs = defs;
+        this.integrity = integrity;
     }
 
     private void product(Integer id) {
@@ -124,6 +127,7 @@ public class ProductAttributeValueService {
             Integer did) {
 
         product(pid);
+        integrity.assertEditable(pid);
         Product p = products.findById(pid).orElseThrow();
 
         AttributeDefinition d = def(did);
@@ -179,6 +183,7 @@ public class ProductAttributeValueService {
             ProductAttributeValueRequest r) {
 
         product(pid);
+        integrity.assertEditable(pid);
         Product p = products.findById(pid).orElseThrow();
 
         AttributeDefinition d = def(did);
@@ -202,6 +207,7 @@ public class ProductAttributeValueService {
     @Transactional
     public void delete(Integer pid, Integer did) {
         product(pid);
+        integrity.assertEditable(pid);
         Product p = products.findById(pid).orElseThrow();
 
         belongs(p, def(did));

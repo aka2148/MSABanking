@@ -14,12 +14,12 @@
 
 .fd-home-card__paths {
   display: flex;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 12px;
   flex-shrink: 0;
 }
 
-.fd-eyebrow,
-.fd-product-card__code {
+.fd-eyebrow {
   color: var(--gold-500);
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
@@ -124,16 +124,6 @@
 .fd-rate-option__rate strong { color: var(--gold-100); font-family: var(--font-display); font-size: var(--fs-xl); }
 .fd-rate-option > p { min-height: 1.25rem; }
 .fd-rate-option .glass-btn { margin-top: auto; }
-
-.fd-product-card__notes {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: var(--fs-xs);
-  line-height: 1.5;
-  margin-bottom: 18px;
-}
-
-.fd-product-card__notes p { margin: 6px 0; }
-.fd-product-card__notes strong { color: rgba(255, 255, 255, 0.9); }
 
 @media (max-width: 720px) {
   .fd-home-card__header,

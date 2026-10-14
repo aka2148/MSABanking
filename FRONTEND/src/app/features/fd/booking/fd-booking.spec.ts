@@ -38,7 +38,7 @@ describe('FdBooking', () => {
         queryParamMap: { get: (key: string) => query.get(key) ?? null },
       },
     };
-    const component = new FdBooking({ listProducts: () => of([offer]) } as never,
+    const component = new FdBooking({ listProducts: () => of([offer]), listSavings: () => of([]) } as never,
       {} as never, route as never, new FormBuilder());
 
     component.ngOnInit();

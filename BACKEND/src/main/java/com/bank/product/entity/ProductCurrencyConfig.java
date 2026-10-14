@@ -1,6 +1,7 @@
 package com.bank.product.entity;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -23,6 +24,12 @@ public class ProductCurrencyConfig {
 
     @Column(name = "pcc_wallet_enabled", nullable = false)
     private Boolean walletEnabled = false;
+
+    @Column(name = "pcc_minimum_amount", precision = 22, scale = 8)
+    private BigDecimal minimumAmount;
+
+    @Column(name = "pcc_maximum_amount", precision = 22, scale = 8)
+    private BigDecimal maximumAmount;
 
     @Column(name = "pcc_created_by", length = 100)
     private String createdBy;
@@ -76,6 +83,12 @@ public class ProductCurrencyConfig {
 
     public Boolean getWalletEnabled() { return walletEnabled; }
     public void setWalletEnabled(Boolean walletEnabled) { this.walletEnabled = walletEnabled; }
+
+    public BigDecimal getMinimumAmount() { return minimumAmount; }
+    public void setMinimumAmount(BigDecimal minimumAmount) { this.minimumAmount = minimumAmount; }
+
+    public BigDecimal getMaximumAmount() { return maximumAmount; }
+    public void setMaximumAmount(BigDecimal maximumAmount) { this.maximumAmount = maximumAmount; }
 
     public String getCreatedBy() { return createdBy; }
     public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }

@@ -2,13 +2,61 @@ openapi: 3.0.3
 info:
   title: FD Product Administration API
   version: 1.0.0
-  description: Staff-only setup and activation of academic USD/INR fixed-deposit products.
+  description: Admin FD product, batch-processing, and effective-clock controls for the academic demonstration.
 servers:
   - url: http://localhost:8080
 tags:
   - name: FD Product Administration
   - name: FD Batch Operations
+  - name: FD Clock Controls
 paths:
+  /api/admin/clock:
+    get:
+      tags: [FD Clock Controls]
+      summary: Read the real and effective FD application time
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Current real time, effective time, business date, UTC zone, and simulation state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FdClockStatus' }
+        '403': { description: ADMIN role required }
+  /api/admin/clock/advance:
+    post:
+      tags: [FD Clock Controls]
+      summary: Advance effective FD time and automatically run the EOD batch
+      description: Advancing the simulated clock crosses the daily EOD boundary and runs accrual and maturity processing for the resulting business date. The existing scheduled EOD jobs remain enabled for normal system time.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [days]
+              properties:
+                days: { type: integer, minimum: 1, maximum: 3650 }
+      responses:
+        '200':
+          description: Updated effective clock status and the automatic batch summary; the offset is cleared when the application restarts
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FdClockStatus' }
+        '400': { description: Days must be between 1 and 3650, and the cumulative offset cannot exceed 3650 days }
+        '403': { description: ADMIN role required }
+  /api/admin/clock/reset:
+    post:
+      tags: [FD Clock Controls]
+      summary: Reset the effective FD application time to the real system time
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Reset clock status; persisted FD records are not changed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FdClockStatus' }
+        '403': { description: ADMIN role required }
   /api/v1/product-categories:
     get:
       tags: [FD Product Administration]
@@ -76,6 +124,30 @@ paths:
         '400': { description: Product has missing or invalid schedules }
         '403': { description: BANK_OFFICER or ADMIN role required }
         '404': { description: FD product not found }
+  /api/admin/batch/accrue:
+    post:
+      tags: [FD Batch Operations]
+      summary: Manually run today's FD interest accrual batch
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Batch summary; account failures are reported without aborting other account work
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FdBatchRunResponse' }
+        '403': { description: BANK_OFFICER or ADMIN role required }
+  /api/admin/batch/maturity:
+    post:
+      tags: [FD Batch Operations]
+      summary: Manually run today's FD maturity batch
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Batch summary; account failures are reported without aborting other account work
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FdBatchRunResponse' }
+        '403': { description: BANK_OFFICER or ADMIN role required }
   /api/admin/batch/run:
     post:
       tags: [FD Batch Operations]
@@ -95,6 +167,18 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    FdClockStatus:
+      type: object
+      properties:
+        system_time: { type: string, format: date-time }
+        effective_time: { type: string, format: date-time }
+        business_date: { type: string, format: date }
+        business_zone: { type: string, example: UTC }
+        simulation_active: { type: boolean }
+        batch_run:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/FdBatchRunResponse'
     CreateFdOfferRequest:
       type: object
       required: [productCode, productName, categoryId, currencies]

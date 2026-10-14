@@ -1,0 +1,60 @@
+<app-glass-shell align="center" [focalX]="50" [focalY]="42" [zoom]="1.15">
+  <main class="glass-card glass-card--wide deposits-card">
+    <a class="glass-link deposits-back" routerLink="/fd">← Fixed deposits</a>
+    <header class="deposits-heading">
+      <div>
+        <p class="fd-eyebrow">Customer deposits</p>
+        <h2>My deposits</h2>
+        <p class="glass-card__sub">Fixed deposits associated with your customer account.</p>
+      </div>
+      <a class="glass-btn" routerLink="/fd" fragment="products">Browse products</a>
+    </header>
+
+    <section *ngIf="pendingBookingReview" class="pending-review" role="status">
+      <p>A booking request may have completed even if its confirmation did not reach this browser.</p>
+      <p>Review this deposit list before allowing a different booking request.</p>
+      <button type="button" class="glass-btn glass-btn--ghost" (click)="clearPendingBookingAfterReview()">
+        I checked my deposits; allow a new booking
+      </button>
+    </section>
+
+    <p class="deposits-state" *ngIf="loading" role="status">Loading your deposits…</p>
+    <div class="glass-error" *ngIf="errorMessage" role="alert">
+      {{ errorMessage }}
+      <button type="button" class="glass-link" (click)="load()" [disabled]="loading">Retry</button>
+    </div>
+
+    <section *ngIf="loaded && !loading && !errorMessage && accounts.length === 0" class="deposits-empty">
+      <h3>No fixed deposits yet</h3>
+      <p>When you book a deposit, it will appear here.</p>
+      <a class="glass-btn" routerLink="/fd" fragment="products">Browse FD products</a>
+    </section>
+
+    <section *ngIf="!loading && !errorMessage && accounts.length > 0" aria-label="Your fixed deposits">
+      <p class="deposits-count">{{ totalRecords }} {{ totalRecords === 1 ? 'deposit' : 'deposits' }}</p>
+      <article class="deposit-row" *ngFor="let account of accounts">
+        <div class="deposit-row__heading">
+          <div>
+            <p class="fd-eyebrow">{{ account.product_code }}</p>
+            <h3>{{ account.product_name }}</h3>
+            <p class="deposit-number">{{ account.account_number }}</p>
+          </div>
+          <span class="fd-status" [attr.data-status]="account.status">{{ account.status }}</span>
+        </div>
+        <dl class="deposit-terms">
+          <div><dt>Principal</dt><dd>{{ account.principal_amount | currency:account.currency_code:'symbol':'1.2-2' }}</dd></div>
+          <div><dt>Term</dt><dd>{{ account.tenure_months }} months</dd></div>
+          <div><dt>Annual rate</dt><dd>{{ formatRate(account.annual_rate) }}</dd></div>
+          <div><dt>Maturity date</dt><dd>{{ account.maturity_date ? (account.maturity_date | date:'mediumDate') : '—' }}</dd></div>
+        </dl>
+        <a class="glass-btn glass-btn--ghost" [routerLink]="['/fd/accounts', account.account_id]">View deposit</a>
+      </article>
+
+      <nav class="deposits-pagination" *ngIf="totalPages > 1" aria-label="Deposit pages">
+        <button type="button" class="glass-btn glass-btn--ghost" (click)="load(page - 1)" [disabled]="page <= 1 || loading">Previous</button>
+        <span>Page {{ page }} of {{ totalPages }}</span>
+        <button type="button" class="glass-btn glass-btn--ghost" (click)="load(page + 1)" [disabled]="page >= totalPages || loading">Next</button>
+      </nav>
+    </section>
+  </main>
+</app-glass-shell>

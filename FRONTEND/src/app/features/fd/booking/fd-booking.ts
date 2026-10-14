@@ -18,6 +18,7 @@ import {
   CurrencyOffer,
   ProductOffer,
   RateTier,
+  SavingsAccount,
 } from '../../../core/models/fd.models';
 import { FdService, normalizeApiError } from '../../../core/services/fd.service';
 import { GlassShell } from '../../../shared/components/glass-shell/glass-shell';
@@ -41,7 +42,10 @@ export class FdBooking implements OnInit {
   selectedRateTier: RateTier | null = null;
   submittedAccount: AccountResponse | null = null;
   tenureOptions: GlassSelectOption[] = [];
+  savingsOptions: GlassSelectOption[] = [];
+  savingsLoading = false;
   readonly bookingForm: FormGroup<{
+    fundingSavingsAccountId: FormControl<string>;
     principalAmount: FormControl<string>;
     tenureMonths: FormControl<string>;
   }>;
@@ -53,6 +57,7 @@ export class FdBooking implements OnInit {
     private readonly fb: FormBuilder
   ) {
     this.bookingForm = this.fb.nonNullable.group({
+      fundingSavingsAccountId: ['', [this.requiredValue()]],
       principalAmount: ['', [this.requiredValue()]],
       tenureMonths: ['', [this.requiredValue()]],
     });
@@ -129,24 +134,23 @@ export class FdBooking implements OnInit {
 
     const values = this.bookingForm.getRawValue();
     const request: BookingRequest = {
+      funding_savings_account_id: Number(values.fundingSavingsAccountId),
       product_id: this.selectedProduct.product_id,
       principal_amount: Number(values.principalAmount),
       tenure_months: Number(values.tenureMonths),
       currency_code: this.selectedCurrencyOffer.currency_code,
     };
 
-    this.fdService.startSubmission();
     this.submitting = true;
     this.bookingError = '';
     this.fdService.book(request).subscribe({
       next: (account) => {
         this.submitting = false;
         if (!Number.isInteger(account.account_id) || account.account_id <= 0) {
-          this.bookingError = 'The booking response did not include an account id. No booking success is shown.';
+          this.bookingError = 'We could not open the deposit details after booking. Check whether the deposit was created before trying again.';
           return;
         }
         this.submittedAccount = account;
-        this.fdService.completeSubmission();
         void this.router.navigate(['/fd/accounts', account.account_id]);
       },
       error: (error: HttpErrorResponse) => {
@@ -157,7 +161,7 @@ export class FdBooking implements OnInit {
     });
   }
 
-  fieldError(controlName: 'principalAmount' | 'tenureMonths'): string {
+  fieldError(controlName: 'principalAmount' | 'tenureMonths' | 'fundingSavingsAccountId'): string {
     const control = this.bookingForm.controls[controlName];
     if (!control.touched || !control.errors) return '';
     if (control.errors['requiredValue']) return 'This field is required.';
@@ -166,7 +170,37 @@ export class FdBooking implements OnInit {
     return 'Check this value.';
   }
 
+  selectedSavingsAccountLabel(): string {
+    const selected = this.bookingForm.controls.fundingSavingsAccountId.value;
+    return this.savingsOptions.find((option) => option.value === selected)?.label ?? 'Selected savings account';
+  }
+
+  formatFrequency(value: string | null | undefined): string {
+    if (!value) return 'not specified';
+    return value.toLowerCase().split('_').map((part) => part ? part[0].toUpperCase() + part.slice(1) : '').join(' ');
+  }
+
+  accountStatusLabel(status: AccountResponse['status']): string {
+    const labels: Record<AccountResponse['status'], string> = {
+      PENDING: 'Pending funding',
+      ACTIVE: 'Active',
+      MATURED: 'Matured',
+      CLOSED: 'Closed',
+      PREMATURELY_CLOSED: 'Closed early',
+    };
+    return labels[status];
+  }
+
   private configureSelectedOption(currency: CurrencyOffer, tier: RateTier): void {
+    this.savingsLoading = true;
+    this.fdService.listSavings().subscribe({
+      next: (accounts: SavingsAccount[]) => {
+        this.savingsOptions = accounts.filter(a => a.currency_code === currency.currency_code && a.status === 'ACTIVE')
+          .map(a => ({ value: String(a.account_id), label: a.display_name + ' · ' + a.account_number }));
+        this.savingsLoading = false;
+      },
+      error: (error: HttpErrorResponse) => { this.savingsLoading = false; this.bookingError = normalizeApiError(error).message; },
+    });
     this.selectedCurrencyOffer = currency;
     this.selectedRateTier = tier;
     this.tenureOptions = [];

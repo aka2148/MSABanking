@@ -1,0 +1,33 @@
+<app-glass-shell align="center" [focalX]="50" [focalY]="42" [zoom]="1.15">
+  <main class="glass-card glass-card--wide fd-booking-card">
+    <a routerLink="/fd" class="glass-link fd-back-link">← Back to fixed deposits</a>
+    <p class="fd-eyebrow">Savings accounts</p><h2>Create a savings account</h2>
+    <p class="fd-step-copy">Choose a name and currency. Your savings account can fund a fixed deposit and receive its maturity payout.</p>
+    <p class="glass-error" *ngIf="error" role="alert">{{ error }}</p>
+    <p class="fd-step-copy" *ngIf="message" role="status">{{ message }}</p>
+    <form [formGroup]="form" (ngSubmit)="create()" class="fd-step-panel">
+      <div class="glass-field-row">
+        <label class="glass-field"><span class="glass-field__label">Account name</span>
+          <input formControlName="displayName" maxlength="80" placeholder="My savings" />
+          <span class="glass-field__error" *ngIf="form.controls.displayName.touched && form.controls.displayName.invalid">Enter a name of up to 80 characters.</span>
+        </label>
+        <label class="glass-field"><span class="glass-field__label">Currency</span>
+          <app-glass-select formControlName="currencyCode" [options]="currencies"></app-glass-select>
+        </label>
+      </div>
+      <p class="fd-step-copy">New accounts start with a zero balance.</p>
+      <button class="glass-btn" type="submit" [disabled]="submitting">{{ submitting ? 'Creating…' : 'Create savings account' }}</button>
+    </form>
+    <section class="fd-step-panel" aria-labelledby="savings-list">
+      <h3 id="savings-list">Your savings accounts</h3>
+      <p *ngIf="loading" role="status">Loading accounts…</p>
+      <p *ngIf="!loading && accounts.length === 0">Create your first savings account above.</p>
+      <dl class="fd-review-list" *ngFor="let account of accounts">
+        <div><dt>{{ account.display_name }}</dt><dd>{{ account.account_number }}</dd></div>
+        <div><dt>Balance</dt><dd>{{ account.balance | number:'1.2-4' }} {{ account.currency_code }}</dd></div>
+        <div><dt>Status</dt><dd>{{ statusLabel(account.status) }}</dd></div>
+        <div *ngIf="demoEnabled"><dt>Demo only</dt><dd><button type="button" class="glass-btn glass-btn--ghost" [disabled]="demoBusy" (click)="demoOpening(account)">Add demo opening funds</button></dd></div>
+      </dl>
+    </section>
+  </main>
+</app-glass-shell>

@@ -25,7 +25,7 @@
         </div>
 
         <p class="fd-admin-info" *ngIf="categories.length === 0">
-          No product category is available. Restart the backend after Flyway migration V20, then reload this page.
+          No product category is available. Check the backend database migration status, then retry.
         </p>
 
         <form #offerForm="ngForm" (ngSubmit)="createDraft(offerForm)" novalidate>

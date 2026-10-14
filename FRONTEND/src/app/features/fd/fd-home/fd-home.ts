@@ -46,6 +46,11 @@ export class FdHome implements OnInit {
     return `${product.product_id}:${currency.currency_code}:${tier.minimum_tenure_months}:${tier.maximum_tenure_months}`;
   }
 
+  formatFrequency(value: string | null | undefined): string {
+    if (!value) return 'not specified';
+    return value.toLowerCase().split('_').map((part) => part ? part[0].toUpperCase() + part.slice(1) : '').join(' ');
+  }
+
   chooseRateTier(product: ProductOffer, currency: CurrencyOffer, tier: RateTier): void {
     if (this.loading || this.selectingOptionKey !== null) return;
     const key = this.optionKey(product, currency, tier);

@@ -6,6 +6,9 @@ import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import com.bank.fd.application.NormalizedProductTermsAdapter;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -15,6 +18,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -39,7 +44,10 @@ class FdPostgresSchemaTest {
     void appliesAllMigrationsAndExposesTheLifecycleBaseline() throws SQLException {
         try (Connection connection = DriverManager.getConnection(
                 postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())) {
-            assertEquals(Set.of("1", "2", "3", "4", "5", "6", "7"), appliedVersions(connection));
+            Set<String> expectedVersions = IntStream.rangeClosed(1, 29)
+                    .mapToObj(String::valueOf)
+                    .collect(Collectors.toSet());
+            assertEquals(expectedVersions, appliedVersions(connection));
             assertTrue(scalar(connection,
                     "SELECT column_default FROM information_schema.columns "
                             + "WHERE table_schema = 'public' AND table_name = 'fd_accounts' "
@@ -60,6 +68,25 @@ class FdPostgresSchemaTest {
             assertEquals("DEPOSIT", scalar(connection,
                     "SELECT tt_txn_type_code FROM public.transaction_types "
                             + "WHERE tt_txn_type_code = 'DEPOSIT'"));
+            assertTrue(tableExists(connection, "product_configuration_revision"));
+            assertEquals("jsonb", scalar(connection,
+                    "SELECT data_type FROM information_schema.columns "
+                            + "WHERE table_schema = 'public' AND table_name = 'product_configuration_revision' "
+                            + "AND column_name = 'pcr_snapshot_json'"));
+            assertEquals("numeric", scalar(connection,
+                    "SELECT data_type FROM information_schema.columns "
+                            + "WHERE table_schema = 'public' AND table_name = 'product_currency_config' "
+                            + "AND column_name = 'pcc_minimum_amount'"));
+            assertEquals("numeric", scalar(connection,
+                    "SELECT data_type FROM information_schema.columns "
+                            + "WHERE table_schema = 'public' AND table_name = 'product_currency_config' "
+                            + "AND column_name = 'pcc_maximum_amount'"));
+            assertEquals("KWD", scalar(connection,
+                    "SELECT cur_iso_code FROM public.currency WHERE cur_iso_code = 'KWD'"));
+            assertEquals("3", scalar(connection,
+                    "SELECT cur_decimal_places FROM public.currency WHERE cur_iso_code = 'KWD'"));
+            assertTrue(constraintExists(connection, "product_currency_config",
+                    "ck_product_currency_config_amount_limits"));
 
             assertTrue(constraintExists(connection, "fd_accounts", "ck_fd_accounts_status"));
             assertTrue(constraintExists(connection, "fd_accounts", "ck_fd_accounts_principal_positive"));
@@ -77,6 +104,55 @@ class FdPostgresSchemaTest {
                 assertTrue(indexExists(connection, index), "Missing index " + index);
             }
         }
+    }
+
+    @Test
+    void normalizedProductTermsQueryExecutesAgainstTheMigratedPostgresSchema() throws SQLException {
+        DriverManagerDataSource dataSource = new DriverManagerDataSource(
+                postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        String suffix = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
+        String productCode = "PG-FD-" + suffix;
+
+        jdbc.update("INSERT INTO public.fd_product_ref (fpr_product_code, fpr_product_name, fpr_status) "
+                + "VALUES (?, ?, 'ACTIVE')", productCode, "PostgreSQL Regression FD");
+        jdbc.update("INSERT INTO public.product (pro_product_code, pro_product_name, pro_category_id, "
+                        + "pro_base_currency_code, pro_status) "
+                        + "VALUES (?, ?, (SELECT pc_category_id FROM public.product_category "
+                        + "WHERE pc_category_code = 'FIXED_DEPOSIT'), 'USD', 'ACTIVE')",
+                productCode, "PostgreSQL Regression FD");
+        Long productId = jdbc.queryForObject("SELECT pro_product_id FROM public.product WHERE pro_product_code = ?",
+                Long.class, productCode);
+        Long currencyId = jdbc.queryForObject("SELECT cur_currency_id FROM public.currency WHERE cur_iso_code = 'USD'",
+                Long.class);
+        Long ruleTypeId = jdbc.queryForObject("SELECT rut_rule_type_id FROM public.rule_type "
+                + "WHERE rut_rule_type_code = 'FD_TENURE_RATE'", Long.class);
+        jdbc.update("INSERT INTO public.fd_currency_ref (fcr_iso_code, fcr_currency_name, fcr_decimal_places) "
+                + "VALUES ('USD', 'US Dollar', 2) ON CONFLICT DO NOTHING");
+        jdbc.update("INSERT INTO public.product_currency_config (pcc_product_id, pcc_currency_id, "
+                        + "pcc_minimum_amount, pcc_maximum_amount) VALUES (?, ?, 100, 100000)",
+                productId, currencyId);
+        Long ruleId = jdbc.queryForObject("INSERT INTO public.product_rule (pr_product_id, pr_rule_type_id, "
+                        + "pr_rule_name, pr_is_active) VALUES (?, ?, 'TENURE_RATE', TRUE) "
+                        + "RETURNING pr_rule_id", Long.class, productId, ruleTypeId);
+        jdbc.update("INSERT INTO public.rule_condition (rc_rule_id, rc_condition_attribute, "
+                        + "rc_value_from, rc_value_to) VALUES (?, 'AMOUNT_RANGE', '100', '100000'), "
+                        + "(?, 'TENURE_MONTHS', '3', '12')", ruleId, ruleId);
+        Long outcomeId = jdbc.queryForObject("INSERT INTO public.rule_outcome (ro_rule_id, ro_outcome_type, "
+                        + "ro_outcome_value, ro_compounding_basis, ro_payout_frequency, ro_currency_id) "
+                        + "VALUES (?, 'INTEREST_RATE', '0.05', 'QUARTERLY', 'AT_MATURITY', ?) "
+                        + "RETURNING ro_outcome_id", Long.class, ruleId, currencyId);
+        jdbc.update("INSERT INTO public.fd_rule_outcome_ref (fror_outcome_type, fror_outcome_value, "
+                        + "fror_source_outcome_id) VALUES ('INTEREST_RATE', '0.05', ?)", outcomeId);
+
+        var terms = new NormalizedProductTermsAdapter(jdbc).listEligibleTerms(java.time.LocalDate.now()).stream()
+                .filter(term -> productCode.equals(term.productCode())).toList();
+
+        assertEquals(1, terms.size());
+        assertEquals("USD", terms.get(0).currencyCode());
+        assertEquals(3, terms.get(0).minimumTenureMonths());
+        assertEquals(12, terms.get(0).maximumTenureMonths());
+        assertEquals(new java.math.BigDecimal("0.05"), terms.get(0).annualRate());
     }
 
     @Test

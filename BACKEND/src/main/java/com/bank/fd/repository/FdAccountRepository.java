@@ -4,6 +4,8 @@ import com.bank.fd.entity.FdAccount;
 import com.bank.fd.entity.FdStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -18,6 +20,19 @@ public interface FdAccountRepository extends JpaRepository<FdAccount, Long> {
     List<FdAccount> findByPrimaryHolderId(Long primaryHolderId);
     List<FdAccount> findByPrimaryHolderIdAndStatus(Long primaryHolderId, FdStatus status);
     List<FdAccount> findByStatus(FdStatus status);
+
+    @Query(value = "SELECT a FROM FdAccount a "
+            + "WHERE a.primaryHolderId = :holderId "
+            + "AND (:status IS NULL OR a.status = :status) "
+            + "AND (:productId IS NULL OR a.productId = :productId)",
+            countQuery = "SELECT COUNT(a) FROM FdAccount a "
+                    + "WHERE a.primaryHolderId = :holderId "
+                    + "AND (:status IS NULL OR a.status = :status) "
+                    + "AND (:productId IS NULL OR a.productId = :productId)")
+    Page<FdAccount> findCustomerAccounts(@Param("holderId") Long holderId,
+                                        @Param("status") FdStatus status,
+                                        @Param("productId") Long productId,
+                                        Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT a FROM FdAccount a WHERE a.id = :id")

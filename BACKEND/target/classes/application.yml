@@ -4,9 +4,11 @@ spring:
   application:
     name: MoneyPal Fixed Deposit System
   datasource:
-    url: ${SUPABASE_DB_URL:${DB_URL:jdbc:postgresql://localhost:5432/bankingtech}}
-    username: ${SUPABASE_DB_USERNAME:${DB_USERNAME:postgres}}
-    password: ${SUPABASE_DB_PASSWORD:${DB_PASSWORD:postgres}}
+    # Require explicit connection settings so a missing Supabase configuration
+    # cannot silently send the app to an unrelated local PostgreSQL database.
+    url: ${SUPABASE_DB_URL:${DB_URL}}
+    username: ${SUPABASE_DB_USERNAME:${DB_USERNAME}}
+    password: ${SUPABASE_DB_PASSWORD:${DB_PASSWORD}}
     driver-class-name: org.postgresql.Driver
   sql:
     init:
@@ -71,7 +73,7 @@ fd:
     rounding-mode: HALF_UP
     opening-date-included: true
     maturity-date-included: false
-    business-zone: UTC
+    business-zone: Asia/Kolkata
   integration:
     actor-authority: "local /api/auth identity"
     product-terms-authority: "existing normalized server-owned product/rule tables"

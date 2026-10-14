@@ -1,5 +1,6 @@
 package com.bank.product.service;
 
+import com.bank.common.exception.InvalidInputException;
 import com.bank.common.exception.ResourceNotFoundException;
 import com.bank.product.entity.FdProduct;
 import com.bank.product.repository.FdProductRepository;
@@ -15,6 +16,7 @@ public class FdProductService {
     private FdProductRepository fdProductRepository;
 
     public FdProduct createProduct(FdProduct product) {
+        product.setStatus("DRAFT");
         return fdProductRepository.save(product);
     }
 
@@ -33,13 +35,17 @@ public class FdProductService {
 
     public FdProduct updateProduct(Long id, FdProduct productDetails) {
         FdProduct product = getProductById(id);
+        if (productDetails.getStatus() != null
+                && !productDetails.getStatus().equalsIgnoreCase(product.getStatus())) {
+            throw new InvalidInputException(
+                    "FD product status changes must use the validated /api/v1/fd-products activation endpoint");
+        }
         product.setProductName(productDetails.getProductName());
         product.setMinAmount(productDetails.getMinAmount());
         product.setMaxAmount(productDetails.getMaxAmount());
         product.setMinTermDays(productDetails.getMinTermDays());
         product.setMaxTermDays(productDetails.getMaxTermDays());
         product.setBaseInterestRate(productDetails.getBaseInterestRate());
-        product.setActive(productDetails.isActive());
         return fdProductRepository.save(product);
     }
 }

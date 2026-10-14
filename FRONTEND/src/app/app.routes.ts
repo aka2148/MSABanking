@@ -25,7 +25,12 @@ export const routes: Routes = [
     path: 'staff/fd-products',
     canActivate: [authGuard, staffGuard],
     loadComponent: () =>
-      import('./features/staff/fd-products/fd-products').then((m) => m.FdProductsAdmin),
+      import('./features/staff/product-builder/product-builder').then((m) => m.ProductBuilder),
+  },
+  {
+    path: 'savings',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/savings/savings-accounts').then(m => m.SavingsAccounts),
   },
   {
     path: 'fd',
@@ -43,6 +48,11 @@ export const routes: Routes = [
         path: 'accounts/lookup',
         loadComponent: () =>
           import('./features/fd/account-lookup/fd-account-lookup').then((m) => m.FdAccountLookup),
+      },
+      {
+        path: 'accounts',
+        loadComponent: () =>
+          import('./features/fd/my-deposits/my-deposits').then((m) => m.MyDeposits),
       },
       {
         path: 'accounts/:id',

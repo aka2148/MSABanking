@@ -19,10 +19,11 @@ public record CreateFdOfferRequest(
         @NotBlank @Size(max = 255) String productName,
         @NotNull @Min(1) Integer categoryId,
         @Size(max = 1000) String description,
+        @Pattern(regexp = "USD|INR|KWD") String baseCurrencyCode,
         @NotEmpty @Valid List<CurrencySchedule> currencies) {
 
     public record CurrencySchedule(
-            @NotBlank @Pattern(regexp = "USD|INR") String currencyCode,
+            @NotBlank @Pattern(regexp = "USD|INR|KWD") String currencyCode,
             @NotNull @DecimalMin(value = "0.01") BigDecimal minimumAmount,
             @NotNull @DecimalMin(value = "0.01") BigDecimal maximumAmount,
             @NotEmpty @Valid List<TenureRateBand> rateBands) {

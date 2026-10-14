@@ -25,7 +25,24 @@ export interface RateTier {
   payout_frequency: string;
 }
 
+export interface Journal {
+  journal_id: number; operation: string; posted_at: string; savings_account_id: number;
+  currency_code: string; total_debit: number; total_credit: number; savings_balance_after: number;
+  lines: { account_code: string; debit: number; credit: number }[];
+}
+
+export interface SavingsAccount {
+  account_id: number;
+  account_number: string;
+  display_name: string;
+  currency_code: string;
+  balance: number;
+  status: string;
+  created_date: string;
+}
+
 export interface BookingRequest {
+  funding_savings_account_id?: number;
   product_id: number;
   principal_amount: number;
   tenure_months: number;
@@ -37,15 +54,12 @@ export interface FundingRequest {
   currency_code: string;
 }
 
-export interface AccrualRunRequest {
-  business_date?: string;
-}
-
 export interface PrematureClosureRequest {
   reason?: string;
 }
 
 export interface AccountResponse {
+  funding_savings_account_id?: number | null;
   account_id: number;
   account_number: string;
   product_id: number;
@@ -62,6 +76,31 @@ export interface AccountResponse {
   policy_version: string;
   status: FdStatus;
   funding_recorded: boolean;
+}
+
+export interface FdAccountSummary {
+  account_id: number;
+  account_number: string;
+  product_code: string;
+  product_name: string;
+  currency_code: string;
+  principal_amount: number;
+  tenure_months: number;
+  annual_rate: number | null;
+  open_date: string | null;
+  maturity_date: string | null;
+  maturity_amount: number | null;
+  status: FdStatus;
+  funding_recorded: boolean;
+}
+
+export interface FdAccountListResponse {
+  data: FdAccountSummary[];
+  pagination: {
+    page: number;
+    page_size: number;
+    total_records: number;
+  };
 }
 
 export interface FundingResponse extends AccountResponse {

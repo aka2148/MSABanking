@@ -41,6 +41,10 @@ submit(): void {
   this.authService.login(identifier, password).subscribe({
     next: (res) => {
       this.loading = false;
+      if (!res.token || !res.username) {
+        this.errorMessage = res.message ?? 'Login response did not include a valid session.';
+        return;
+      }
       localStorage.setItem('token', res.token);
       localStorage.setItem('username', res.username);
       localStorage.setItem('roles', JSON.stringify(res.roles));
