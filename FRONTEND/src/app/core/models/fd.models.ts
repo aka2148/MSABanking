@@ -78,6 +78,31 @@ export interface AccountResponse {
   funding_recorded: boolean;
 }
 
+export interface FdAccountSummary {
+  account_id: number;
+  account_number: string;
+  product_code: string;
+  product_name: string;
+  currency_code: string;
+  principal_amount: number;
+  tenure_months: number;
+  annual_rate: number | null;
+  open_date: string | null;
+  maturity_date: string | null;
+  maturity_amount: number | null;
+  status: FdStatus;
+  funding_recorded: boolean;
+}
+
+export interface FdAccountListResponse {
+  data: FdAccountSummary[];
+  pagination: {
+    page: number;
+    page_size: number;
+    total_records: number;
+  };
+}
+
 export interface FundingResponse extends AccountResponse {
   funding_recorded: true;
   funding_description: string;

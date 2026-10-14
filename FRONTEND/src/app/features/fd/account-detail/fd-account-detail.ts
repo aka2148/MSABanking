@@ -344,11 +344,9 @@ export class FdAccountDetail implements OnInit {
     this.errorMessage = '';
     this.successMessage = '';
     this.busyAction = action;
-    this.fdService.startSubmission();
     request().subscribe({
       next: (value) => {
         this.busyAction = null;
-        this.fdService.completeSubmission();
         onSuccess(value);
         this.refreshAfterWrite();
       },

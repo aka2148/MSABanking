@@ -200,6 +200,64 @@ class FdOwnershipContractTest {
     }
 
     @Test
+    void customerAccountListIsOwnerScopedPaginatedAndOmitsInternalReferences() throws Exception {
+        String usernameA = "fdlist" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        String usernameB = "fdlist" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        register(usernameA, usernameA + "@bank.com", "ROLE_CUSTOMER");
+        register(usernameB, usernameB + "@bank.com", "ROLE_CUSTOMER");
+        String tokenA = login(usernameA);
+        String tokenB = login(usernameB);
+        long firstAccount = book(tokenA, usernameA, "list-book-" + UUID.randomUUID());
+        long secondAccount = book(tokenA, usernameA, "list-book-" + UUID.randomUUID());
+
+        mockMvc.perform(get("/fd/v1/accounts").header("Authorization", "Bearer " + tokenA)
+                        .param("page", "1").param("page_size", "1").param("status", "pending"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pagination.page").value(1))
+                .andExpect(jsonPath("$.pagination.page_size").value(1))
+                .andExpect(jsonPath("$.pagination.total_records").value(2))
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].account_id").value(secondAccount))
+                .andExpect(jsonPath("$.data[0].product_name").value("Academic FD"))
+                .andExpect(jsonPath("$.data[0].primary_holder_id").doesNotExist())
+                .andExpect(jsonPath("$.data[0].funding_savings_account_id").doesNotExist());
+
+        mockMvc.perform(get("/fd/v1/accounts").header("Authorization", "Bearer " + tokenA)
+                        .param("page", "2").param("page_size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].account_id").value(firstAccount));
+
+        mockMvc.perform(get("/fd/v1/accounts").header("Authorization", "Bearer " + tokenB))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(0))
+                .andExpect(jsonPath("$.pagination.total_records").value(0));
+
+        mockMvc.perform(get("/fd/v1/accounts").header("Authorization", "Bearer " + tokenA)
+                        .param("holder_id", "999999999"))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/fd/v1/accounts").header("Authorization", "Bearer " + login(STAFF)))
+                // The fixture has CUSTOMER and BANK_OFFICER roles; the collection
+                // still remains scoped to the authenticated holder identity.
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(0));
+
+        mockMvc.perform(get("/fd/v1/accounts").header("Authorization", "Bearer " + tokenA)
+                        .param("page_size", "101"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void customerCanLoadEligibleFdProductsFromTheApi() throws Exception {
+        String customerToken = login(OWNER_A);
+        mockMvc.perform(get("/fd/v1/products").header("Authorization", "Bearer " + customerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].product_id").value(7))
+                .andExpect(jsonPath("$[0].product_name").value("Academic FD"))
+                .andExpect(jsonPath("$[0].currency_offers[0].rate_tiers[0].annual_rate").value(0.065));
+    }
+
+    @Test
     void staffOfficerCanReadAnyFdWhileCustomersStaySelfService() throws Exception {
         String tokenA = login(OWNER_A);
         String staffToken = login(STAFF);

@@ -35,6 +35,7 @@ describe('FdService authenticated transport', () => {
   afterEach(() => {
     http.verify();
     localStorage.clear();
+    sessionStorage.clear();
   });
 
   it('sends bearer authorization for product reads', () => {
@@ -47,24 +48,46 @@ describe('FdService authenticated transport', () => {
     request.flush([]);
   });
 
-  it('reuses a write key for retries and changes it after completion', () => {
-    service.startSubmission();
-    service.book({ product_id: 7, principal_amount: 1000, tenure_months: 12, currency_code: 'INR' }).subscribe();
+  it('reuses the same request key for retries and rotates it after success', () => {
+    service.book({ product_id: 7, principal_amount: 1000, tenure_months: 12, currency_code: 'INR' })
+      .subscribe({ error: () => undefined });
     const first = http.expectOne('/fd/v1/accounts');
     const firstKey = first.request.headers.get('Idempotency-Key');
     expect(firstKey).toMatch(/^[0-9a-f-]{36}$/);
-    first.flush({ account_id: 1 });
+    first.error(new ProgressEvent('network-error'));
 
-    service.book({ product_id: 7, principal_amount: 1000, tenure_months: 12, currency_code: 'INR' }).subscribe();
+    service.book({ product_id: 7, principal_amount: 1000, tenure_months: 12, currency_code: 'INR' })
+      .subscribe({ error: () => undefined });
     const retry = http.expectOne('/fd/v1/accounts');
     expect(retry.request.headers.get('Idempotency-Key')).toBe(firstKey);
     retry.flush({ account_id: 1 });
 
-    service.completeSubmission();
-    service.book({ product_id: 7, principal_amount: 1000, tenure_months: 12, currency_code: 'INR' }).subscribe();
+    service.book({ product_id: 7, principal_amount: 1200, tenure_months: 12, currency_code: 'INR' }).subscribe();
     const next = http.expectOne('/fd/v1/accounts');
     expect(next.request.headers.get('Idempotency-Key')).not.toBe(firstKey);
     next.flush({ account_id: 2 });
+  });
+
+  it('blocks a changed request while the previous result is uncertain', () => {
+    service.book({ product_id: 7, principal_amount: 1000, tenure_months: 12, currency_code: 'INR' })
+      .subscribe({ error: () => undefined });
+    const first = http.expectOne('/fd/v1/accounts');
+    first.error(new ProgressEvent('network-error'));
+
+    let conflictStatus = 0;
+    service.book({ product_id: 7, principal_amount: 1200, tenure_months: 12, currency_code: 'INR' })
+      .subscribe({ error: (error) => conflictStatus = error.status });
+
+    expect(conflictStatus).toBe(409);
+    http.expectNone('/fd/v1/accounts');
+    expect(service.hasPendingSubmission('/accounts')).toBeTrue();
+  });
+
+  it('lists customer accounts with server pagination parameters', () => {
+    service.listAccounts(2, 10).subscribe();
+    const request = http.expectOne('/fd/v1/accounts?page=2&page_size=10');
+    expect(request.request.method).toBe('GET');
+    request.flush({ data: [], pagination: { page: 2, page_size: 10, total_records: 11 } });
   });
 
   it('logs out on a 401 and redirects an unauthenticated guard to login', () => {

@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, tap } from 'rxjs';
 import {
@@ -10,17 +10,17 @@ import {
   Channel,
   AuthSession,
 } from '../models/auth.models';
+import { API_BASE_URL, apiUrl } from './api-config';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly baseUrl = 'http://localhost:8080/api/v1/auth'; // backend auth routes moved to /api/v1
   private readonly tokenKey = 'token';
   private readonly roleKey = 'role';
   private readonly sessionSubject = new BehaviorSubject<AuthSession>(this.readSession());
 
   readonly session$ = this.sessionSubject.asObservable();
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, @Inject(API_BASE_URL) private readonly apiBaseUrl: string) {}
 
   login(identifier: string, password: string): Observable<LoginResponse> {
     const payload = {
@@ -29,7 +29,7 @@ export class AuthService {
       password,
       context: this.buildContext(),
     };
-    return this.http.post<LoginResponse>(`${this.baseUrl}/login`, payload).pipe(
+    return this.http.post<LoginResponse>(apiUrl(this.apiBaseUrl, '/api/v1/auth/login'), payload).pipe(
       tap((response) => {
         if (response.token) {
           const sessionRole = response.roles?.find((role) => role === 'ROLE_ADMIN')
@@ -45,7 +45,7 @@ export class AuthService {
 
   signup(form: Omit<SignupRequest, 'context'>): Observable<SignupResponse> {
     const payload: SignupRequest = { ...form, context: this.buildContext() };
-    return this.http.post<SignupResponse>(`${this.baseUrl}/register`, payload);
+    return this.http.post<SignupResponse>(apiUrl(this.apiBaseUrl, '/api/v1/auth/register'), payload);
   }
 
   /** Reuse this in every module that writes data — FD creation, transactions, forex. */

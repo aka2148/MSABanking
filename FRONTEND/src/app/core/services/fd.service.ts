@@ -1,6 +1,7 @@
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
-import { Inject, Injectable, InjectionToken } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Inject, Injectable, InjectionToken, inject } from '@angular/core';
+import { Observable, catchError, tap, throwError } from 'rxjs';
+import { API_BASE_URL, apiUrl } from './api-config';
 import {
   AccountResponse,
   SavingsAccount,
@@ -16,11 +17,12 @@ import {
   PrematureClosureRequest,
   PrematureClosureResponse,
   ProductOffer,
+  FdAccountListResponse,
 } from '../models/fd.models';
 
 export const FD_API_BASE_URL = new InjectionToken<string>('FD_API_BASE_URL', {
   providedIn: 'root',
-  factory: () => 'http://localhost:8080/fd/v1',
+  factory: () => apiUrl(inject(API_BASE_URL), '/fd/v1'),
 });
 
 export interface TransactionQuery {
@@ -45,7 +47,8 @@ export function normalizeApiError(error: HttpErrorResponse): ApiErrorResponse {
 
 @Injectable({ providedIn: 'root' })
 export class FdService {
-  private activeSubmissionKey: string | null = null;
+  private readonly pendingSubmissionStorageKey = 'fd.pending-submissions.v1';
+  private readonly inMemorySubmissions = new Map<string, PendingSubmission>();
 
   constructor(
     private readonly http: HttpClient,
@@ -82,6 +85,11 @@ export class FdService {
 
   listProducts(): Observable<ProductOffer[]> {
     return this.http.get<ProductOffer[]>(this.path('/products'));
+  }
+
+  listAccounts(page = 1, pageSize = 20): Observable<FdAccountListResponse> {
+    const params = new HttpParams().set('page', page).set('page_size', pageSize);
+    return this.http.get<FdAccountListResponse>(this.path('/accounts'), { params });
   }
 
   book(request: BookingRequest): Observable<AccountResponse> {
@@ -135,28 +143,116 @@ export class FdService {
     return this.http.get<HistoryEntry[]>(this.path(`/accounts/${accountId}/transactions`), { params });
   }
 
-  startSubmission(): string {
-    return this.activeSubmissionKey ?? (this.activeSubmissionKey = createIdempotencyKey());
+  hasPendingSubmission(path: string): boolean {
+    return this.readSubmissions()[path] !== undefined;
   }
 
-  completeSubmission(): void {
-    this.activeSubmissionKey = null;
-  }
-
-  abandonSubmission(): void {
-    this.activeSubmissionKey = null;
+  /** Call only after checking the current account/history state for an uncertain write. */
+  clearPendingSubmission(path: string): void {
+    const submissions = this.readSubmissions();
+    delete submissions[path];
+    this.writeSubmissions(submissions);
   }
 
   private write<T>(path: string, body?: object): Observable<T> {
-    const key = this.startSubmission();
+    let key: string;
+    try {
+      key = this.getSubmissionKey(path, body);
+    } catch (error) {
+      return throwError(() => error);
+    }
+
     return this.http.post<T>(this.path(path), body, {
       headers: { 'Idempotency-Key': key },
-    });
+    }).pipe(tap(() => this.clearSubmissionIfCurrent(path, key)), catchError((error: HttpErrorResponse) => {
+      // 4xx responses other than 409 are definitive rejections. A 409, network
+      // failure, or server failure can have an uncertain outcome, so preserve
+      // the key and require an exact retry or explicit reconciliation.
+      if (error.status >= 400 && error.status < 500 && error.status !== 409) {
+        this.clearSubmissionIfCurrent(path, key);
+      }
+      return throwError(() => error);
+    }));
+  }
+
+  private getSubmissionKey(path: string, body?: object): string {
+    const fingerprint = fingerprintRequest(body);
+    const submissions = this.readSubmissions();
+    const pending = submissions[path];
+    if (pending && pending.fingerprint !== fingerprint) {
+      throw new HttpErrorResponse({
+        status: 409,
+        statusText: 'Conflict',
+        url: this.path(path),
+        error: { message: 'A previous request may have completed. Retry it unchanged, or review My deposits and account history before starting a different request.' },
+      });
+    }
+    if (pending) return pending.key;
+
+    const key = createIdempotencyKey();
+    submissions[path] = { key, fingerprint };
+    this.writeSubmissions(submissions);
+    return key;
+  }
+
+  private clearSubmissionIfCurrent(path: string, key: string): void {
+    const submissions = this.readSubmissions();
+    if (submissions[path]?.key !== key) return;
+    delete submissions[path];
+    this.writeSubmissions(submissions);
+  }
+
+  private readSubmissions(): Record<string, PendingSubmission> {
+    if (typeof sessionStorage === 'undefined') {
+      return Object.fromEntries(this.inMemorySubmissions.entries());
+    }
+    try {
+      const parsed: unknown = JSON.parse(sessionStorage.getItem(this.pendingSubmissionStorageKey) ?? '{}');
+      if (!isPendingSubmissionMap(parsed)) return Object.fromEntries(this.inMemorySubmissions.entries());
+      return { ...parsed, ...Object.fromEntries(this.inMemorySubmissions.entries()) };
+    } catch {
+      return Object.fromEntries(this.inMemorySubmissions.entries());
+    }
+  }
+
+  private writeSubmissions(submissions: Record<string, PendingSubmission>): void {
+    this.inMemorySubmissions.clear();
+    for (const [path, value] of Object.entries(submissions)) this.inMemorySubmissions.set(path, value);
+    if (typeof sessionStorage === 'undefined') return;
+    try {
+      sessionStorage.setItem(this.pendingSubmissionStorageKey, JSON.stringify(submissions));
+    } catch {
+      // The in-memory copy still protects retries for this application session.
+    }
   }
 
   private path(path: string): string {
     return `${this.baseUrl.replace(/\/$/, '')}${path}`;
   }
+}
+
+interface PendingSubmission {
+  key: string;
+  fingerprint: string;
+}
+
+function isPendingSubmissionMap(value: unknown): value is Record<string, PendingSubmission> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  return Object.values(value).every((entry) => typeof entry === 'object' && entry !== null
+    && typeof (entry as PendingSubmission).key === 'string'
+    && typeof (entry as PendingSubmission).fingerprint === 'string');
+}
+
+function fingerprintRequest(value: unknown): string {
+  return JSON.stringify(sortJsonValue(value ?? null));
+}
+
+function sortJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortJsonValue);
+  if (typeof value !== 'object' || value === null) return value;
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, nested]) => [key, sortJsonValue(nested)]));
 }
 
 function createIdempotencyKey(): string {

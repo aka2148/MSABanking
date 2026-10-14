@@ -141,7 +141,6 @@ export class FdBooking implements OnInit {
       currency_code: this.selectedCurrencyOffer.currency_code,
     };
 
-    this.fdService.startSubmission();
     this.submitting = true;
     this.bookingError = '';
     this.fdService.book(request).subscribe({
@@ -152,7 +151,6 @@ export class FdBooking implements OnInit {
           return;
         }
         this.submittedAccount = account;
-        this.fdService.completeSubmission();
         void this.router.navigate(['/fd/accounts', account.account_id]);
       },
       error: (error: HttpErrorResponse) => {

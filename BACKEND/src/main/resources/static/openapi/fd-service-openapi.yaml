@@ -215,6 +215,7 @@ paths:
       parameters:
         - name: holder_id
           in: query
+          description: Optional compatibility filter. Customer requests can only select their authenticated holder ID.
           schema: { type: integer }
         - name: status
           in: query
@@ -241,7 +242,7 @@ paths:
                   data:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Account'
+                      $ref: '#/components/schemas/FdAccountSummary'
                   pagination:
                     $ref: '#/components/schemas/Pagination'
 
@@ -1248,6 +1249,24 @@ components:
         page: { type: integer }
         page_size: { type: integer }
         total_records: { type: integer }
+
+    FdAccountSummary:
+      type: object
+      required: [account_id, account_number, product_code, product_name, currency_code, principal_amount, tenure_months, status]
+      properties:
+        account_id: { type: integer, format: int64 }
+        account_number: { type: string }
+        product_code: { type: string }
+        product_name: { type: string }
+        currency_code: { type: string }
+        principal_amount: { type: number, format: decimal }
+        tenure_months: { type: integer }
+        annual_rate: { type: number, format: decimal }
+        open_date: { type: string, format: date }
+        maturity_date: { type: string, format: date }
+        maturity_amount: { type: number, format: decimal }
+        status: { type: string, enum: [PENDING, ACTIVE, MATURED, CLOSED, PREMATURELY_CLOSED] }
+        funding_recorded: { type: boolean }
 
     # ---------- Accounts ----------
     JournalResponse:

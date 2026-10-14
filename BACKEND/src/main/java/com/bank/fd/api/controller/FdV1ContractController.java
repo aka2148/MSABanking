@@ -10,6 +10,8 @@ import com.bank.fd.api.dto.AccountResponse;
 import com.bank.fd.api.dto.BookingRequest;
 import com.bank.fd.api.dto.FundingRequest;
 import com.bank.fd.api.dto.FundingResponse;
+import com.bank.fd.api.dto.FdAccountListResponse;
+import com.bank.fd.api.dto.FdAccountSummaryResponse;
 import com.bank.fd.api.dto.HistoryEntry;
 import com.bank.fd.api.dto.PrematureClosureResponse;
 import com.bank.fd.application.AccrualService;
@@ -26,6 +28,7 @@ import com.bank.fd.domain.FdTimePolicy;
 import com.bank.fd.domain.PrematurePenalty;
 import com.bank.fd.entity.FdAccount;
 import com.bank.fd.entity.FdPrematureClosure;
+import com.bank.fd.entity.FdStatus;
 import com.bank.fd.repository.FdAccountRepository;
 import com.bank.fd.repository.FdCurrencyReferenceRepository;
 import com.bank.fd.repository.FdPrematureClosureRepository;
@@ -35,6 +38,9 @@ import com.bank.fd.api.dto.UpdateAccountContractRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -43,6 +49,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 
 /**
  * FD v1 contract boundary: Phase 2 product, booking, and funding routes are
@@ -160,7 +167,51 @@ public class FdV1ContractController {
     }
 
     @GetMapping("/accounts")
-    public ResponseEntity<ApiErrorResponse> listAccounts(@RequestParam(required = false, name = "holder_id") Long holderId, @RequestParam(required = false) String status, @RequestParam(required = false, name = "product_id") Long productId, @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "20", name = "page_size") int pageSize) { return notImplemented("listAccounts"); }
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<FdAccountListResponse> listAccounts(
+            @RequestParam(required = false, name = "holder_id") Long holderId,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false, name = "product_id") Long productId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20", name = "page_size") int pageSize,
+            Authentication authentication) {
+        if (page < 1) throw new InvalidInputException("page must be at least 1");
+        if (pageSize < 1 || pageSize > 100) {
+            throw new InvalidInputException("page_size must be between 1 and 100");
+        }
+        if (productId != null && productId < 1) {
+            throw new InvalidInputException("product_id must be positive");
+        }
+
+        Long customerHolderId = actorResolver.resolve(authentication.getName()).getId();
+        if (holderId != null && !holderId.equals(customerHolderId)) {
+            throw new ResourceNotFoundException("FD account not found");
+        }
+        FdStatus requestedStatus = parseStatus(status);
+        Page<FdAccount> accounts = accountRepository.findCustomerAccounts(customerHolderId,
+                requestedStatus, productId,
+                PageRequest.of(page - 1, pageSize,
+                        Sort.by(Sort.Order.desc("openDate"), Sort.Order.desc("id"))));
+        List<FdAccountSummaryResponse> data = accounts.getContent().stream().map(account -> {
+            var product = productRepository.findById(account.getProductId())
+                    .orElseThrow(() -> new ResourceNotFoundException("FD product reference not found"));
+            var currency = currencyRepository.findById(account.getCurrencyId())
+                    .orElseThrow(() -> new ResourceNotFoundException("FD account currency not found"));
+            return FdAccountSummaryResponse.from(account, product.getProductCode(),
+                    product.getProductName(), currency.getIsoCode());
+        }).toList();
+        return ResponseEntity.ok(new FdAccountListResponse(data,
+                new FdAccountListResponse.Pagination(page, pageSize, accounts.getTotalElements())));
+    }
+
+    private FdStatus parseStatus(String status) {
+        if (status == null || status.isBlank()) return null;
+        try {
+            return FdStatus.valueOf(status.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new InvalidInputException("status must be a supported FD account status");
+        }
+    }
 
     @GetMapping("/accounts/{accountId}")
     @PreAuthorize("isAuthenticated()")

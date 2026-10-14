@@ -1,10 +1,11 @@
 import { HttpClient } from '@angular/common/http';
-import { Inject, Injectable, InjectionToken } from '@angular/core';
+import { Inject, Injectable, InjectionToken, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { API_BASE_URL, apiUrl } from './api-config';
 
 export const BACKEND_API_BASE_URL = new InjectionToken<string>('BACKEND_API_BASE_URL', {
   providedIn: 'root',
-  factory: () => 'http://localhost:8080',
+  factory: () => inject(API_BASE_URL),
 });
 
 export interface ProductCategoryOption {
@@ -63,6 +64,6 @@ export class FdProductAdminService {
   }
 
   private path(path: string): string {
-    return `${this.backendUrl.replace(/\/$/, '')}${path}`;
+    return apiUrl(this.backendUrl, path);
   }
 }

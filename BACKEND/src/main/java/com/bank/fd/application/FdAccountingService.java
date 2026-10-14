@@ -27,7 +27,6 @@ public class FdAccountingService {
         SavingsAccount source=lockedSource(fd);
         BigDecimal principal=fd.getPrincipalAmount();
         if(principal == null || principal.signum() <= 0) throw new InvalidInputException("FD principal must be positive");
-        if(source.getBalance().compareTo(principal)<0) throw new InvalidInputException("Insufficient savings balance to fund the FD");
         source.setBalance(source.getBalance().subtract(principal)); savings.save(source);
         post(fd,source,"FUNDING",key,List.of(debit("SAVINGS_LIABILITY",principal),credit("FD_PRINCIPAL_LIABILITY",principal)));
     }

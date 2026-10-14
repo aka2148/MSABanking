@@ -50,6 +50,11 @@ export const routes: Routes = [
           import('./features/fd/account-lookup/fd-account-lookup').then((m) => m.FdAccountLookup),
       },
       {
+        path: 'accounts',
+        loadComponent: () =>
+          import('./features/fd/my-deposits/my-deposits').then((m) => m.MyDeposits),
+      },
+      {
         path: 'accounts/:id',
         loadComponent: () =>
           import('./features/fd/account-detail/fd-account-detail').then((m) => m.FdAccountDetail),

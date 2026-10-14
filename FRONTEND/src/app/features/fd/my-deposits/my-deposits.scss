@@ -1,0 +1,29 @@
+.deposits-card { max-width: 1000px; margin: 24px; }
+.deposits-back { display: inline-block; margin-bottom: 18px; }
+.deposits-heading, .deposit-row__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.deposits-heading { align-items: center; margin-bottom: 24px; }
+.fd-eyebrow { color: var(--gold-500); font: var(--fs-xs) var(--font-mono); letter-spacing: .08em; margin: 0 0 6px; text-transform: uppercase; }
+.deposits-heading h2, .deposits-empty h3, .deposit-row h3 { font-family: var(--font-display); margin: 0; }
+.deposits-state, .deposits-count { color: var(--ink-400); font-size: var(--fs-sm); }
+.deposits-empty { border-top: 1px solid rgba(255,255,255,.14); padding: 28px 0; }
+.deposits-empty p { color: var(--ink-400); margin: 10px 0 20px; }
+.pending-review { background: rgba(199,154,62,.12); border: 1px solid rgba(199,154,62,.42); border-radius: var(--radius-md); margin: 0 0 20px; padding: 16px; }
+.pending-review p { color: var(--ink-400); margin: 0 0 8px; }
+.pending-review .glass-btn { margin-top: 8px; }
+.deposit-row { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.15); border-radius: var(--radius-md); margin: 12px 0; padding: 18px; }
+.deposit-number { color: var(--ink-400); font: var(--fs-xs) var(--font-mono); margin: 6px 0 0; }
+.fd-status { border: 1px solid rgba(199,154,62,.6); border-radius: 999px; color: var(--gold-100); font: var(--fs-xs) var(--font-mono); padding: 8px 12px; white-space: nowrap; }
+.fd-status[data-status='ACTIVE'] { border-color: rgba(31,138,112,.8); color: #b8f0df; }
+.fd-status[data-status='CLOSED'], .fd-status[data-status='PREMATURELY_CLOSED'] { border-color: rgba(255,255,255,.38); color: rgba(255,255,255,.72); }
+.deposit-terms { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 18px 0; }
+.deposit-terms div { border-top: 1px solid rgba(255,255,255,.12); padding-top: 10px; }
+.deposit-terms dt { color: var(--ink-400); font-size: var(--fs-xs); }
+.deposit-terms dd { font: var(--fs-sm) var(--font-mono); margin: 5px 0 0; }
+.deposits-pagination { align-items: center; display: flex; gap: 16px; justify-content: center; margin-top: 22px; }
+.deposits-pagination span { color: var(--ink-400); font-size: var(--fs-sm); }
+@media (max-width: 700px) {
+  .deposits-card { margin: 8px; padding: 28px 20px; }
+  .deposits-heading, .deposit-row__heading { align-items: flex-start; flex-direction: column; }
+  .deposit-terms { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .deposits-heading .glass-btn { width: 100%; }
+}
