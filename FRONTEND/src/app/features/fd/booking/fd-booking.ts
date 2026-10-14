@@ -148,7 +148,7 @@ export class FdBooking implements OnInit {
       next: (account) => {
         this.submitting = false;
         if (!Number.isInteger(account.account_id) || account.account_id <= 0) {
-          this.bookingError = 'The booking response did not include an account id. No booking success is shown.';
+          this.bookingError = 'We could not open the deposit details after booking. Check whether the deposit was created before trying again.';
           return;
         }
         this.submittedAccount = account;
@@ -170,6 +170,27 @@ export class FdBooking implements OnInit {
     if (control.errors['amountBounds']) return 'Enter an amount within the offer range and at least 0.01.';
     if (control.errors['tenureBounds']) return 'Choose a tenure within the offer range.';
     return 'Check this value.';
+  }
+
+  selectedSavingsAccountLabel(): string {
+    const selected = this.bookingForm.controls.fundingSavingsAccountId.value;
+    return this.savingsOptions.find((option) => option.value === selected)?.label ?? 'Selected savings account';
+  }
+
+  formatFrequency(value: string | null | undefined): string {
+    if (!value) return 'not specified';
+    return value.toLowerCase().split('_').map((part) => part ? part[0].toUpperCase() + part.slice(1) : '').join(' ');
+  }
+
+  accountStatusLabel(status: AccountResponse['status']): string {
+    const labels: Record<AccountResponse['status'], string> = {
+      PENDING: 'Pending funding',
+      ACTIVE: 'Active',
+      MATURED: 'Matured',
+      CLOSED: 'Closed',
+      PREMATURELY_CLOSED: 'Closed early',
+    };
+    return labels[status];
   }
 
   private configureSelectedOption(currency: CurrencyOffer, tier: RateTier): void {

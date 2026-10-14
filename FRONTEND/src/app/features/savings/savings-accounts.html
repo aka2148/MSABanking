@@ -25,8 +25,8 @@
       <dl class="fd-review-list" *ngFor="let account of accounts">
         <div><dt>{{ account.display_name }}</dt><dd>{{ account.account_number }}</dd></div>
         <div><dt>Balance</dt><dd>{{ account.balance | number:'1.2-4' }} {{ account.currency_code }}</dd></div>
-        <div><dt>Status</dt><dd>{{ account.status }}</dd></div>
-        <div *ngIf="demoEnabled"><dt>Isolated demonstration</dt><dd><button type="button" class="glass-btn glass-btn--ghost" [disabled]="demoBusy" (click)="demoOpening(account)">Add demo opening funds</button></dd></div>
+        <div><dt>Status</dt><dd>{{ statusLabel(account.status) }}</dd></div>
+        <div *ngIf="demoEnabled"><dt>Demo only</dt><dd><button type="button" class="glass-btn glass-btn--ghost" [disabled]="demoBusy" (click)="demoOpening(account)">Add demo opening funds</button></dd></div>
       </dl>
     </section>
   </main>

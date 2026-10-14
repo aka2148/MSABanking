@@ -22,6 +22,9 @@ class FdSavingsPostgresSchemaTest {
             try(var rows=sql.executeQuery("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='public' AND ((table_name='branches' AND column_name='bra_branch_id') OR (table_name='customer_classification_types' AND column_name='cct_type_id')) AND data_type='bigint'")) {
                 assertTrue(rows.next());assertEquals(2,rows.getLong(1));
             }
+            try(var rows=sql.executeQuery("SELECT COUNT(*) FROM pg_constraint WHERE contype='f' AND confrelid IN ('public.branches'::regclass,'public.customer_classification_types'::regclass)")) {
+                assertTrue(rows.next());assertEquals(4,rows.getLong(1));
+            }
             try(var rows=sql.executeQuery("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='public' AND column_name IN ('gcm_operator_user_id','lrs_operator_user_id','sc_operator_user_id') AND data_type='integer'")) {
                 assertTrue(rows.next());assertEquals(3,rows.getLong(1));
             }

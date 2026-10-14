@@ -3,14 +3,18 @@ package com.bank.fd.api;
 import com.bank.fd.application.ProductTerms;
 import com.bank.fd.application.ProductTermsPort;
 import com.bank.fd.application.ProductTermsQuery;
+import com.bank.fd.application.SavingsAccountService;
+import com.bank.fd.api.dto.CreateSavingsRequest;
 import com.bank.customer.entity.RoleDefinition;
 import com.bank.customer.entity.User;
 import com.bank.customer.entity.UserRole;
 import com.bank.customer.repository.RoleDefinitionRepository;
 import com.bank.customer.repository.UserRepository;
 import com.bank.fd.entity.FdCurrencyReference;
+import com.bank.fd.entity.SavingsAccount;
 import com.bank.fd.repository.FdCurrencyReferenceRepository;
 import com.bank.fd.repository.FdTransactionRepository;
+import com.bank.fd.repository.SavingsAccountRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeAll;
@@ -33,6 +37,7 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -101,6 +106,12 @@ class FdOwnershipContractTest {
     private FdTransactionRepository transactionRepository;
 
     @Autowired
+    private SavingsAccountService savingsAccountService;
+
+    @Autowired
+    private SavingsAccountRepository savingsAccountRepository;
+
+    @Autowired
     private UserRepository userRepository;
 
     @Autowired
@@ -134,7 +145,7 @@ class FdOwnershipContractTest {
     @Test
     void sameKeyFundReplayIsByteIdenticalWithOneDepositRow() throws Exception {
         String token = login(OWNER_A);
-        long accountId = book(token, "own-replay-book-1");
+        long accountId = book(token, OWNER_A, "own-replay-book-1");
 
         String fundBody = "{\"amount\": 1000.00, \"currency_code\": \"USD\"}";
         String first = mockMvc.perform(post("/fd/v1/accounts/" + accountId + "/fund")
@@ -164,7 +175,7 @@ class FdOwnershipContractTest {
     void crossCustomerReadsReturn404WithoutLeakingExistence() throws Exception {
         String tokenA = login(OWNER_A);
         String tokenB = login(OWNER_B);
-        long accountId = book(tokenA, "own-404-book-1");
+        long accountId = book(tokenA, OWNER_A, "own-404-book-1");
         fund(tokenA, accountId, "own-404-fund-1");
 
         mockMvc.perform(get("/fd/v1/accounts/" + accountId)
@@ -192,7 +203,7 @@ class FdOwnershipContractTest {
     void staffOfficerCanReadAnyFdWhileCustomersStaySelfService() throws Exception {
         String tokenA = login(OWNER_A);
         String staffToken = login(STAFF);
-        long accountId = book(tokenA, "own-staff-book-1");
+        long accountId = book(tokenA, OWNER_A, "own-staff-book-1");
 
         // BANK_OFFICER bypass (D-06): staff reads another holder's FD.
         mockMvc.perform(get("/fd/v1/accounts/" + accountId)
@@ -210,7 +221,7 @@ class FdOwnershipContractTest {
     @Test
     void errorContractIsConsistentAcross409And422And400() throws Exception {
         String tokenA = login(OWNER_A);
-        long accountId = book(tokenA, "own-contract-book-1");
+        long accountId = book(tokenA, OWNER_A, "own-contract-book-1");
         fund(tokenA, accountId, "own-contract-fund-1");
 
         // Key-less repeat funding on an ACTIVE account: 409 referencing the existing record.
@@ -248,7 +259,7 @@ class FdOwnershipContractTest {
     @Test
     void authenticationContractHoldsForAnonymousAndBadCredentials() throws Exception {
         String tokenA = login(OWNER_A);
-        long accountId = book(tokenA, "own-auth-book-1");
+        long accountId = book(tokenA, OWNER_A, "own-auth-book-1");
 
         // No token on a secured FD read: the stateless JWT filter passes the
         // anonymous request through and method security denies it — pinned as
@@ -328,13 +339,21 @@ class FdOwnershipContractTest {
         return token;
     }
 
-    private long book(String token, String idempotencyKey) throws Exception {
+    private long book(String token, String username, String idempotencyKey) throws Exception {
+        var savingsResponse = savingsAccountService.create(username,
+                new CreateSavingsRequest("FD funding " + UUID.randomUUID(), "USD"),
+                "fd-test-savings-" + UUID.randomUUID());
+        SavingsAccount savingsAccount = savingsAccountRepository.findById(savingsResponse.accountId()).orElseThrow();
+        savingsAccount.setBalance(new BigDecimal("1000.00"));
+        savingsAccountRepository.save(savingsAccount);
+
         MvcResult result = mockMvc.perform(post("/fd/v1/accounts")
                         .header("Authorization", "Bearer " + token)
                         .header("Idempotency-Key", idempotencyKey)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"product_id\": 7, \"principal_amount\": 1000.00,"
-                                + " \"tenure_months\": 12, \"currency_code\": \"USD\"}"))
+                                + " \"tenure_months\": 12, \"currency_code\": \"USD\","
+                                + " \"funding_savings_account_id\": " + savingsResponse.accountId() + "}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("PENDING"))
                 .andReturn();

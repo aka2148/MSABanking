@@ -14,9 +14,9 @@ $env:SUPABASE_DB_PASSWORD = "your-supabase-database-password"
 $env:JWT_SECRET = [Convert]::ToBase64String((1..64 | ForEach-Object { Get-Random -Maximum 256 }))
 ```
 
-For an IPv4-only network, use the Supabase Session Pooler host and port shown in the same **Connect** dialog instead of the direct `db.<project-ref>.supabase.co` host.
+For an IPv4-only network, use the shared **Session Pooler** details from **Connect**: its copied host, port `5432`, and username `postgres.<project-ref>`. The direct database connection uses username `postgres`. Do not use the transaction pooler on port `6543` as this application's persistent JDBC datasource. The backend now requires explicit database settings; it no longer silently falls back to `localhost` when they are missing.
 
-Flyway applies the schema and Hibernate validates the entity mappings; it will not create or alter tables. The former MySQL `data.sql` seed was removed because it referenced the retired `fd_products` table.
+Flyway applies the schema at startup and Hibernate validates the entity mappings. Startup can therefore change the configured database schema; review the pending migration versions before connecting to a shared database. The former MySQL `data.sql` seed was removed because it referenced the retired `fd_products` table.
 
 ## FD v1 API contract
 

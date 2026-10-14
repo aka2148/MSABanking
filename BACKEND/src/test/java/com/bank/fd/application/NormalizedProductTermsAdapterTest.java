@@ -84,7 +84,7 @@ class NormalizedProductTermsAdapterTest {
 
     @Test
     void contractsExcludeCallerControlledFinancialAndIdentityFields() {
-        assertEquals(List.of("productId", "principalAmount", "tenureMonths", "currencyCode"),
+        assertEquals(List.of("productId", "principalAmount", "tenureMonths", "currencyCode", "fundingSavingsAccountId"),
                 List.of(BookingRequest.class.getRecordComponents()).stream().map(java.lang.reflect.RecordComponent::getName).toList());
         assertEquals(List.of("amount", "currencyCode"),
                 List.of(FundingRequest.class.getRecordComponents()).stream().map(java.lang.reflect.RecordComponent::getName).toList());

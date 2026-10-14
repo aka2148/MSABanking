@@ -1,6 +1,6 @@
 .fd-booking-card { max-width: 720px; margin: 24px; }
 .fd-back-link { display: inline-block; margin-bottom: 18px; }
-.fd-eyebrow, .fd-product-code {
+.fd-eyebrow {
   color: var(--gold-500);
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
@@ -20,6 +20,7 @@
 }
 .fd-step-label--active { color: white; }
 .fd-step-panel { min-height: 210px; }
+.stepper-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 20px; }
 .fd-offer-summary { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
 .fd-offer-summary h3 { font-family: var(--font-display); font-size: var(--fs-xl); margin: 0; }
 .fd-currency { color: var(--mint-500); font-family: var(--font-mono); }

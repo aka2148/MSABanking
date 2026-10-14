@@ -91,6 +91,7 @@ import { GlassShell } from '../../shared/components/glass-shell/glass-shell';
     .dashboard-compatibility-card--admin { max-width: 52rem; width: min(100% - 2rem, 52rem); }
     .dashboard-eyebrow { color: var(--gold-500); font: 0.75rem var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; }
     .dashboard-copy { color: var(--ink-400); line-height: 1.6; margin: 0 0 1.5rem; }
+    .dashboard-compatibility-card > .glass-btn { box-sizing: border-box; display: flex; justify-content: center; margin-top: .75rem; text-align: center; }
     .dashboard-logout { background: none; border: 0; display: block; margin: 1rem auto 0; }
     .dashboard-admin-clock { margin-top: 1.5rem; padding: 1.25rem; border: 1px solid rgba(255,255,255,.18); border-radius: var(--radius-md); background: rgba(255,255,255,.045); }
     .dashboard-clock-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }

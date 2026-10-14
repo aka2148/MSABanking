@@ -38,6 +38,9 @@ export class SavingsAccounts implements OnInit {
       error: (e: HttpErrorResponse) => { this.demoBusy = false; this.error = normalizeApiError(e).message; },
     });
   }
+  statusLabel(status: string): string {
+    return status.toLowerCase().split('_').map((part) => part ? part[0].toUpperCase() + part.slice(1) : '').join(' ');
+  }
   load(): void {
     this.loading = true;
     this.fd.listSavings().subscribe({

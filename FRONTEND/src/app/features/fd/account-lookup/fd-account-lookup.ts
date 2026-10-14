@@ -28,7 +28,7 @@ export class FdAccountLookup {
   openAccount(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
-      this.errorMessage = 'Enter a positive numeric account id from one of your FD bookings.';
+      this.errorMessage = 'Enter the positive numeric reference from your FD booking.';
       return;
     }
 

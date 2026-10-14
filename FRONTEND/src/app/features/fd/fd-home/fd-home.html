@@ -4,12 +4,12 @@
       <div>
         <p class="fd-eyebrow">Fixed deposits</p>
         <h2>Put your savings to work</h2>
-         <p class="glass-card__sub">Choose a currency and rate option for a new deposit, or open one you have already booked.</p>
+        <p class="glass-card__sub">Choose a currency and rate option for a new deposit, or open one you have already booked.</p>
       </div>
       <div class="fd-home-card__paths" aria-label="FD entry paths">
         <a class="glass-btn glass-btn--ghost" routerLink="/savings">Savings accounts</a>
         <a class="glass-btn" routerLink="/fd" fragment="products">Browse products</a>
-         <a class="glass-btn glass-btn--ghost" routerLink="/fd/accounts/lookup">Open existing deposit</a>
+        <a class="glass-btn glass-btn--ghost" routerLink="/fd/accounts/lookup">Open existing deposit</a>
       </div>
     </header>
 
@@ -34,7 +34,6 @@
         <article class="fd-product-card" *ngFor="let product of products">
           <div class="fd-product-card__topline">
             <div>
-              <p class="fd-product-card__code">{{ product.product_code }}</p>
               <h4>{{ product.product_name }}</h4>
             </div>
             <div class="fd-product-card__currencies">
@@ -60,7 +59,7 @@
                   <span>Annual rate</span>
                   <strong>{{ tier.annual_rate * 100 | number:'1.2-2' }}%</strong>
                 </div>
-                <p>{{ tier.compounding_frequency | lowercase }} compounding · paid at maturity</p>
+                <p>{{ formatFrequency(tier.compounding_frequency) }} compounding · paid {{ formatFrequency(tier.payout_frequency) | lowercase }}</p>
                 <button type="button" class="glass-btn glass-btn--full"
                         [disabled]="loading || selectingOptionKey !== null"
                         [attr.aria-label]="'Choose ' + tier.minimum_tenure_months + ' to ' + tier.maximum_tenure_months + ' month ' + currency.currency_code + ' option'"
@@ -70,10 +69,6 @@
               </article>
             </div>
           </section>
-
-          <div class="fd-product-card__notes">
-            <p><strong>Maturity estimate:</strong> {{ product.maturity_estimate_basis }}</p>
-          </div>
 
         </article>
       </div>
