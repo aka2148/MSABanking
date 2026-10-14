@@ -39,6 +39,9 @@ public class MaturityService {
     private static final String INTERNAL_REMARK =
             "Internal academic maturity record; no external payment rail was called.";
 
+    @Autowired
+    private FdAccountingService accounting;
+
     private final FdAccountRepository accountRepository;
     private final FdInterestAccrualRepository accrualRepository;
     private final FdCurrencyReferenceRepository currencyRepository;
@@ -148,6 +151,8 @@ public class MaturityService {
             accrualRepository.save(closing);
         }
 
+        if (accounting != null) accounting.recognizeMaturity(account, interest);
+
         Long maturityTypeId = transactionTypeRepository.findIdByCode(MATURITY)
                 .orElseThrow(() -> new ResourceNotFoundException("MATURITY transaction type is not configured"));
         FdTransaction transaction = new FdTransaction();
@@ -218,6 +223,7 @@ public class MaturityService {
     }
 
     private void completeMaturity(FdAccount account, MaturityAmounts amounts, FdOperationIdempotency claim) {
+        if (accounting != null) accounting.recognizeMaturity(account, amounts.interest());
         Long maturityTypeId = transactionTypeRepository.findIdByCode(MATURITY)
                 .orElseThrow(() -> new ResourceNotFoundException("MATURITY transaction type is not configured"));
         FdTransaction transaction = new FdTransaction();

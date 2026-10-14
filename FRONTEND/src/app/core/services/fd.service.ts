@@ -3,6 +3,8 @@ import { Inject, Injectable, InjectionToken } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
   AccountResponse,
+  SavingsAccount,
+  Journal,
   AccrualResponse,
   ApiErrorEnvelope,
   ApiErrorResponse,
@@ -49,6 +51,34 @@ export class FdService {
     private readonly http: HttpClient,
     @Inject(FD_API_BASE_URL) private readonly baseUrl: string
   ) {}
+
+  listJournals(id: number): Observable<Journal[]> {
+    return this.http.get<Journal[]>(this.path('/accounts/' + id + '/journals'));
+  }
+  getFundingSavings(id: number): Observable<SavingsAccount> {
+    return this.http.get<SavingsAccount>(this.path('/accounts/' + id + '/funding-savings'));
+  }
+
+  demoOptions(): Observable<{ enabled: boolean }> {
+    return this.http.get<{ enabled: boolean }>(this.path('/savings-accounts/demo-options'));
+  }
+
+  provisionDemoOpening(id: number, amount: number): Observable<SavingsAccount> {
+    return this.http.post<SavingsAccount>(this.path('/savings-accounts/' + id + '/demo-opening'), { amount });
+  }
+
+  listSavings(): Observable<SavingsAccount[]> {
+    return this.http.get<SavingsAccount[]>(this.path('/savings-accounts'));
+  }
+
+  getSavings(id: number): Observable<SavingsAccount> {
+    return this.http.get<SavingsAccount>(this.path('/savings-accounts/' + id));
+  }
+
+  createSavings(request: { display_name: string; currency_code: string }, key: string): Observable<SavingsAccount> {
+    return this.http.post<SavingsAccount>(this.path('/savings-accounts'), request,
+      { headers: { 'Idempotency-Key': key } });
+  }
 
   listProducts(): Observable<ProductOffer[]> {
     return this.http.get<ProductOffer[]>(this.path('/products'));

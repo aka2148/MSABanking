@@ -31,7 +31,10 @@ import java.util.UUID;
 @Service
 public class FundingService {
     private static final String DEPOSIT = "DEPOSIT";
-    private static final String INTERNAL_REMARK = "Internal academic funding record; no external payment rail was called.";
+    private static final String INTERNAL_REMARK = "Internal savings-to-FD funding; no external payment rail was called.";
+
+    @Autowired
+    private FdAccountingService accounting;
 
     private final FdAccountRepository accountRepository;
     private final FdTransactionRepository transactionRepository;
@@ -115,6 +118,8 @@ public class FundingService {
         var transition = stateMachine.transition(account.getStatus(), FdLifecycleCommand.FUND);
         Long transactionTypeId = transactionTypeRepository.findIdByCode(DEPOSIT)
                 .orElseThrow(() -> new ResourceNotFoundException("DEPOSIT transaction type is not configured"));
+
+        if (accounting != null) accounting.fund(account);
 
         FdTransaction transaction = new FdTransaction();
         transaction.setAccountId(account.getId());

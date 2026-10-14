@@ -32,6 +32,6 @@ public record FundingResponse(
                 account.getCompoundingFrequency(), account.getPayoutFrequency(), account.getBookingDate(),
                 account.getMaturityDate(), account.getMaturityAmount(), account.getPolicyVersion(),
                 account.getStatus().name(), true,
-                "Internal academic funding record; no external payment rail was called.");
+                "Internal savings-to-FD funding; no external payment rail was called.");
     }
 }

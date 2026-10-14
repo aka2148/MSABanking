@@ -4,6 +4,8 @@ import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import {
   AccountResponse,
+  SavingsAccount,
+  Journal,
   ApiErrorResponse,
   ClosureResponse,
   FdStatus,
@@ -37,6 +39,11 @@ export class FdAccountDetail implements OnInit {
   };
 
   account: AccountResponse | null = null;
+  savings: SavingsAccount | null = null;
+  savingsError = '';
+  journals: Journal[] = [];
+  journalError = '';
+  get settlement(): Journal | null { return this.journals.find(j => j.operation === 'SETTLEMENT') ?? null; }
   history: HistoryEntry[] = [];
   prematureClosures: PrematureClosureResponse[] = [];
   selectedPrematureClosure: PrematureClosureResponse | null = null;
@@ -238,6 +245,8 @@ export class FdAccountDetail implements OnInit {
     this.fdService.getAccount(this.accountId).subscribe({
       next: (account) => {
         this.account = account;
+        this.loadSavings();
+        this.loadJournals();
         this.loading = false;
         this.loadHistory();
         this.loadPrematureClosures();
@@ -253,10 +262,30 @@ export class FdAccountDetail implements OnInit {
     this.fdService.getAccount(this.accountId).subscribe({
       next: (account) => {
         this.account = account;
+        this.loadSavings();
+        this.loadJournals();
         this.loadHistory();
         this.loadPrematureClosures();
       },
       error: (error: HttpErrorResponse) => { this.errorMessage = this.messageFor(normalizeApiError(error)); },
+    });
+  }
+
+  private loadJournals(): void {
+    this.journalError = '';
+    this.fdService.listJournals(this.accountId).subscribe({
+      next: journals => { this.journals = journals; },
+      error: (e: HttpErrorResponse) => { this.journalError = normalizeApiError(e).message; },
+    });
+  }
+
+  private loadSavings(): void {
+    this.savings = null; this.savingsError = '';
+    const id = this.account?.funding_savings_account_id;
+    if (!id) return;
+    this.fdService.getFundingSavings(this.accountId).subscribe({
+      next: account => { this.savings = account; },
+      error: (e: HttpErrorResponse) => { this.savingsError = normalizeApiError(e).message; },
     });
   }
 

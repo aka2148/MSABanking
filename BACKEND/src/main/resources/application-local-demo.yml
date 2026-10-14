@@ -1,0 +1,9 @@
+# Dedicated local database only. Never point this profile at shared Supabase.
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/banking_demo
+    username: banking_demo
+    password: ${DEMO_DB_PASSWORD}
+app:
+  jwt:
+    secret: ${JWT_SECRET}

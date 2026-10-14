@@ -18,8 +18,8 @@ public class FdBatchScheduler {
         this.batchService = batchService;
     }
 
-    // Run at midnight every day
-    @Scheduled(cron = "0 0 0 * * ?", zone = "UTC")
+    // Run at midnight in the FD business zone (IST by default).
+    @Scheduled(cron = "0 0 0 * * ?", zone = "${fd.policy.business-zone:Asia/Kolkata}")
     public void accrueDailyInterest() {
         logger.info("Starting scheduled task: Daily Interest Accrual...");
         try {
@@ -29,8 +29,8 @@ public class FdBatchScheduler {
         }
     }
 
-    // Run at 1 AM every day
-    @Scheduled(cron = "0 0 1 * * ?", zone = "UTC")
+    // Run at 1 AM in the same FD business zone, after daily accrual.
+    @Scheduled(cron = "0 0 1 * * ?", zone = "${fd.policy.business-zone:Asia/Kolkata}")
     public void processMaturedAccounts() {
         logger.info("Starting scheduled task: Maturity Handling...");
         try {

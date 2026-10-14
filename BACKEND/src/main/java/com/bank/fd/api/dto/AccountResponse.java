@@ -24,14 +24,15 @@ public record AccountResponse(
         @JsonProperty("maturity_amount") BigDecimal maturityAmount,
         @JsonProperty("policy_version") String policyVersion,
         String status,
-        @JsonProperty("funding_recorded") boolean fundingRecorded) {
+        @JsonProperty("funding_recorded") boolean fundingRecorded,
+        @JsonProperty("funding_savings_account_id") Long fundingSavingsAccountId) {
 
     public static AccountResponse pending(FdAccount account, String productCode, String currencyCode) {
         return new AccountResponse(account.getId(), account.getAccountNumber(), account.getProductId(), productCode,
                 currencyCode, account.getPrincipalAmount(), account.getTenureMonths(), account.getInterestRate(),
                 account.getCompoundingFrequency(), account.getPayoutFrequency(), account.getBookingDate(),
                 account.getMaturityDate(), account.getMaturityAmount(), account.getPolicyVersion(),
-                account.getStatus().name(), false);
+                account.getStatus().name(), false, account.getFundingSavingsAccountId());
     }
 
     /** Status snapshot for the GET /accounts/{id} read; funding is recorded for every non-pending status. */
@@ -40,6 +41,6 @@ public record AccountResponse(
                 currencyCode, account.getPrincipalAmount(), account.getTenureMonths(), account.getInterestRate(),
                 account.getCompoundingFrequency(), account.getPayoutFrequency(), account.getBookingDate(),
                 account.getMaturityDate(), account.getMaturityAmount(), account.getPolicyVersion(),
-                account.getStatus().name(), account.getStatus() != FdStatus.PENDING);
+                account.getStatus().name(), account.getStatus() != FdStatus.PENDING, account.getFundingSavingsAccountId());
     }
 }

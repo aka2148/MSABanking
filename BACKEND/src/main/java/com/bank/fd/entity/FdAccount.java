@@ -37,6 +37,10 @@ public class FdAccount {
     @Column(name = "fa_uuid", nullable = false, length = 64) private String uuid;
     @Version @Column(name = "fa_row_version", nullable = false) private Long rowVersion;
 
+    @Column(name = "fa_funding_savings_account_id") private Long fundingSavingsAccountId;
+    public Long getFundingSavingsAccountId() { return fundingSavingsAccountId; }
+    public void setFundingSavingsAccountId(Long id) { fundingSavingsAccountId = id; }
+
     /* Accrual entries now live in fd_interest_accrual, not on fd_accounts. */
     @Transient private BigDecimal accruedInterest = BigDecimal.ZERO;
 

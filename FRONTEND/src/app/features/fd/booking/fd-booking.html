@@ -39,6 +39,14 @@
       </section>
 
       <form *ngIf="step === 2" [formGroup]="bookingForm" class="fd-step-panel" novalidate>
+        <label class="glass-field">
+          <span class="glass-field__label">Original funding savings account</span>
+          <app-glass-select formControlName="fundingSavingsAccountId" [options]="savingsOptions" placeholder="Choose savings account"></app-glass-select>
+          <span class="glass-field__error" *ngIf="fieldError('fundingSavingsAccountId')">{{ fieldError('fundingSavingsAccountId') }}</span>
+        </label>
+        <p *ngIf="savingsLoading" role="status">Loading savings accounts…</p>
+        <p *ngIf="!savingsLoading && savingsOptions.length === 0" class="fd-step-copy">Create a savings account in {{ selectedCurrencyOffer?.currency_code }} before booking.</p>
+        <a routerLink="/savings" class="glass-link">Create or view savings accounts</a>
         <div class="glass-field-row">
           <label class="glass-field">
             <span class="glass-field__label">Principal amount <small>{{ selectedCurrencyOffer?.currency_code }}</small></span>
@@ -59,9 +67,10 @@
 
       <section *ngIf="step === 3" class="fd-step-panel">
         <p class="fd-eyebrow">Server-backed review</p>
-        <p class="fd-step-copy">Confirming sends only the selected product and your entered amount, tenure, and currency to the FD service.</p>
+        <p class="fd-step-copy">Confirm the product, amount, tenure, currency, and original funding savings account.</p>
         <dl class="fd-review-list" *ngIf="!submittedAccount">
           <div><dt>Product</dt><dd>{{ product.product_name }} ({{ product.product_code }})</dd></div>
+          <div><dt>Funding savings account ID</dt><dd>{{ bookingForm.controls.fundingSavingsAccountId.value }}</dd></div>
           <div><dt>Principal</dt><dd>{{ bookingForm.controls.principalAmount.value }} {{ selectedCurrencyOffer?.currency_code }}</dd></div>
           <div><dt>Tenure</dt><dd>{{ bookingForm.controls.tenureMonths.value }} months</dd></div>
           <div><dt>Selected annual rate</dt><dd>{{ selectedRateTier ? (selectedRateTier.annual_rate * 100 | number:'1.2-2') + '%' : '—' }}</dd></div>

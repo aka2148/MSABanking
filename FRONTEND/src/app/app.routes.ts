@@ -28,6 +28,11 @@ export const routes: Routes = [
       import('./features/staff/product-builder/product-builder').then((m) => m.ProductBuilder),
   },
   {
+    path: 'savings',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/savings/savings-accounts').then(m => m.SavingsAccounts),
+  },
+  {
     path: 'fd',
     canActivate: [authGuard],
     children: [

@@ -71,7 +71,7 @@ fd:
     rounding-mode: HALF_UP
     opening-date-included: true
     maturity-date-included: false
-    business-zone: UTC
+    business-zone: Asia/Kolkata
   integration:
     actor-authority: "local /api/auth identity"
     product-terms-authority: "existing normalized server-owned product/rule tables"

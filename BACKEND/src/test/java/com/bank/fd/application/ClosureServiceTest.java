@@ -7,6 +7,8 @@ import com.bank.fd.domain.FdLifecycleStateMachine;
 import com.bank.fd.domain.FdTimePolicy;
 import com.bank.fd.domain.FdTransition;
 import com.bank.fd.entity.FdAccount;
+import com.bank.fd.entity.FdJournal;
+import com.bank.fd.entity.FdOperationIdempotency;
 import com.bank.fd.entity.FdCurrencyReference;
 import com.bank.fd.entity.FdStatus;
 import com.bank.fd.entity.FdTransaction;
@@ -18,11 +20,13 @@ import com.bank.fd.repository.FdTransactionRepository;
 import com.bank.fd.repository.TransactionTypeRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Optional;
 
@@ -81,11 +85,38 @@ class ClosureServiceTest {
         verify(transactionRepository).save(argThat(tx -> tx.getAccountId().equals(11L)
                 && tx.getTransactionTypeId().equals(12L)
                 && tx.getAmount().compareTo(new BigDecimal("106500.00")) == 0
-                && tx.getBalanceAfter().compareTo(new BigDecimal("106500.00")) == 0
+                && tx.getBalanceAfter().signum() == 0
                 && tx.getCurrencyId().equals(3L)
                 && tx.getRemarks().toLowerCase().contains("internal")
                 && tx.getUuid() != null));
         verify(accountRepository).save(account);
+    }
+
+    @Test
+    void closureAndReplayUseOriginalIstSettlementDateAfterMidnight() {
+        var time = new FdTimePolicy(Clock.fixed(Instant.parse("2026-06-15T19:30:00Z"), ZoneId.of("UTC")),
+                ZoneId.of("Asia/Kolkata"));
+        var guard = mock(FdIdempotencyGuard.class);
+        var accounting = mock(FdAccountingService.class);
+        var claim = new FdOperationIdempotency();
+        var receipt = new FdJournal();
+        receipt.setPostedAt(OffsetDateTime.parse("2026-06-15T19:30:00Z"));
+        service = new ClosureService(accountRepository, transactionRepository, transactionTypeRepository,
+                currencyRepository, actorResolver, new FdLifecycleStateMachine(), time,
+                guard, new FdAccessPolicy(actorResolver));
+        ReflectionTestUtils.setField(service, "accounting", accounting);
+        when(guard.claim(any(), any(), any(), any())).thenReturn(claim);
+        when(accounting.settle(account, account.getMaturityAmount())).thenReturn(receipt);
+
+        assertEquals(LocalDate.of(2026, 6, 16), service.close(11L, "alice", "closure-key").closedDate());
+        claim.setAggregateId(11L);
+        when(accountRepository.findById(11L)).thenReturn(Optional.of(account));
+        when(accounting.settlement(11L)).thenReturn(Optional.of(receipt));
+        time.advanceDays(2);
+
+        assertEquals(LocalDate.of(2026, 6, 16), service.close(11L, "alice", "closure-key").closedDate());
+        verify(accounting, times(1)).settle(account, account.getMaturityAmount());
+        verify(transactionRepository, times(1)).save(any());
     }
 
     @Test
