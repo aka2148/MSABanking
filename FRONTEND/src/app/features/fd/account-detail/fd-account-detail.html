@@ -43,8 +43,8 @@
         </ng-template>
         <div class="fd-confirmation" *ngIf="pendingConfirmation as confirmation" role="alertdialog" aria-label="Confirm FD action">
           <strong>Confirm {{ confirmation | lowercase }}?</strong>
-          <p *ngIf="confirmation === 'FUND'">This records the exact principal shown below as an internal academic funding record. No external payment rail will be called.</p>
-          <p *ngIf="confirmation === 'CLOSE'">This records the server-returned closure settlement as an internal academic record. No external payment rail will be called.</p>
+          <p *ngIf="confirmation === 'FUND'">This transfers the exact principal from your selected savings account into this fixed deposit.</p>
+          <p *ngIf="confirmation === 'CLOSE'">This returns the principal and earned interest to your original savings account and closes the fixed deposit.</p>
           <p *ngIf="confirmation === 'REQUEST_PREMATURE'">This submits a premature-closure request for server review.</p>
           <p *ngIf="confirmation === 'APPROVE_PREMATURE'">This approves the selected premature-closure request using server-calculated penalty and net payable values.</p>
           <div class="fd-confirmation-actions">
@@ -72,11 +72,22 @@
         </dl>
       </section>
 
+      <section class="fd-section" aria-labelledby="funding-savings-heading">
+        <h3 id="funding-savings-heading">Original funding savings account</h3>
+        <p class="glass-error" *ngIf="savingsError" role="alert">{{ savingsError }}</p>
+        <dl class="fd-review-list" *ngIf="savings as linked">
+          <div><dt>Account</dt><dd>{{ linked.display_name }} · {{ linked.account_number }}</dd></div>
+          <div><dt>Savings balance</dt><dd>{{ linked.balance | number:'1.2-4' }} {{ linked.currency_code }}</dd></div>
+          <div><dt>Status</dt><dd>{{ linked.status }}</dd></div>
+        </dl>
+        <p class="fd-muted" *ngIf="!currentAccount.funding_savings_account_id">This existing FD has no recorded original savings account. Its source has not been inferred.</p>
+      </section>
+
       <section class="fd-section" *ngIf="prematureClosures.length > 0" aria-labelledby="premature-heading">
         <div class="fd-section-heading"><div><p class="fd-eyebrow">Premature closure</p><h3 id="premature-heading">Requests and server outcomes</h3></div></div>
         <div class="fd-premature-list">
           <article class="fd-premature-row" *ngFor="let closure of prematureClosures">
-            <div><strong>Request #{{ closure.closure_id }}</strong><span>{{ closure.status }} · {{ closure.requested_date | date:'medium' }}</span></div>
+            <div><strong>Request #{{ closure.closure_id }}</strong><span>{{ closure.status }} · {{ closure.requested_date | date:'medium':'+0530' }} IST</span></div>
             <dl><div><dt>Penalty</dt><dd>{{ closure.penalty_amount | number:'1.2-2' }} {{ closure.currency_code }}</dd></div><div><dt>Net payable</dt><dd>{{ closure.net_payable_amount | number:'1.2-2' }} {{ closure.currency_code }}</dd></div></dl>
             <button type="button" class="glass-btn glass-btn--ghost" *ngIf="closure.status === 'PENDING'" (click)="selectPrematureClosure(closure); approvePrematureClosure()" [disabled]="!!busyAction">Approve request</button>
           </article>
@@ -93,6 +104,27 @@
         </ng-container>
       </section>
 
+      <section class="fd-section" aria-labelledby="settlement-heading" *ngIf="settlement as receipt">
+        <h3 id="settlement-heading">Settlement receipt</h3>
+        <dl class="fd-review-list">
+          <div><dt>Settled on</dt><dd>{{ receipt.posted_at | date:'medium':'+0530' }} IST</dd></div>
+          <div><dt>Returned to savings</dt><dd>{{ receipt.total_credit | number:'1.2-4' }} {{ receipt.currency_code }}</dd></div>
+          <div><dt>Savings balance after settlement</dt><dd>{{ receipt.savings_balance_after | number:'1.2-4' }} {{ receipt.currency_code }}</dd></div>
+        </dl>
+      </section>
+      <section class="fd-section" aria-labelledby="journal-heading">
+        <h3 id="journal-heading">Double-entry ledger</h3>
+        <p class="glass-error" *ngIf="journalError" role="alert">{{ journalError }}</p>
+        <p class="fd-muted" *ngIf="journals.length === 0">No savings-linked journal entries have been recorded.</p>
+        <article *ngFor="let journal of journals" class="fd-journal">
+          <h4>{{ journal.operation }} · {{ journal.posted_at | date:'medium':'+0530' }} IST</h4>
+          <table><thead><tr><th scope="col">Account</th><th scope="col">Debit</th><th scope="col">Credit</th></tr></thead>
+            <tbody><tr *ngFor="let line of journal.lines"><td>{{ line.account_code }}</td><td>{{ line.debit | number:'1.2-4' }}</td><td>{{ line.credit | number:'1.2-4' }}</td></tr></tbody>
+            <tfoot><tr><th scope="row">Total {{ journal.currency_code }}</th><td>{{ journal.total_debit | number:'1.2-4' }}</td><td>{{ journal.total_credit | number:'1.2-4' }}</td></tr></tfoot>
+          </table>
+        </article>
+      </section>
+
       <section class="fd-section fd-history" aria-labelledby="history-heading">
         <div class="fd-section-heading"><div><p class="fd-eyebrow">Activity</p><h3 id="history-heading">History</h3></div><span class="fd-lock-note">Chronological server history</span></div>
         <p class="fd-state" *ngIf="historyLoading" role="status">Loading history…</p>
@@ -100,7 +132,7 @@
         <ol class="fd-timeline" *ngIf="!historyLoading && sortedHistory.length > 0">
           <li *ngFor="let entry of sortedHistory" [attr.data-entry-type]="entry.entry_type">
             <span class="fd-timeline-marker" aria-hidden="true"></span>
-            <div class="fd-timeline-main"><div><strong>{{ entryLabel(entry.entry_type) }}</strong><span>{{ entry.entry_date | date:'medium' }}</span></div><p>{{ entry.description }}</p></div>
+            <div class="fd-timeline-main"><div><strong>{{ entryLabel(entry.entry_type) }}</strong><span *ngIf="entry.entry_type === 'ACCRUAL' || entry.entry_type === 'CAPITALIZATION'; else eventTime">Business date: {{ entry.entry_date | date:'mediumDate':'UTC' }}</span><ng-template #eventTime><span>{{ entry.entry_date | date:'medium':'+0530' }} IST</span></ng-template></div><p>{{ entry.description }}</p></div>
             <div class="fd-timeline-value"><strong>{{ entry.amount | number:'1.2-2' }} {{ entry.currency_code }}</strong><span *ngIf="entry.running_balance !== null">Balance {{ entry.running_balance | number:'1.2-2' }}</span><span>{{ entry.source }}</span></div>
           </li>
         </ol>

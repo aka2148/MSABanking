@@ -25,6 +25,7 @@ import { GlassShell } from '../../shared/components/glass-shell/glass-shell';
           Your fixed-deposit workspace is ready. Open it to browse eligible offers or inspect a deposit account.
           </p>
         </ng-template>
+        <a class="glass-btn glass-btn--full" *ngIf="!canManageProducts" routerLink="/savings">Savings accounts</a>
         <a class="glass-btn glass-btn--full" *ngIf="!canManageProducts" routerLink="/fd">Open Fixed Deposits</a>
         <a class="glass-btn glass-btn--full" *ngIf="canManageProducts" routerLink="/staff/fd-products">
           Manage FD products
@@ -46,7 +47,7 @@ import { GlassShell } from '../../shared/components/glass-shell/glass-shell';
 
           <dl class="dashboard-clock-status" *ngIf="clockStatus as clock">
             <div><dt>Business date</dt><dd>{{ clock.business_date }}</dd></div>
-            <div><dt>Effective time</dt><dd>{{ clock.effective_time | date:'medium' }}</dd></div>
+            <div><dt>Effective time (IST)</dt><dd>{{ clock.effective_time | date:'medium':'+0530' }}</dd></div>
           </dl>
 
           <div class="dashboard-clock-actions">
@@ -65,8 +66,8 @@ import { GlassShell } from '../../shared/components/glass-shell/glass-shell';
             </button>
           </div>
           <p class="dashboard-clock-note">
-            Advancing time runs the batch for all active FD accounts. Reset clears the simulated time only;
-            saved accrual and history records remain.
+            Automatic interest accrual runs at 12 AM IST and maturity processing at 1 AM IST.
+            Advance and run EOD processes accrual and maturity immediately for all active FD accounts. Reset clears the simulated time only; saved accrual and history records remain.
           </p>
 
           <section class="dashboard-batch-result" *ngIf="clockStatus?.batch_run as batch" aria-live="polite">

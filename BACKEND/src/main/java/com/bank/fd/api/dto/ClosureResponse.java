@@ -27,6 +27,6 @@ public record ClosureResponse(
                 settlementAmount,
                 currencyCode,
                 account.getPolicyVersion(),
-                "Internal academic closure settlement; no external payment rail was called.");
+                "Internal FD settlement to original savings account; no external payment rail was called.");
     }
 }

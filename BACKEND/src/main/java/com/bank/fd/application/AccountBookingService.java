@@ -37,6 +37,8 @@ public class AccountBookingService {
     private final FdCalculationPolicy calculationPolicy;
     private final FdIdempotencyGuard idempotencyGuard;
     @Autowired
+    private SavingsAccountService savingsAccountService;
+    @Autowired
     private FdCurrencyReferenceRepository currencyReferenceRepository;
 
     @Autowired
@@ -79,7 +81,8 @@ public class AccountBookingService {
         String actorKey = "fd-user-" + holder.getId();
         String canonical = request.productId() + "|"
                 + request.principalAmount().stripTrailingZeros().toPlainString() + "|"
-                + request.tenureMonths() + "|" + request.currencyCode().toUpperCase();
+                + request.tenureMonths() + "|" + request.currencyCode().toUpperCase()
+                + (request.fundingSavingsAccountId() == null ? "" : "|" + request.fundingSavingsAccountId());
         FdOperationIdempotency claim = idempotencyGuard.claim("BOOKING", actorKey, idempotencyKey,
                 FdIdempotencyGuard.sha256Hex(canonical));
         if (claim != null && claim.getAggregateId() != null) {
@@ -114,6 +117,10 @@ public class AccountBookingService {
         account.setAppliedRateOutcomeId(terms.appliedRateOutcomeId());
         account.setPrincipalAmount(principal);
         account.setCurrencyId(resolveCurrencyReferenceId(terms.currencyCode()));
+        if (request.fundingSavingsAccountId() != null) {
+            savingsAccountService.requireFundingAccount(request.fundingSavingsAccountId(), holder.getId(), account.getCurrencyId());
+            account.setFundingSavingsAccountId(request.fundingSavingsAccountId());
+        }
         account.setTenureMonths(request.tenureMonths());
         account.setInterestRate(terms.annualRate());
         account.setCompoundingFrequency(terms.compoundingFrequency());

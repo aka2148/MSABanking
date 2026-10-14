@@ -29,6 +29,144 @@ tags:
   - name: Master Data
 
 paths:
+  /accounts/{id}/funding-savings:
+    get:
+      tags: [Accounts]
+      operationId: getAccountFundingSavings
+      summary: Read the original savings account using the FD ownership and staff access policy
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Original savings account and current balance
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavingsAccountResponse' }
+        '401': { description: Authentication required }
+        '404': { description: FD not authorized or original savings account not recorded }
+  /savings-accounts/demo-options:
+    get:
+      tags: [Accounts]
+      operationId: getSavingsDemoOptions
+      summary: Capability check available only in the local-demo profile
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Demo opening funds are enabled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled: { type: boolean }
+  /accounts/{id}/journals:
+    get:
+      tags: [Transactions]
+      operationId: listAccountJournals
+      summary: Read the authorized FD's balanced journals and settlement receipt
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Funding, final interest, and settlement journals
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/JournalResponse' } }
+        '401': { description: Authentication required }
+        '404': { description: Account not found or not authorized }
+  /savings-accounts/{id}/demo-opening:
+    post:
+      tags: [Accounts]
+      operationId: provisionDemoOpening
+      summary: Provision opening demo cash once in the isolated local-demo profile only
+      description: Absent in the normal profile. Posts DEMO_CASH debit and SAVINGS_LIABILITY credit. This is not an external deposit.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount]
+              properties:
+                amount: { type: number, format: decimal, minimum: 0.0001 }
+      responses:
+        '200':
+          description: Owned savings account after its one-time opening funding
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavingsAccountResponse' }
+        '400': { description: Invalid amount or inactive account }
+        '404': { description: Demo feature disabled or account not owned }
+  /savings-accounts:
+    get:
+      tags: [Accounts]
+      operationId: listSavingsAccounts
+      summary: List the authenticated customer's savings accounts
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Savings accounts owned by the current customer
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/SavingsAccountResponse' } }
+        '401': { description: Authentication required }
+    post:
+      tags: [Accounts]
+      operationId: createSavingsAccount
+      summary: Create a zero-balance internal savings account
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateSavingsRequest' }
+      responses:
+        '201':
+          description: Savings account created or prior creation replayed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavingsAccountResponse' }
+        '400': { description: Invalid name or unsupported currency }
+        '401': { description: Authentication required }
+        '409': { description: Idempotency key already used for different input }
+  /savings-accounts/{id}:
+    get:
+      tags: [Accounts]
+      operationId: getSavingsAccount
+      summary: Read an owned savings account and its balance
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Savings account
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavingsAccountResponse' }
+        '401': { description: Authentication required }
+        '404': { description: Account does not exist or belongs to another customer }
 
   /products:
     get:
@@ -1058,6 +1196,11 @@ paths:
                   $ref: '#/components/schemas/RuleOutcomeRef'
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   parameters:
     AccountId:
       name: accountId
@@ -1107,10 +1250,47 @@ components:
         total_records: { type: integer }
 
     # ---------- Accounts ----------
+    JournalResponse:
+      type: object
+      properties:
+        journal_id: { type: integer, format: int64 }
+        operation: { type: string, enum: [FUNDING, INTEREST, SETTLEMENT, DEMO_OPENING] }
+        posted_at: { type: string, format: date-time }
+        savings_account_id: { type: integer, format: int64 }
+        currency_code: { type: string }
+        total_debit: { type: number, format: decimal }
+        total_credit: { type: number, format: decimal }
+        savings_balance_after: { type: number, format: decimal }
+        lines:
+          type: array
+          items:
+            type: object
+            properties:
+              account_code: { type: string }
+              debit: { type: number, format: decimal }
+              credit: { type: number, format: decimal }
+    CreateSavingsRequest:
+      type: object
+      required: [display_name, currency_code]
+      properties:
+        display_name: { type: string, minLength: 1, maxLength: 80 }
+        currency_code: { type: string, minLength: 1, maxLength: 10 }
+    SavingsAccountResponse:
+      type: object
+      required: [account_id, account_number, display_name, currency_code, balance, status, created_date]
+      properties:
+        account_id: { type: integer, format: int64 }
+        account_number: { type: string }
+        display_name: { type: string }
+        currency_code: { type: string }
+        balance: { type: number, format: decimal }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+        created_date: { type: string, format: date-time }
     BookingRequest:
       type: object
       required: [product_id, principal_amount, tenure_months, currency_code]
       properties:
+        funding_savings_account_id: { type: integer, format: int64, minimum: 1, description: Optional for legacy clients during staged integration. Must belong to the FD holder and match its currency. }
         product_id: { type: integer, minimum: 1 }
         principal_amount: { type: number, format: decimal, minimum: 0.01 }
         tenure_months: { type: integer, minimum: 1 }
@@ -1164,11 +1344,12 @@ components:
             funding_recorded: { type: boolean, enum: [true] }
             funding_description:
               type: string
-              description: Internal academic record; no external payment rail is called.
+              description: Principal transferred from the original savings account. No external payment rail is called.
 
     AccountResponse:
       type: object
       properties:
+        funding_savings_account_id: { type: integer, format: int64, nullable: true }
         account_id: { type: integer }
         account_number: { type: string }
         product_id: { type: integer }

@@ -25,7 +25,24 @@ export interface RateTier {
   payout_frequency: string;
 }
 
+export interface Journal {
+  journal_id: number; operation: string; posted_at: string; savings_account_id: number;
+  currency_code: string; total_debit: number; total_credit: number; savings_balance_after: number;
+  lines: { account_code: string; debit: number; credit: number }[];
+}
+
+export interface SavingsAccount {
+  account_id: number;
+  account_number: string;
+  display_name: string;
+  currency_code: string;
+  balance: number;
+  status: string;
+  created_date: string;
+}
+
 export interface BookingRequest {
+  funding_savings_account_id?: number;
   product_id: number;
   principal_amount: number;
   tenure_months: number;
@@ -42,6 +59,7 @@ export interface PrematureClosureRequest {
 }
 
 export interface AccountResponse {
+  funding_savings_account_id?: number | null;
   account_id: number;
   account_number: string;
   product_id: number;

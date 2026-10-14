@@ -22,7 +22,8 @@ import static org.junit.jupiter.api.Assertions.*;
 class FdV1BookingContractTest {
     @Test
     void bookingRequestContainsOnlyCallerChoices() {
-        assertEquals(4, BookingRequest.class.getRecordComponents().length);
+        assertEquals(5, BookingRequest.class.getRecordComponents().length);
+        assertEquals("fundingSavingsAccountId", BookingRequest.class.getRecordComponents()[4].getName());
         assertEquals("productId", BookingRequest.class.getRecordComponents()[0].getName());
     }
 

@@ -7,11 +7,14 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Objects;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /** Provides one explicit timestamp and business-date boundary for FD work. */
 @Component
 public final class FdTimePolicy {
+    public static final String DEFAULT_BUSINESS_ZONE = "Asia/Kolkata";
     public static final int MAX_ADVANCE_DAYS = 3650;
     private static final Duration MAX_TIME_OFFSET = Duration.ofDays(MAX_ADVANCE_DAYS);
 
@@ -20,7 +23,12 @@ public final class FdTimePolicy {
     private volatile Duration timeOffset = Duration.ZERO;
 
     public FdTimePolicy() {
-        this(Clock.systemUTC(), ZoneId.of("UTC"));
+        this(Clock.systemUTC(), ZoneId.of(DEFAULT_BUSINESS_ZONE));
+    }
+
+    @Autowired
+    public FdTimePolicy(@Value("${fd.policy.business-zone:Asia/Kolkata}") String businessZone) {
+        this(Clock.systemUTC(), ZoneId.of(businessZone));
     }
 
     public FdTimePolicy(Clock clock, ZoneId businessZone) {

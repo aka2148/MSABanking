@@ -62,6 +62,29 @@ class AccountBookingServiceTest {
     }
 
     @Test
+    void storesValidatedSavingsSourceAndRejectsInvalidSourceWithoutSaving() throws Exception {
+        SavingsAccountService savings = mock(SavingsAccountService.class);
+        Field field = AccountBookingService.class.getDeclaredField("savingsAccountService");
+        field.setAccessible(true); field.set(service, savings);
+        when(termsPort.resolveActiveTerms(any(), any())).thenReturn(
+                new ProductTerms(7L, "FD7", "Academic FD", "USD", new BigDecimal("100"),
+                        new BigDecimal("10000"), 3, 12, new BigDecimal("0.0650"), "SIMPLE", "AT_MATURITY", 9L, "NONE"));
+        FdUserReference holder = new FdUserReference(); holder.setId(41L);
+        when(actorResolver.resolve("alice")).thenReturn(holder);
+        FdCurrencyReference currency = new FdCurrencyReference(); currency.setId(3L);
+        when(currencyRepository.findByIsoCode("USD")).thenReturn(Optional.of(currency));
+        when(accountRepository.save(any(FdAccount.class))).thenAnswer(i -> i.getArgument(0));
+        var request = new BookingRequest(7L, new BigDecimal("1000.00"), 3, "USD", 8L);
+        assertEquals(8L, service.book("alice", request).fundingSavingsAccountId());
+        verify(savings).requireFundingAccount(8L, 41L, 3L);
+        clearInvocations(accountRepository);
+        doThrow(new com.bank.common.exception.InvalidInputException("Wrong currency"))
+                .when(savings).requireFundingAccount(8L, 41L, 3L);
+        assertThrows(com.bank.common.exception.InvalidInputException.class, () -> service.book("alice", request));
+        verify(accountRepository, never()).save(any());
+    }
+
+    @Test
     void rejectsUnsupportedCompoundingBeforeSave() {
         when(termsPort.resolveActiveTerms(any(), any())).thenReturn(
                 new ProductTerms(7L, "FD7", "Academic FD", "USD", new BigDecimal("100"),

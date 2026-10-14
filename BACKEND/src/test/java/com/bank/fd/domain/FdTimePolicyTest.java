@@ -2,12 +2,15 @@ package com.bank.fd.domain;
 
 import com.bank.common.exception.InvalidInputException;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.core.env.MapPropertySource;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -52,6 +55,37 @@ class FdTimePolicyTest {
         policy.advanceDays(FdTimePolicy.MAX_ADVANCE_DAYS);
         assertThrows(InvalidInputException.class, () -> policy.advanceDays(1));
         assertEquals(SYSTEM_TIME.plusSeconds((long) FdTimePolicy.MAX_ADVANCE_DAYS * 24 * 60 * 60), policy.now());
+    }
+
+    @Test
+    void istBusinessDateChangesAtMidnightBeforeUtcDateChanges() {
+        ZoneId ist = ZoneId.of("Asia/Kolkata");
+        var before = new FdTimePolicy(Clock.fixed(Instant.parse("2026-01-14T18:29:59Z"), ZoneOffset.UTC), ist);
+        var midnight = new FdTimePolicy(Clock.fixed(Instant.parse("2026-01-14T18:30:00Z"), ZoneOffset.UTC), ist);
+
+        assertEquals(LocalDate.of(2026, 1, 14), before.businessDate());
+        assertEquals(LocalDate.of(2026, 1, 15), midnight.businessDate());
+        midnight.advanceDays(1);
+        assertEquals(LocalDate.of(2026, 1, 16), midnight.businessDate());
+        assertEquals(Instant.parse("2026-01-14T18:30:00Z"), midnight.systemNow());
+        midnight.reset();
+        assertEquals(LocalDate.of(2026, 1, 15), midnight.businessDate());
+    }
+
+    @Test
+    void springUsesConfiguredBusinessZoneAndDefaultsToIst() {
+        try (var context = new AnnotationConfigApplicationContext()) {
+            context.register(FdTimePolicy.class);
+            context.refresh();
+            assertEquals(ZoneId.of("Asia/Kolkata"), context.getBean(FdTimePolicy.class).businessZone());
+        }
+        try (var context = new AnnotationConfigApplicationContext()) {
+            context.getEnvironment().getPropertySources().addFirst(new MapPropertySource(
+                    "test-clock", Map.of("fd.policy.business-zone", "UTC")));
+            context.register(FdTimePolicy.class);
+            context.refresh();
+            assertEquals(ZoneId.of("UTC"), context.getBean(FdTimePolicy.class).businessZone());
+        }
     }
 
     private static FdTimePolicy policy() {

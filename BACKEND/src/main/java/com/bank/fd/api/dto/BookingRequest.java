@@ -15,5 +15,10 @@ public record BookingRequest(
         @NotNull @DecimalMin("0.01") @Digits(integer = 14, fraction = 4)
         @JsonProperty("principal_amount") BigDecimal principalAmount,
         @NotNull @Min(1) @JsonProperty("tenure_months") Integer tenureMonths,
-        @NotBlank @JsonProperty("currency_code") String currencyCode) {
+        @NotBlank @JsonProperty("currency_code") String currencyCode,
+        @Min(1) @JsonProperty("funding_savings_account_id") Long fundingSavingsAccountId) {
+    /** Existing API callers remain compatible during the staged integration. */
+    public BookingRequest(Long productId, BigDecimal principal, Integer tenure, String currency) {
+        this(productId, principal, tenure, currency, null);
+    }
 }

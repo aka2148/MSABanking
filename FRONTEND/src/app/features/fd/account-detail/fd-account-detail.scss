@@ -55,3 +55,8 @@
   .fd-timeline li { grid-template-columns: 12px 1fr; }
   .fd-timeline-value { grid-column: 2; text-align: left; }
 }
+
+.fd-journal { overflow-x: auto; margin: 1rem 0; }
+.fd-journal table { width: 100%; border-collapse: collapse; }
+.fd-journal th, .fd-journal td { padding: .6rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,.15); }
+.fd-journal td:not(:first-child) { font-family: var(--font-mono); }
