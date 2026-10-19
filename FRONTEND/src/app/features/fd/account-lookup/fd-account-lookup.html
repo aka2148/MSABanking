@@ -1,5 +1,6 @@
-<app-glass-shell align="right" [focalX]="71.9" [focalY]="42.0">
+<app-workspace-shell>
   <main class="glass-card fd-lookup-card">
+    <a routerLink="/fd/accounts" class="glass-link fd-back-link">← My deposits</a>
     <p class="fd-eyebrow">Your deposits</p>
     <h2>Open an existing deposit</h2>
     <p class="glass-card__sub">Enter the numeric reference from your booking to view and manage your deposit.</p>
@@ -20,6 +21,6 @@
       </button>
     </form>
 
-    <p class="glass-card__footer"><a routerLink="/fd" class="glass-link">Back to FD products</a></p>
+    <p class="glass-card__footer"><a routerLink="/fd" class="glass-link">Browse FD products</a></p>
   </main>
-</app-glass-shell>
+</app-workspace-shell>

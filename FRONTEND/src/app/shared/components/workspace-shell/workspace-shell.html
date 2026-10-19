@@ -1,0 +1,36 @@
+<ng-template #workspaceLayout>
+  <div class="workspace" [class.workspace--guest]="guest">
+    <a class="workspace__skip" href="#workspace-main">Skip to content</a>
+    <header class="workspace__topbar">
+      <a class="workspace__brand" routerLink="/" aria-label="MoneyPal Bank home">
+        <span class="workspace__mark" aria-hidden="true">MB</span>
+        <span>MoneyPal Bank</span>
+      </a>
+      <nav class="workspace__nav" aria-label="Main navigation" *ngIf="!guest; else guestNav">
+        <a routerLink="/dashboard" routerLinkActive="is-active">Overview</a>
+        <a *ngIf="!staff" routerLink="/savings" routerLinkActive="is-active">Savings</a>
+        <a *ngIf="!staff" routerLink="/fd" [routerLinkActiveOptions]="{exact: true}" routerLinkActive="is-active">Fixed deposits</a>
+        <a *ngIf="!staff" routerLink="/fd/accounts" routerLinkActive="is-active">My deposits</a>
+        <a *ngIf="staff" routerLink="/staff/fd-products" routerLinkActive="is-active">Products</a>
+        <a *ngIf="staff" routerLink="/staff/customers" routerLinkActive="is-active">Customers</a>
+        <a *ngIf="staff" routerLink="/staff/fd" routerLinkActive="is-active">FD accounts</a>
+        <a *ngIf="staff" routerLink="/staff/savings" routerLinkActive="is-active">Savings ops</a>
+        <a *ngIf="staff" routerLink="/compliance" routerLinkActive="is-active">Compliance</a>
+        <a *ngIf="admin" routerLink="/staff/operations/clock" routerLinkActive="is-active">Operations</a>
+      </nav>
+      <ng-template #guestNav>
+        <nav class="workspace__nav" aria-label="Main navigation"><a routerLink="/login">Sign in</a></nav>
+      </ng-template>
+    </header>
+    <div id="workspace-main" class="workspace__content" tabindex="-1"><ng-content></ng-content></div>
+  </div>
+</ng-template>
+
+<app-glass-shell *ngIf="guest; else authenticatedWorkspace" align="center" [showBrand]="false" [backgroundUrl]="backgroundUrl" [focalX]="focalX" [focalY]="focalY" [zoom]="zoom">
+  <ng-container *ngTemplateOutlet="workspaceLayout"></ng-container>
+</app-glass-shell>
+<ng-template #authenticatedWorkspace>
+  <div class="workspace-stage">
+    <ng-container *ngTemplateOutlet="workspaceLayout"></ng-container>
+  </div>
+</ng-template>

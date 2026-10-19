@@ -1,0 +1,35 @@
+server:
+  port: ${SERVER_PORT:8083}
+spring:
+  application:
+    name: fd-account-service
+  datasource:
+    url: ${FD_DB_URL}
+    username: ${FD_DB_USERNAME}
+    password: ${FD_DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  flyway:
+    enabled: true
+    locations: classpath:db/service-migration/fd
+    baseline-on-migrate: ${FD_FLYWAY_BASELINE:false}
+    baseline-version: 1
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        spring.json.trusted.packages: ""
+    listener:
+      ack-mode: manual
+app:
+  kafka:
+    enabled: ${KAFKA_ENABLED:false}
+  jwt:
+    secret: ${JWT_SECRET}
+management:
+  endpoints.web.exposure.include: health,info
+  endpoint.health.show-details: never
+  info.env.enabled: false

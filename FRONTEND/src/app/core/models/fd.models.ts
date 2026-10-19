@@ -10,6 +10,7 @@ export interface ProductOffer {
 
 export interface CurrencyOffer {
   currency_code: string;
+  decimal_places: number;
   minimum_amount: number;
   maximum_amount: number;
   minimum_tenure_months: number;

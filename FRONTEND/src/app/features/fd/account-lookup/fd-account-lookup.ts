@@ -2,12 +2,12 @@ import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { GlassShell } from '../../../shared/components/glass-shell/glass-shell';
+import { WorkspaceShell } from '../../../shared/components/workspace-shell/workspace-shell';
 
 @Component({
   selector: 'app-fd-account-lookup',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, GlassShell],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, WorkspaceShell],
   templateUrl: './fd-account-lookup.html',
   styleUrl: './fd-account-lookup.scss',
 })

@@ -1,11 +1,11 @@
 import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { GlassShell } from '../../../shared/components/glass-shell/glass-shell';
+import { WorkspaceShell } from '../../../shared/components/workspace-shell/workspace-shell';
 
 @Component({
   selector: 'app-fd-not-found',
   standalone: true,
-  imports: [RouterLink, GlassShell],
+  imports: [RouterLink, WorkspaceShell],
   templateUrl: './fd-not-found.html',
   styleUrl: './fd-not-found.scss',
 })

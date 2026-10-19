@@ -1,20 +1,20 @@
-# MoneyPal Backend
+# MoneyPal Legacy Backend
+
+> The active application is the Docker Compose microservice stack at the repository root. It uses the API gateway, Identity/Customer, Product, and FD services, three MySQL service databases, and Kafka. This legacy modular-monolith module is retained for compatibility and historical API/schema work; Compose does not start it.
 
 ## Database
 
-The backend now targets the supplied BankingTech PostgreSQL public schema. Its Flyway baseline is [V1__bankingtech_public_schema.sql](src/main/resources/db/migration/V1__bankingtech_public_schema.sql), copied unchanged from the supplied SQL file.
-
-Set the Supabase database connection details before startup. The frontend anon key is not a PostgreSQL password and must not be used here. In the Supabase dashboard, open **Connect** and copy the PostgreSQL connection details; use the database password from that dialog.
+This retained backend uses its legacy PostgreSQL schema and is not part of the active microservice runtime. It no longer reads Supabase-specific environment variables. To run it locally for legacy work, provide an isolated PostgreSQL database using the generic `DB_*` variables below. Do not point it at the MySQL service databases.
 
 ```powershell
-$env:SUPABASE_DB_URL = "jdbc:postgresql://db.<project-ref>.supabase.co:5432/postgres?sslmode=require"
-$env:SUPABASE_DB_USERNAME = "postgres"
-$env:SUPABASE_DB_PASSWORD = "your-supabase-database-password"
+$env:DB_URL = "jdbc:postgresql://localhost:5432/banking_demo"
+$env:DB_USERNAME = "banking_demo"
+$env:DB_PASSWORD = "your-local-demo-database-password"
 # Base64-encoded 64-byte value required by the HS512 JWT signer.
 $env:JWT_SECRET = [Convert]::ToBase64String((1..64 | ForEach-Object { Get-Random -Maximum 256 }))
 ```
 
-For an IPv4-only network, use the shared **Session Pooler** details from **Connect**: its copied host, port `5432`, and username `postgres.<project-ref>`. The direct database connection uses username `postgres`. Do not use the transaction pooler on port `6543` as this application's persistent JDBC datasource. The backend now requires explicit database settings; it no longer silently falls back to `localhost` when they are missing.
+The legacy backend requires explicit database settings and does not fall back to an implicit database when they are missing.
 
 Flyway applies the schema at startup and Hibernate validates the entity mappings. Startup can therefore change the configured database schema; review the pending migration versions before connecting to a shared database. The former MySQL `data.sql` seed was removed because it referenced the retired `fd_products` table.
 
@@ -91,9 +91,9 @@ header checks and valid debit/credit-side constraints. V1–V25 are unchanged.
 Neither migration seeds balances or debits historical FDs.
 
 Zero opening balances are intentional for the current basic savings milestone.
-Existing Supabase users, administrators and products are kept; local demo rows are
-not part of Git changes. Review migration versions and the shared schema before
-applying V26-V29 to the team's database.
+Existing legacy PostgreSQL users, administrators and products are retained; local
+demo rows are not part of Git changes. Review migration versions before applying
+V26-V29 to any database.
 
 Savings creation accepts only display_name and currency_code and derives the
 owner from the authenticated customer. It starts at zero. New Angular bookings
@@ -139,12 +139,12 @@ API additions:
 
 ### Isolated Angular demonstration
 
-Do not start the application with shared Supabase settings for this demonstration.
+Do not use a shared or production database for this legacy demonstration.
 Create a separate local PostgreSQL database banking_demo and a banking_demo user
 with schema permissions. Set DEMO_DB_PASSWORD and a local JWT_SECRET, then start
 the backend with the local-demo Spring profile. application-local-demo.yml pins
 the datasource URL to jdbc:postgresql://localhost:5432/banking_demo. Confirm no
-environment or command-line datasource override points to shared Supabase.
+environment or command-line datasource override points to the isolated local database.
 Flyway will apply the complete migration chain to the empty local database.
 
 Use the existing customer signup/login and product configuration workflow to
@@ -178,4 +178,4 @@ SavingsAccountSchemaTest executes V26/V27 against isolated H2 to check foreign
 keys, balances, journal totals and duplicate operation constraints.
 FdSavingsPostgresSchemaTest applies the full migration chain to an isolated
 PostgreSQL Testcontainer and skips when Docker is unavailable.
-No verification requires or uses the team's shared Supabase database.
+No verification requires or uses a shared database.

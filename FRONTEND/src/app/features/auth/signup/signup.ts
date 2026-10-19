@@ -15,7 +15,7 @@ import {
 } from '@angular/animations';
 
 import { AuthService } from '../../../core/services/auth.service';
-import { GlassShell } from '../../../shared/components/glass-shell/glass-shell';
+import { WorkspaceShell } from '../../../shared/components/workspace-shell/workspace-shell';
 import {
   GlassSelect,
   GlassSelectOption,
@@ -39,7 +39,7 @@ const CURRENCY_FOCAL_POINTS: Record<
     CommonModule,
     ReactiveFormsModule,
     RouterLink,
-    GlassShell,
+    WorkspaceShell,
     GlassSelect,
   ],
   templateUrl: './signup.html',
@@ -48,11 +48,11 @@ const CURRENCY_FOCAL_POINTS: Record<
     trigger('stepTransition', [
       transition(':increment', [
         style({
-          transform: 'translateX(36px)',
+          transform: 'translateX(8px)',
           opacity: 0,
         }),
         animate(
-          '700ms cubic-bezier(0.16, 1, 0.3, 1)',
+          '180ms ease-out',
           style({
             transform: 'translateX(0)',
             opacity: 1,
@@ -61,11 +61,11 @@ const CURRENCY_FOCAL_POINTS: Record<
       ]),
       transition(':decrement', [
         style({
-          transform: 'translateX(-36px)',
+          transform: 'translateX(-8px)',
           opacity: 0,
         }),
         animate(
-          '700ms cubic-bezier(0.16, 1, 0.3, 1)',
+          '180ms ease-out',
           style({
             transform: 'translateX(0)',
             opacity: 1,
@@ -76,6 +76,7 @@ const CURRENCY_FOCAL_POINTS: Record<
   ],
 })
 export class Signup {
+  readonly reducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   loading = false;
   errorMessage = '';
   currentStep = 0;

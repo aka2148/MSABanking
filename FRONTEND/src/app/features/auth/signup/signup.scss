@@ -1,1 +1,5 @@
-// Intentionally empty — shares shared/styles/_glass.scss classes.
+.signup-card__eyebrow { margin: 0 0 .5rem; color: #e5bb68; font: .75rem var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+.signup-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; list-style: none; margin: 0 0 1.75rem; padding: 0; }
+.signup-steps li { color: var(--ws-muted); padding: .4rem 0; font-size: .78rem; }
+.signup-steps .signup-steps--active { color: white; font-weight: 600; }
+@media (max-width: 540px) { .signup-steps { gap: .25rem; } .signup-steps li { font-size: .7rem; } }

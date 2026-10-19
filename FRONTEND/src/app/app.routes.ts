@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
 import { staffGuard } from './core/guards/staff.guard';
+import { adminGuard } from './core/guards/admin.guard';
 
 export const routes: Routes = [
   {
@@ -25,7 +26,37 @@ export const routes: Routes = [
     path: 'staff/fd-products',
     canActivate: [authGuard, staffGuard],
     loadComponent: () =>
-      import('./features/staff/product-builder/product-builder').then((m) => m.ProductBuilder),
+      import('./features/staff/fd-products/fd-products').then((m) => m.FdProductsAdmin),
+  },
+  {
+    path: 'staff/product-builder',
+    canActivate: [authGuard, staffGuard],
+    loadComponent: () => import('./features/staff/product-builder/product-builder').then((m) => m.ProductBuilder),
+  },
+  {
+    path: 'staff/customers',
+    canActivate: [authGuard, staffGuard],
+    loadComponent: () => import('./features/staff/customers/customer-admin').then((m) => m.CustomerAdmin),
+  },
+  {
+    path: 'staff/fd',
+    canActivate: [authGuard, staffGuard],
+    loadComponent: () => import('./features/staff/accounts/staff-account-dashboard').then(m => m.StaffAccountDashboard),
+  },
+  {
+    path: 'staff/savings',
+    canActivate: [authGuard, staffGuard],
+    loadComponent: () => import('./features/staff/accounts/staff-account-dashboard').then(m => m.StaffAccountDashboard),
+  },
+  {
+    path: 'staff/operations/clock',
+    canActivate: [authGuard, adminGuard],
+    loadComponent: () => import('./features/staff/operations/clock-dashboard').then(m => m.ClockDashboard),
+  },
+  {
+    path: 'compliance',
+    canActivate: [authGuard, staffGuard],
+    loadComponent: () => import('./features/compliance/fd-compliance').then(m => m.FdCompliance),
   },
   {
     path: 'savings',

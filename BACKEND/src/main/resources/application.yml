@@ -4,11 +4,11 @@ spring:
   application:
     name: MoneyPal Fixed Deposit System
   datasource:
-    # Require explicit connection settings so a missing Supabase configuration
-    # cannot silently send the app to an unrelated local PostgreSQL database.
-    url: ${SUPABASE_DB_URL:${DB_URL}}
-    username: ${SUPABASE_DB_USERNAME:${DB_USERNAME}}
-    password: ${SUPABASE_DB_PASSWORD:${DB_PASSWORD}}
+    # Legacy modular-monolith profile. The active Compose MSA uses the
+    # Identity, Product, and FD services with their own MySQL connections.
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
   sql:
     init:

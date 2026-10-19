@@ -24,14 +24,16 @@ export class Login {
   ) {
     this.form = this.fb.group({
       identifier: ['', Validators.required],
-      password: ['', [Validators.required, Validators.minLength(8)]],
+      // Sign-in must submit the stored credential as entered. Password policy
+      // belongs on registration/change-password, not login-side validation.
+      password: ['', Validators.required],
     });
   }
 
 submit(): void {
   if (this.form.invalid) {
     this.form.markAllAsTouched();
-    this.errorMessage = 'Please fill in all required fields.';
+    this.errorMessage = 'Enter both your username and password.';
     return;
   }
   this.loading = true;

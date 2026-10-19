@@ -14,7 +14,7 @@ import {
   PrematureClosureResponse,
 } from '../../../core/models/fd.models';
 import { FdService, normalizeApiError } from '../../../core/services/fd.service';
-import { GlassShell } from '../../../shared/components/glass-shell/glass-shell';
+import { WorkspaceShell } from '../../../shared/components/workspace-shell/workspace-shell';
 
 export type AccountAction = 'FUND' | 'CLOSE' | 'REQUEST_PREMATURE' | 'APPROVE_PREMATURE';
 type Result =
@@ -25,7 +25,7 @@ type Result =
 @Component({
   selector: 'app-fd-account-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, GlassShell],
+  imports: [CommonModule, RouterLink, WorkspaceShell],
   templateUrl: './fd-account-detail.html',
   styleUrl: './fd-account-detail.scss',
 })

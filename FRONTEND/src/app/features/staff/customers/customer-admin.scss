@@ -1,0 +1,24 @@
+.customer-admin.glass-card.glass-card--wide { box-sizing: border-box; width: 100%; max-width: 1120px; margin: 24px; }
+.customer-admin__header, .customer-search, .customer-row, .customer-pages { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.customer-admin__header { margin: 18px 0 24px; align-items: flex-start; }
+.customer-admin__header > div { max-width: 52rem; }
+.customer-admin__header h2 { margin: 0; font-family: var(--font-display); font-size: var(--fs-xl); }
+.customer-search { align-items: end; margin-bottom: 18px; }
+.customer-search { padding: 1.25rem; background: var(--ws-surface-raised); border: 1px solid var(--ws-line); border-radius: 12px; }
+.customer-search .glass-field { flex: 1; }
+.customer-admin__count { color: rgba(255,255,255,.72); font-size: var(--fs-sm); }
+.customer-admin__success { color: #b6e2bf; }
+.customer-row { align-items: flex-start; flex-wrap: wrap; padding: 18px 0; border-top: 1px solid rgba(255,255,255,.16); }
+.customer-row { margin: 1rem 0; padding: 1.5rem; border: 1px solid var(--ws-line); }
+.customer-row > .glass-btn { margin-left: auto; }
+.customer-admin__empty { padding: 2rem; border: 1px dashed var(--ws-line); border-radius: 12px; }
+.customer-row__identity { display: grid; gap: 4px; min-width: 180px; }
+.customer-row__identity span { color: rgba(255,255,255,.64); font-size: var(--fs-xs); }
+.customer-row__fields { flex: 1 1 600px; display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
+.customer-pages { justify-content: center; padding-top: 20px; }
+@media (max-width: 760px) {
+  .customer-admin__header, .customer-search, .customer-row { align-items: stretch; flex-direction: column; }
+  .customer-row__fields { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .customer-row > .glass-btn { margin: 0; width: 100%; }
+}
+@media (max-width: 460px) { .customer-row__fields { grid-template-columns: 1fr; } }

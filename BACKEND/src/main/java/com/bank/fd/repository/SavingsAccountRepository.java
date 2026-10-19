@@ -8,6 +8,7 @@ import java.util.Optional;
 
 public interface SavingsAccountRepository extends JpaRepository<SavingsAccount, Long> {
     List<SavingsAccount> findByHolderIdOrderByIdAsc(Long holderId);
+    Optional<SavingsAccount> findByAccountNumber(String accountNumber);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT s FROM SavingsAccount s WHERE s.id = :id")
     Optional<SavingsAccount> findByIdForUpdate(@Param("id") Long id);

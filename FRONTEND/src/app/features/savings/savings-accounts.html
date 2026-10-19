@@ -1,11 +1,15 @@
-<app-glass-shell align="center" [focalX]="50" [focalY]="42" [zoom]="1.15">
-  <main class="glass-card glass-card--wide fd-booking-card">
-    <a routerLink="/fd" class="glass-link fd-back-link">← Back to fixed deposits</a>
-    <p class="fd-eyebrow">Savings accounts</p><h2>Create a savings account</h2>
-    <p class="fd-step-copy">Choose a name and currency. Your savings account can fund a fixed deposit and receive its maturity payout.</p>
+<app-workspace-shell>
+  <main class="glass-card savings-page">
+    <header class="savings-page__header">
+      <div><p class="fd-eyebrow">Your money</p><h2>Savings accounts</h2>
+        <p class="glass-card__sub">Create a savings account to fund a fixed deposit and receive its maturity payout.</p></div>
+      <a routerLink="/fd" class="glass-btn glass-btn--ghost">Browse fixed deposits</a>
+    </header>
     <p class="glass-error" *ngIf="error" role="alert">{{ error }}</p>
     <p class="fd-step-copy" *ngIf="message" role="status">{{ message }}</p>
-    <form [formGroup]="form" (ngSubmit)="create()" class="fd-step-panel">
+    <p class="fd-step-copy" *ngIf="currenciesLoading" role="status">Loading supported currencies…</p>
+    <form [formGroup]="form" (ngSubmit)="create()" class="savings-page__form" aria-labelledby="create-savings-heading">
+      <div class="savings-page__section-heading"><div><p class="fd-eyebrow">New account</p><h3 id="create-savings-heading">Create a savings account</h3></div><span>Starts at zero balance</span></div>
       <div class="glass-field-row">
         <label class="glass-field"><span class="glass-field__label">Account name</span>
           <input formControlName="displayName" maxlength="80" placeholder="My savings" />
@@ -13,16 +17,16 @@
         </label>
         <label class="glass-field"><span class="glass-field__label">Currency</span>
           <app-glass-select formControlName="currencyCode" [options]="currencies"></app-glass-select>
+          <span class="glass-field__error" *ngIf="form.controls.currencyCode.touched && form.controls.currencyCode.invalid">Choose a currency.</span>
         </label>
       </div>
-      <p class="fd-step-copy">New accounts start with a zero balance.</p>
-      <button class="glass-btn" type="submit" [disabled]="submitting">{{ submitting ? 'Creating…' : 'Create savings account' }}</button>
+      <button class="glass-btn" type="submit" [disabled]="submitting || currenciesLoading || currencies.length === 0">{{ submitting ? 'Creating…' : 'Create savings account' }}</button>
     </form>
-    <section class="fd-step-panel" aria-labelledby="savings-list">
-      <h3 id="savings-list">Your savings accounts</h3>
+    <section class="savings-page__list" aria-labelledby="savings-list">
+      <div class="savings-page__section-heading"><div><p class="fd-eyebrow">Accounts</p><h3 id="savings-list">Your savings accounts</h3></div><span *ngIf="!loading">{{ accounts.length }} shown</span></div>
       <p *ngIf="loading" role="status">Loading accounts…</p>
-      <p *ngIf="!loading && accounts.length === 0">Create your first savings account above.</p>
-      <dl class="fd-review-list" *ngFor="let account of accounts">
+      <p class="savings-page__empty" *ngIf="!loading && !error && accounts.length === 0">No savings accounts yet. Create your first account above.</p>
+      <dl class="fd-review-list savings-page__account" *ngFor="let account of accounts">
         <div><dt>{{ account.display_name }}</dt><dd>{{ account.account_number }}</dd></div>
         <div><dt>Balance</dt><dd>{{ account.balance | number:'1.2-4' }} {{ account.currency_code }}</dd></div>
         <div><dt>Status</dt><dd>{{ statusLabel(account.status) }}</dd></div>
@@ -30,4 +34,4 @@
       </dl>
     </section>
   </main>
-</app-glass-shell>
+</app-workspace-shell>

@@ -1,4 +1,4 @@
-# Dedicated local database only. Never point this profile at shared Supabase.
+# Legacy modular-monolith local demo database. Not used by the active MSA stack.
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/banking_demo

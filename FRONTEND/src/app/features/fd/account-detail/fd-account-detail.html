@@ -1,4 +1,4 @@
-<app-glass-shell align="center" [focalX]="50" [focalY]="40" [zoom]="1.12">
+<app-workspace-shell>
   <main class="glass-card glass-card--wide fd-account-card">
     <a routerLink="/fd" class="glass-link fd-back-link">← FD home</a>
     <p class="fd-eyebrow">Your deposit</p>
@@ -19,6 +19,9 @@
         <span class="fd-status" [attr.data-status]="currentAccount.status">{{ accountStatusLabel(currentAccount.status) }}</span>
       </header>
       <p class="fd-demo-note" role="note">This is a demonstration account. Transfers are recorded in the app and are not processed through an external payment service.</p>
+      <nav class="fd-account-jump" aria-label="On this deposit page">
+        <a href="#next-action-heading">Next action</a><a href="#terms-heading">Terms</a><a href="#funding-savings-heading">Savings link</a><a href="#history-heading">History</a>
+      </nav>
 
       <section class="fd-section fd-next-action" aria-labelledby="next-action-heading">
         <div class="fd-section-heading">
@@ -43,7 +46,7 @@
         <ng-template #noActions>
           <p class="fd-muted">This deposit is complete. Review its terms and activity below.</p>
         </ng-template>
-        <div class="fd-confirmation" *ngIf="pendingConfirmation as confirmation" role="alertdialog" aria-label="Confirm FD action">
+        <div class="fd-confirmation" *ngIf="pendingConfirmation as confirmation" role="region" aria-label="Confirm FD action" aria-live="polite">
           <strong>Confirm {{ actionLabel(confirmation) }}?</strong>
           <p *ngIf="confirmation === 'FUND'">This records the principal transfer from your selected savings account to this fixed deposit.</p>
           <p *ngIf="confirmation === 'CLOSE'">This records the return of principal and earned interest to your original savings account and closes the fixed deposit.</p>
@@ -146,4 +149,4 @@
       </section>
     </ng-container>
   </main>
-</app-glass-shell>
+</app-workspace-shell>

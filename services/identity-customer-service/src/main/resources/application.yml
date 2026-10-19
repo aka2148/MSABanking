@@ -1,0 +1,51 @@
+server:
+  port: ${SERVER_PORT:8081}
+
+spring:
+  application:
+    name: identity-customer-service
+  datasource:
+    url: ${CUSTOMER_DB_URL}
+    username: ${CUSTOMER_DB_USERNAME}
+    password: ${CUSTOMER_DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  flyway:
+    enabled: true
+    locations: classpath:db/service-migration/customer
+    baseline-on-migrate: ${CUSTOMER_FLYWAY_BASELINE:false}
+    baseline-version: 1
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+app:
+  security:
+    mfa-encryption-key: ${MFA_ENCRYPTION_KEY:${JWT_SECRET}}
+  kafka:
+    enabled: ${KAFKA_ENABLED:false}
+    outbox-poll-ms: ${KAFKA_OUTBOX_POLL_MS:1000}
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+  auth:
+    max-failed-attempts: 5
+    lock-minutes: 15
+    password-reset-from: ${PASSWORD_RESET_FROM:no-reply@localhost}
+    password-reset-enabled: ${PASSWORD_RESET_ENABLED:false}
+    password-reset-url: ${PASSWORD_RESET_URL:http://localhost:4200/reset-password?token=}
+    password-reset-api-url: ${PASSWORD_RESET_API_URL:https://api.resend.com/emails}
+    password-reset-api-key: ${PASSWORD_RESET_API_KEY:}
+  demo-admin:
+    username: ${DEMO_ADMIN_USERNAME:}
+    password: ${DEMO_ADMIN_PASSWORD:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+  info:
+    env:
+      enabled: false
+

@@ -11,11 +11,14 @@
 .pending-review p { color: var(--ink-400); margin: 0 0 8px; }
 .pending-review .glass-btn { margin-top: 8px; }
 .deposit-row { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.15); border-radius: var(--radius-md); margin: 12px 0; padding: 18px; }
+.deposit-row { margin: 1rem 0; padding: 1.5rem; }
+.deposit-row h3 { font-size: 1.3rem; }
+.deposit-row > .glass-btn { min-width: 9rem; }
 .deposit-number { color: var(--ink-400); font: var(--fs-xs) var(--font-mono); margin: 6px 0 0; }
 .fd-status { border: 1px solid rgba(199,154,62,.6); border-radius: 999px; color: var(--gold-100); font: var(--fs-xs) var(--font-mono); padding: 8px 12px; white-space: nowrap; }
 .fd-status[data-status='ACTIVE'] { border-color: rgba(31,138,112,.8); color: #b8f0df; }
 .fd-status[data-status='CLOSED'], .fd-status[data-status='PREMATURELY_CLOSED'] { border-color: rgba(255,255,255,.38); color: rgba(255,255,255,.72); }
-.deposit-terms { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 18px 0; }
+.deposit-terms { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 1.5rem 0; }
 .deposit-terms div { border-top: 1px solid rgba(255,255,255,.12); padding-top: 10px; }
 .deposit-terms dt { color: var(--ink-400); font-size: var(--fs-xs); }
 .deposit-terms dd { font: var(--fs-sm) var(--font-mono); margin: 5px 0 0; }
@@ -26,4 +29,5 @@
   .deposits-heading, .deposit-row__heading { align-items: flex-start; flex-direction: column; }
   .deposit-terms { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .deposits-heading .glass-btn { width: 100%; }
+  .deposit-row > .glass-btn { width: 100%; }
 }

@@ -6,6 +6,7 @@
 }
 
 .fd-admin-back { display: inline-block; margin-bottom: 18px; }
+.fd-admin-breadcrumb { display: flex; justify-content: space-between; flex-wrap: wrap; gap: .5rem 1rem; }
 
 .fd-admin-header,
 .fd-admin-section-heading,
@@ -48,9 +49,23 @@
   margin-top: 24px;
   padding-top: 22px;
 }
+.fd-admin-section { margin-top: 2rem; padding-top: 2rem; }
 
 .fd-admin-section-heading { align-items: center; margin-bottom: 18px; }
 .fd-admin-section-heading h3 { font-size: var(--fs-lg); }
+.fd-offer-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 0; margin: 0 0 8px; list-style: none; }
+.fd-offer-steps li { display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 8px 12px; border-bottom: 2px solid var(--ws-line); color: var(--ws-muted); font: 500 .8rem var(--font-mono); }
+.fd-offer-steps li::first-letter { font-size: 1.1rem; }
+.fd-offer-steps li.is-current { border-color: var(--gold-500); color: var(--ws-text); }
+.fd-offer-steps li.is-done { border-color: rgba(142,224,199,.65); color: #8ee0c7; }
+.fd-offer-steps span { font: 600 .9rem var(--font-body); }
+.fd-offer-step-copy { margin: 0 0 18px; text-align: left; }
+.fd-offer-review { padding: 20px; border: 1px solid var(--ws-line); border-radius: 12px; background: var(--ws-surface-raised); }
+.fd-offer-review h4 { margin: 0; font: 600 1.15rem var(--font-display); }
+.fd-offer-review > p { color: var(--ws-muted); }
+.fd-offer-review__currency { display: grid; grid-template-columns: minmax(80px, .5fr) repeat(2, minmax(0, 1fr)); gap: 12px; padding: 12px 0; border-top: 1px solid var(--ws-line); color: var(--ws-muted); }
+.fd-offer-review__currency strong { color: var(--ws-text); }
+.fd-offer-pagination { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
 .fd-admin-note,
 .fd-admin-hint,
 .fd-admin-info {
@@ -92,10 +107,14 @@
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, .055);
 }
+.fd-currency-editor { padding: 1.5rem; }
 .fd-currency-editor__heading { align-items: center; margin-bottom: 12px; }
 .fd-currency-editor__heading h4 { font-size: var(--fs-lg); }
 .fd-admin-fields--amounts { max-width: 680px; }
 .fd-currency-picker { max-width: 360px; }
+.fd-currency-picker-row, .fd-currency-editor__actions { display: flex; align-items: end; gap: 14px; }
+.fd-currency-editor__actions { align-items: center; flex-wrap: wrap; }
+.fd-currency-editor__actions .glass-link { cursor: pointer; }
 .fd-admin-warning {
   margin: 10px 0;
   color: var(--gold-100);
@@ -160,9 +179,14 @@
   padding: 14px 0;
   border-top: 1px solid rgba(255,255,255,.1);
 }
+.fd-admin-product-row { flex-wrap: wrap; }
+.fd-admin-product-row__right { justify-content: flex-end; }
+.fd-admin-product-row { margin: .75rem 0; padding: 1.25rem; border: 1px solid var(--ws-line); border-radius: 12px; background: var(--ws-surface-raised); }
+.fd-admin-empty { padding: 2rem; border: 1px dashed var(--ws-line); border-radius: 12px; }
 .fd-admin-product-row > div:first-child { display: grid; gap: 4px; }
 .fd-admin-product-row > div:first-child span { color: rgba(255,255,255,.65); font: var(--fs-xs) var(--font-mono); }
 .fd-admin-product-row__right { align-items: center; flex-wrap: wrap; }
+.fd-product-translation { flex: 1 1 100%; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0 14px; padding-top: 12px; }
 .fd-status-chip[data-status="ACTIVE"] { border-color: rgba(31,138,112,.55); color: #D5FFF0; }
 .fd-status-chip[data-status="DRAFT"] { border-color: rgba(199,154,62,.55); }
 
@@ -183,4 +207,7 @@
   .fd-rate-band-row { grid-template-columns: 1fr 1fr; gap: 0 10px; }
   .fd-admin-actions { flex-direction: column; }
   .fd-admin-actions .glass-btn { width: 100%; }
+  .fd-offer-pagination { justify-content: stretch; }
+  .fd-offer-pagination .glass-btn { flex: 1; }
+  .fd-offer-review__currency { grid-template-columns: 1fr; gap: 4px; }
 }

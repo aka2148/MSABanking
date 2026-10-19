@@ -1,0 +1,27 @@
+server:
+  port: ${SERVER_PORT:8082}
+spring:
+  application:
+    name: product-service
+  datasource:
+    url: ${PRODUCT_DB_URL}
+    username: ${PRODUCT_DB_USERNAME}
+    password: ${PRODUCT_DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  flyway:
+    enabled: true
+    locations: classpath:db/service-migration/product
+    baseline-on-migrate: ${PRODUCT_FLYWAY_BASELINE:false}
+    baseline-version: 1
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+app:
+  kafka:
+    enabled: ${KAFKA_ENABLED:false}
+    outbox-poll-ms: ${KAFKA_OUTBOX_POLL_MS:1000}
+  jwt:
+    secret: ${JWT_SECRET}
+management:
+  endpoints.web.exposure.include: health,info
+  endpoint.health.show-details: never
+  info.env.enabled: false

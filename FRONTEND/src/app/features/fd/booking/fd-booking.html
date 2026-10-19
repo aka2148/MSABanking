@@ -1,18 +1,19 @@
-<app-glass-shell align="center" [focalX]="50" [focalY]="42" [zoom]="1.15">
+<app-workspace-shell>
   <main class="glass-card glass-card--wide fd-booking-card">
     <a routerLink="/fd" class="glass-link fd-back-link">← Back to products</a>
     <p class="fd-eyebrow">Guided booking</p>
     <h2>Book a fixed deposit</h2>
+    <p class="glass-card__sub">Confirm the offer, choose the funding account and amount, then review before booking.</p>
 
-    <div class="stepper-progress" aria-label="Booking progress">
+    <div class="stepper-progress" aria-label="Booking progress" [attr.aria-valuenow]="step" aria-valuemin="1" aria-valuemax="3" role="progressbar">
       <div class="stepper-progress__bar" [class.stepper-progress__bar--done]="step >= 1"></div>
       <div class="stepper-progress__bar" [class.stepper-progress__bar--done]="step >= 2"></div>
       <div class="stepper-progress__bar" [class.stepper-progress__bar--done]="step >= 3"></div>
     </div>
     <ol class="fd-step-labels">
-      <li [class.fd-step-label--active]="step === 1">1. Offer confirmation</li>
-      <li [class.fd-step-label--active]="step === 2">2. Deposit amount and exact term</li>
-      <li [class.fd-step-label--active]="step === 3">3. Review and confirm</li>
+      <li [class.fd-step-label--active]="step === 1" [attr.aria-current]="step === 1 ? 'step' : null">1. Offer</li>
+      <li [class.fd-step-label--active]="step === 2" [attr.aria-current]="step === 2 ? 'step' : null">2. Funding and term</li>
+      <li [class.fd-step-label--active]="step === 3" [attr.aria-current]="step === 3 ? 'step' : null">3. Review</li>
     </ol>
 
     <p class="glass-error" *ngIf="errorMessage" role="alert">{{ errorMessage }}</p>
@@ -95,4 +96,4 @@
       </div>
     </ng-container>
   </main>
-</app-glass-shell>
+</app-workspace-shell>

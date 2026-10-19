@@ -3,12 +3,12 @@ import { Component, OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { CurrencyOffer, ProductOffer, RateTier } from '../../../core/models/fd.models';
 import { FdService } from '../../../core/services/fd.service';
-import { GlassShell } from '../../../shared/components/glass-shell/glass-shell';
+import { WorkspaceShell } from '../../../shared/components/workspace-shell/workspace-shell';
 
 @Component({
   selector: 'app-fd-home',
   standalone: true,
-  imports: [CommonModule, RouterLink, GlassShell],
+  imports: [CommonModule, RouterLink, WorkspaceShell],
   templateUrl: './fd-home.html',
   styleUrl: './fd-home.scss',
 })

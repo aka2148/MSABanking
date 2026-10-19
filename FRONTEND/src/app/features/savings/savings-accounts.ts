@@ -5,20 +5,21 @@ import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { SavingsAccount } from '../../core/models/fd.models';
 import { FdService, normalizeApiError } from '../../core/services/fd.service';
-import { GlassShell } from '../../shared/components/glass-shell/glass-shell';
+import { WorkspaceShell } from '../../shared/components/workspace-shell/workspace-shell';
 import { GlassSelect } from '../../shared/components/glass-select/glass-select';
 
 @Component({
   selector: 'app-savings-accounts', standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, GlassShell, GlassSelect],
-  templateUrl: './savings-accounts.html', styleUrl: '../fd/booking/fd-booking.scss',
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, WorkspaceShell, GlassSelect],
+  templateUrl: './savings-accounts.html', styleUrl: './savings-accounts.scss',
 })
 export class SavingsAccounts implements OnInit {
   accounts: SavingsAccount[] = [];
   loading = false; submitting = false; error = ''; message = '';
   demoEnabled = false; demoBusy = false;
+  currenciesLoading = true;
   private submission: { body: string; key: string } | null = null;
-  readonly currencies = [{ label: 'Indian Rupee (INR)', value: 'INR' }, { label: 'US Dollar (USD)', value: 'USD' }];
+  currencies: Array<{ label: string; value: string }> = [];
   readonly form;
   constructor(private readonly fd: FdService, fb: FormBuilder) {
     this.form = fb.nonNullable.group({
@@ -28,6 +29,24 @@ export class SavingsAccounts implements OnInit {
   }
   ngOnInit(): void {
     this.load();
+    this.fd.listSavingsCurrencies().subscribe({
+      next: currencies => {
+        this.currencies = currencies.map(currency => ({
+          label: `${currency.currencyName} (${currency.currencyCode}) · ${currency.decimalPlaces} decimals`,
+          value: currency.currencyCode,
+        }));
+        const initial = currencies.find(currency => currency.currencyCode === 'USD')?.currencyCode
+          ?? currencies.find(currency => currency.currencyCode === 'INR')?.currencyCode
+          ?? currencies[0]?.currencyCode ?? '';
+        this.form.controls.currencyCode.setValue(initial);
+        this.currenciesLoading = false;
+        if (!currencies.length) this.error = 'No currencies have reached the FD service yet. Wait for a product catalog update, then refresh.';
+      },
+      error: (e: HttpErrorResponse) => {
+        this.error = normalizeApiError(e).message;
+        this.currenciesLoading = false;
+      },
+    });
     this.fd.demoOptions().subscribe({ next: options => { this.demoEnabled = options.enabled; }, error: () => {} });
   }
   demoOpening(account: SavingsAccount): void {
@@ -50,6 +69,10 @@ export class SavingsAccounts implements OnInit {
   }
   create(): void {
     if (this.submitting) return;
+    if (!this.currencies.length || this.currenciesLoading) {
+      this.error = 'No currencies are available for savings accounts yet. Refresh after the product catalog loads.';
+      return;
+    }
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     const value = this.form.getRawValue();
     const request = { display_name: value.displayName.trim(), currency_code: value.currencyCode };

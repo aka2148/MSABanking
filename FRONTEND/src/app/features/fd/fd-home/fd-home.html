@@ -1,17 +1,17 @@
-<app-glass-shell align="center" [focalX]="50" [focalY]="42" [zoom]="1.15">
+<app-workspace-shell>
   <main class="glass-card glass-card--wide fd-home-card">
     <header class="fd-home-card__header">
       <div>
         <p class="fd-eyebrow">Fixed deposits</p>
-        <h2>Put your savings to work</h2>
+        <h2>Fixed deposits</h2>
         <p class="glass-card__sub">Choose a currency and rate option for a new deposit, or open one you have already booked.</p>
       </div>
-      <div class="fd-home-card__paths" aria-label="FD entry paths">
+      <nav class="fd-home-card__paths" aria-label="Fixed deposit shortcuts">
         <a class="glass-btn glass-btn--ghost" routerLink="/savings">Savings accounts</a>
         <a class="glass-btn" routerLink="/fd" fragment="products">Browse products</a>
         <a class="glass-btn glass-btn--ghost" routerLink="/fd/accounts">My deposits</a>
         <a class="glass-btn glass-btn--ghost" routerLink="/fd/accounts/lookup">Open existing deposit</a>
-      </div>
+      </nav>
     </header>
 
     <section id="products" class="fd-products" aria-labelledby="products-heading">
@@ -75,4 +75,4 @@
       </div>
     </section>
   </main>
-</app-glass-shell>
+</app-workspace-shell>

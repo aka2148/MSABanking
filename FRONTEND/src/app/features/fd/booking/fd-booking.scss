@@ -1,4 +1,4 @@
-.fd-booking-card { max-width: 720px; margin: 24px; }
+.fd-booking-card { max-width: 840px; margin: 24px auto; }
 .fd-back-link { display: inline-block; margin-bottom: 18px; }
 .fd-eyebrow {
   color: var(--gold-500);
@@ -19,7 +19,9 @@
   font-size: var(--fs-xs);
 }
 .fd-step-label--active { color: white; }
-.fd-step-panel { min-height: 210px; }
+.fd-step-labels li { padding: .6rem .25rem; border-bottom: 2px solid rgba(255,255,255,.2); }
+.fd-step-labels .fd-step-label--active { border-color: var(--gold-500); font-weight: 600; }
+.fd-step-panel { min-height: 210px; padding: 1.5rem; border: 1px solid var(--ws-line); border-radius: 12px; background: var(--ws-surface-raised); }
 .stepper-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 20px; }
 .fd-offer-summary { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
 .fd-offer-summary h3 { font-family: var(--font-display); font-size: var(--fs-xl); margin: 0; }
@@ -38,7 +40,9 @@
 
 @media (max-width: 480px) {
   .fd-booking-card { margin: 8px; padding: 28px 20px; }
-  .fd-step-labels { grid-template-columns: 1fr; gap: 5px; }
+  .fd-step-labels { grid-template-columns: repeat(3, 1fr); gap: 5px; }
+  .fd-step-labels li { font-size: .72rem; }
+  .fd-step-panel { padding: 1rem; }
   .fd-review-list { grid-template-columns: 1fr; }
   .fd-option-summary { grid-template-columns: 1fr; }
   .stepper-actions { gap: 10px; }

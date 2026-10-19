@@ -12,3 +12,6 @@
 @media (max-width: 480px) {
   .fd-lookup-card { margin: 8px; padding: 28px 22px; }
 }
+.fd-lookup-card { padding-block: 2.5rem; }
+.fd-lookup-card .fd-back-link { display: inline-block; margin-bottom: 2rem; }
+.fd-lookup-card form { margin-top: 1.5rem; }

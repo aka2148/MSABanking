@@ -4,7 +4,7 @@ import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FdAccountSummary } from '../../../core/models/fd.models';
 import { FdService, normalizeApiError } from '../../../core/services/fd.service';
-import { GlassShell } from '../../../shared/components/glass-shell/glass-shell';
+import { WorkspaceShell } from '../../../shared/components/workspace-shell/workspace-shell';
 
 const PAGE_SIZE = 20;
 const BOOKING_PATH = '/accounts';
@@ -12,7 +12,7 @@ const BOOKING_PATH = '/accounts';
 @Component({
   selector: 'app-my-deposits',
   standalone: true,
-  imports: [CommonModule, RouterLink, GlassShell],
+  imports: [CommonModule, RouterLink, WorkspaceShell],
   templateUrl: './my-deposits.html',
   styleUrl: './my-deposits.scss',
 })

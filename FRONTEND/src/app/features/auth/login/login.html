@@ -17,8 +17,8 @@
       <label class="glass-field">
         <span class="glass-field__label">Password</span>
         <input type="password" formControlName="password" autocomplete="current-password" placeholder="••••••••" />
-        <span class="glass-field__error" *ngIf="form.get('password')?.touched && form.get('password')?.invalid">
-          Password must be at least 8 characters.
+        <span class="glass-field__error" *ngIf="form.get('password')?.touched && form.get('password')?.hasError('required')">
+          Enter your password.
         </span>
       </label>
 

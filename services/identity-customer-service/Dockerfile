@@ -1,0 +1,12 @@
+FROM maven:3.9.9-eclipse-temurin-17 AS build
+WORKDIR /workspace/services/identity-customer-service
+COPY services/identity-customer-service/pom.xml ./pom.xml
+COPY services/identity-customer-service/src ./src
+COPY BACKEND/src/main/resources/db/service-migration /workspace/BACKEND/src/main/resources/db/service-migration
+RUN mvn -B -DskipTests package
+
+FROM eclipse-temurin:17-jre
+WORKDIR /app
+COPY --from=build /workspace/target/*.jar /app/app.jar
+EXPOSE 8081
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

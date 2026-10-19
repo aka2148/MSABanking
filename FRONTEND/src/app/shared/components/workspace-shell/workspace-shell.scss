@@ -1,0 +1,23 @@
+:host { display: block; width: 100%; }
+.workspace-stage { min-height: 100vh; background: radial-gradient(ellipse 70% 42% at 83% 0%, rgba(245, 158, 11, .045), transparent 70%), #0a0a0f; }
+.workspace-stage .workspace { width: 100%; max-width: none; padding-inline: clamp(1.25rem, 4vw, 4.5rem); }
+.workspace-stage .workspace__content { padding-block: clamp(2rem, 3vw, 3.25rem) 5rem; }
+.workspace { width: min(100%, 1200px); min-width: 0; margin: 0 auto; }
+.workspace__skip { position: absolute; z-index: 10; top: -100px; left: 1rem; padding: .7rem 1rem; background: var(--gold-500); color: var(--ink-900); border-radius: .5rem; }
+.workspace__skip:focus { top: .5rem; }
+.workspace__topbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem 2rem; padding: 1rem 0 1.25rem; border-bottom: 1px solid rgba(255,255,255,.12); }
+.workspace__brand { display: inline-flex; align-items: center; gap: .75rem; color: white; font: 600 1.1rem var(--font-display); text-decoration: none; white-space: nowrap; }
+.workspace__mark { display: inline-grid; place-items: center; width: 2.55rem; height: 2.25rem; border-radius: .4rem; background: var(--gold-500); color: var(--ink-900); font-size: .85rem; font-weight: 700; }
+.workspace__nav { display: flex; flex-wrap: wrap; gap: .25rem; }
+.workspace__nav a { display: inline-flex; min-height: 2.65rem; align-items: center; padding: .55rem .8rem; border-radius: .5rem; color: rgba(255,255,255,.8); font-size: .875rem; font-weight: 500; text-decoration: none; }
+.workspace__nav a:hover, .workspace__nav a.is-active { color: white; background: rgba(255,255,255,.08); }
+.workspace__nav a.is-active { box-shadow: inset 0 -2px var(--gold-500); }
+.workspace__content { padding: 1.75rem 0 3rem; }
+a:focus-visible { outline: 3px solid var(--gold-500); outline-offset: 3px; }
+@media (max-width: 700px) {
+  .workspace-stage .workspace { padding-inline: 1rem; }
+  .workspace__topbar { align-items: flex-start; }
+  .workspace__nav { width: 100%; flex-wrap: nowrap; overflow-x: auto; padding-bottom: .25rem; }
+  .workspace__nav a { flex: 0 0 auto; }
+  .workspace__content { padding-top: 1rem; }
+}

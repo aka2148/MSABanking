@@ -15,7 +15,7 @@ import {
   ProductConfigurationSummary,
   ProductFamily,
 } from '../../../core/services/product-configuration-admin.service';
-import { GlassShell } from '../../../shared/components/glass-shell/glass-shell';
+import { WorkspaceShell } from '../../../shared/components/workspace-shell/workspace-shell';
 
 interface CurrencyDraft { currencyCode: string; minimumAmount: number | null; maximumAmount: number | null; }
 interface PricingDraft { currencyCode: string; valueFrom: number | null; valueTo: number | null; ratePercent: number | null; }
@@ -32,11 +32,15 @@ interface ChargeDraft {
 @Component({
   selector: 'app-product-builder',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, GlassShell],
+  imports: [CommonModule, FormsModule, RouterLink, WorkspaceShell],
   templateUrl: './product-builder.html',
   styleUrl: './product-builder.scss',
 })
 export class ProductBuilder implements OnInit {
+  readonly productSteps = ['Product family', 'Identity', 'Terms', 'Money', 'Eligibility', 'Pricing', 'Review', 'Publish'];
+  productStep = 1;
+  catalogPage = 0;
+  readonly catalogPageSize = 8;
   metadata: ProductBuilderMetadata | null = null;
   products: ProductConfigurationSummary[] = [];
   categoryId: number | null = null;
@@ -79,6 +83,11 @@ export class ProductBuilder implements OnInit {
   get attributes(): AttributeOption[] { return this.metadata?.attributes ?? []; }
   get currencies(): CurrencyOption[] { return this.metadata?.currencies ?? []; }
   get executableFacts(): FactOption[] { return this.metadata?.facts.filter((fact) => fact.executable) ?? []; }
+  get visibleProducts(): ProductConfigurationSummary[] {
+    const start = this.catalogPage * this.catalogPageSize;
+    return this.products.slice(start, start + this.catalogPageSize);
+  }
+  get catalogPageCount(): number { return Math.max(1, Math.ceil(this.products.length / this.catalogPageSize)); }
 
   ngOnInit(): void { this.load(); }
 
@@ -210,10 +219,39 @@ export class ProductBuilder implements OnInit {
     });
   }
 
+  nextProductStep(form: NgForm): void {
+    const names = Object.keys(form.controls);
+    const belongs = (name: string): boolean => {
+      if (this.productStep === 1) return name === 'categoryId';
+      if (this.productStep === 2) return name === 'productCode' || name === 'productName';
+      if (this.productStep === 3) return name.startsWith('attribute-');
+      if (this.productStep === 4) return name === 'baseCurrency' || name.startsWith('currency-');
+      if (this.productStep === 5) return name.startsWith('eligibility-');
+      if (this.productStep === 6) return name.startsWith('pricing-') || name.startsWith('charge-');
+      return false;
+    };
+    const invalid = names.filter((name) => belongs(name) && form.controls[name].invalid);
+    if (invalid.length) {
+      invalid.forEach((name) => form.controls[name].markAsTouched());
+      this.errorMessage = 'Complete the required fields in this step before continuing.';
+      return;
+    }
+    this.clearMessages();
+    this.productStep = this.productStep === 2 && !this.attributes.length ? 4 : Math.min(8, this.productStep + 1);
+  }
+
+  previousProductStep(form: NgForm): void {
+    this.clearMessages();
+    this.productStep = this.productStep === 4 && !this.attributes.length ? 2 : Math.max(1, this.productStep - 1);
+  }
+
   saveDraft(form: NgForm): void {
     this.clearMessages();
     const request = this.buildRequest(form);
-    if (!request) return;
+    if (!request) {
+      this.productStep = this.firstInvalidStep(form);
+      return;
+    }
     this.saving = true;
     this.service.validate(request).subscribe({
       next: (validation) => {
@@ -223,6 +261,7 @@ export class ProductBuilder implements OnInit {
           next: (product) => {
             this.createdProduct = product;
             this.products = [product, ...this.products.filter((item) => item.productId !== product.productId)];
+            this.catalogPage = 0;
             this.successMessage = 'Complete configuration saved transactionally as a draft.';
             this.saving = false;
           },
@@ -237,6 +276,17 @@ export class ProductBuilder implements OnInit {
         this.saving = false;
       },
     });
+  }
+
+  private firstInvalidStep(form: NgForm): number {
+    const invalid = Object.entries(form.controls).filter(([, control]) => control.invalid).map(([name]) => name);
+    if (invalid.includes('categoryId')) return 1;
+    if (invalid.includes('productCode') || invalid.includes('productName')) return 2;
+    if (invalid.some((name) => name.startsWith('attribute-'))) return 3;
+    if (invalid.some((name) => name === 'baseCurrency' || name.startsWith('currency-'))) return 4;
+    if (invalid.some((name) => name.startsWith('eligibility-'))) return 5;
+    if (invalid.some((name) => name.startsWith('pricing-') || name.startsWith('charge-'))) return 6;
+    return 7;
   }
 
   activate(product: ProductConfigurationSummary): void {

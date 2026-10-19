@@ -1,4 +1,4 @@
-<app-glass-shell align="center" [focalX]="50" [focalY]="42" [zoom]="1.15">
+<app-workspace-shell>
   <main class="glass-card glass-card--wide deposits-card">
     <a class="glass-link deposits-back" routerLink="/fd">← Fixed deposits</a>
     <header class="deposits-heading">
@@ -47,7 +47,7 @@
           <div><dt>Annual rate</dt><dd>{{ formatRate(account.annual_rate) }}</dd></div>
           <div><dt>Maturity date</dt><dd>{{ account.maturity_date ? (account.maturity_date | date:'mediumDate') : '—' }}</dd></div>
         </dl>
-        <a class="glass-btn glass-btn--ghost" [routerLink]="['/fd/accounts', account.account_id]">View deposit</a>
+        <a class="glass-btn glass-btn--ghost" [routerLink]="['/fd/accounts', account.account_id]" [attr.aria-label]="'View deposit ' + account.account_number">View deposit</a>
       </article>
 
       <nav class="deposits-pagination" *ngIf="totalPages > 1" aria-label="Deposit pages">
@@ -57,4 +57,4 @@
       </nav>
     </section>
   </main>
-</app-glass-shell>
+</app-workspace-shell>

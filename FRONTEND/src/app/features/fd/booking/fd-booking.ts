@@ -21,13 +21,13 @@ import {
   SavingsAccount,
 } from '../../../core/models/fd.models';
 import { FdService, normalizeApiError } from '../../../core/services/fd.service';
-import { GlassShell } from '../../../shared/components/glass-shell/glass-shell';
+import { WorkspaceShell } from '../../../shared/components/workspace-shell/workspace-shell';
 import { GlassSelect, GlassSelectOption } from '../../../shared/components/glass-select/glass-select';
 
 @Component({
   selector: 'app-fd-booking',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, GlassShell, GlassSelect],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, WorkspaceShell, GlassSelect],
   templateUrl: './fd-booking.html',
   styleUrl: './fd-booking.scss',
 })
