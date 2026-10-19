@@ -8,21 +8,37 @@ try {
     foreach ($line in Get-Content -LiteralPath $envFile) {
         if ($line -match '^([^=]+)=(.*)$') { $settings[$Matches[1]] = $Matches[2] }
     }
-    $mysqlUser = $settings['MYSQL_APP_USER']
-    $mysqlPassword = $settings['MYSQL_APP_PASSWORD']
     $adminUsername = $settings['DEMO_ADMIN_USERNAME']
     $adminPassword = $settings['DEMO_ADMIN_PASSWORD']
     if (-not $adminUsername -or -not $adminPassword) { throw 'Run scripts/initialize-demo-env.ps1 to configure the local demo admin.' }
     $apiBase = 'http://localhost:8080'
 
+    function Get-DbConnectionArgs([string] $service, [string] $database) {
+        $prefix = switch ($service) { 'customer-db' { 'CUSTOMER' } 'product-db' { 'PRODUCT' } 'fd-db' { 'FD' } default { throw "Unknown database service: $service" } }
+        $url = $settings["${prefix}_DB_URL"]
+        $hostName = $service
+        $port = '3306'
+        if ($url) {
+            if ($url -notmatch '^jdbc:mysql://([^/:?]+)(?::(\d+))?/([^?]+)') { throw "Unsupported ${prefix}_DB_URL format" }
+            $hostName = $Matches[1]
+            if ($Matches[2]) { $port = $Matches[2] }
+            if ($Matches[3] -ne $database) { throw "${prefix}_DB_URL points to a different database" }
+        }
+        $userName = if ($settings["${prefix}_DB_USERNAME"]) { $settings["${prefix}_DB_USERNAME"] } else { $settings['MYSQL_APP_USER'] }
+        $password = if ($settings["${prefix}_DB_PASSWORD"]) { $settings["${prefix}_DB_PASSWORD"] } else { $settings['MYSQL_APP_PASSWORD'] }
+        return @('mysql', '-h', $hostName, '-P', $port, "--user=$userName", "--password=$password", "--database=$database")
+    }
+
     function Invoke-DbScalar([string] $service, [string] $database, [string] $query) {
-        $result = & docker compose exec -T $service mysql "--user=$mysqlUser" "--password=$mysqlPassword" "--database=$database" --batch --skip-column-names "--execute=$query"
+        $connectionArgs = Get-DbConnectionArgs $service $database
+        $result = & docker compose exec -T $service @connectionArgs --batch --skip-column-names "--execute=$query"
         if ($LASTEXITCODE -ne 0) { throw "MySQL query failed for $database." }
         return (($result | Out-String).Trim())
     }
 
     function Invoke-DbCommand([string] $service, [string] $database, [string] $query) {
-        & docker compose exec -T $service mysql "--user=$mysqlUser" "--password=$mysqlPassword" "--database=$database" "--execute=$query" | Out-Null
+        $connectionArgs = Get-DbConnectionArgs $service $database
+        & docker compose exec -T $service @connectionArgs "--execute=$query" | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "MySQL command failed for $database." }
     }
 
@@ -70,6 +86,28 @@ try {
     if (-not $adminLogin.token -or $adminLogin.roles -notcontains 'ROLE_ADMIN') { throw 'Configured demo admin could not authenticate with the required role.' }
     $adminToken = $adminLogin.token
     Write-Output 'Configured demo administrator authenticated through Identity.'
+    $officerUsername = "officer_$suffix"
+    $officerPassword = 'DemoPassword123'
+    $officerRegistration = Invoke-JsonPost "$apiBase/api/v1/auth/register" @{
+        username = $officerUsername; password = $officerPassword; email = "$officerUsername@example.test"; fullName = 'Kafka Demo Officer'
+    }
+    $officerPayload = $officerRegistration.token.Split('.')[1].Replace('-','+').Replace('_','/')
+    switch ($officerPayload.Length % 4) { 2 { $officerPayload += '==' } 3 { $officerPayload += '=' } }
+    $officerId = [long](([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($officerPayload)) | ConvertFrom-Json).userId)
+    $availableRoles = Invoke-RestMethod -Method Get -Uri "$apiBase/api/v1/roles" -Headers @{ Authorization = "Bearer $adminToken" } -TimeoutSec 20
+    $officerRole = $availableRoles | Where-Object { $_.code -eq 'ROLE_BANK_OFFICER' } | Select-Object -First 1
+    if (-not $officerRole) { throw 'BANK_OFFICER role is missing.' }
+    Invoke-RestMethod -Method Post -Uri "$apiBase/api/v1/users/$officerId/roles?roleId=$($officerRole.id)" -Headers @{ Authorization = "Bearer $adminToken" } -TimeoutSec 20 | Out-Null
+    $officerLogin = Invoke-JsonPost "$apiBase/api/v1/auth/login" @{ username = $officerUsername; password = $officerPassword }
+    if ($officerLogin.roles -notcontains 'ROLE_BANK_OFFICER') { throw 'Bank officer login did not receive its role.' }
+    $officerToken = $officerLogin.token
+    Invoke-RestMethod -Method Get -Uri "$apiBase/api/v1/fd-products" -Headers @{ Authorization = "Bearer $officerToken" } -TimeoutSec 20 | Out-Null
+    Invoke-RestMethod -Method Get -Uri "$apiBase/api/v1/customers?size=1" -Headers @{ Authorization = "Bearer $officerToken" } -TimeoutSec 20 | Out-Null
+    $officerAdminOnlyDenied = $false
+    try { Invoke-RestMethod -Method Get -Uri "$apiBase/api/admin/clock" -Headers @{ Authorization = "Bearer $officerToken" } -TimeoutSec 20 | Out-Null }
+    catch { $officerAdminOnlyDenied = $_.Exception.Response.StatusCode.value__ -eq 403 }
+    if (-not $officerAdminOnlyDenied) { throw 'Bank officer reached an admin-only operation.' }
+    Write-Output 'Bank officer login, staff access, and admin-only denial passed.'
     $customerPage = Invoke-RestMethod -Method Get -Uri "$apiBase/api/v1/customers?search=$([uri]::EscapeDataString($registered.username))" -Headers @{ Authorization = "Bearer $adminToken" } -TimeoutSec 20
     $customerRecord = $customerPage.content | Where-Object { $_.username -eq $registered.username } | Select-Object -First 1
     if (-not $customerRecord) { throw 'Staff customer search did not return the newly registered customer.' }

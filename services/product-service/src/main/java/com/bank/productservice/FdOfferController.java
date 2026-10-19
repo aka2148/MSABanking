@@ -21,18 +21,19 @@ import java.util.*;
 
 @RestController @RequestMapping("/api/v1/fd-products") @PreAuthorize("hasAnyRole('BANK_OFFICER','ADMIN')")
 public class FdOfferController {
-    private final JdbcTemplate jdbc; private final ObjectMapper json;
-    public FdOfferController(JdbcTemplate jdbc,ObjectMapper json){this.jdbc=jdbc;this.json=json;}
+    private final JdbcTemplate jdbc; private final ObjectMapper json; private final FixedDepositCategories fdCategories;
+    public FdOfferController(JdbcTemplate jdbc,ObjectMapper json,FixedDepositCategories fdCategories){this.jdbc=jdbc;this.json=json;this.fdCategories=fdCategories;}
 
     @PostMapping @ResponseStatus(HttpStatus.CREATED) @Transactional
     public OfferResponse create(@Valid @RequestBody OfferRequest request){
         validateBands(request);
-        if(jdbc.queryForList("SELECT pro_product_id FROM product WHERE UPPER(pro_product_code)=UPPER(?)",Long.class,request.productCode).size()>0)throw new ResponseStatusException(HttpStatus.CONFLICT,"Product code already exists");
+        if(jdbc.queryForList("SELECT pro_product_id FROM product WHERE UPPER(pro_product_code)=UPPER(?)",Long.class,request.productCode.trim()).size()>0)throw new ResponseStatusException(HttpStatus.CONFLICT,"Product code already exists: "+request.productCode.trim().toUpperCase(Locale.ROOT));
         requireCategory(request.categoryId);
+        if(!fdCategories.ids().contains(request.categoryId.intValue()))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Select a fixed-deposit category");
         final String base=(request.baseCurrencyCode==null?request.currencies.get(0).currencyCode:request.baseCurrencyCode).toUpperCase(Locale.ROOT);
         if(request.currencies.stream().noneMatch(c->c.currencyCode.equalsIgnoreCase(base)))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Base currency must be in the configured currency schedules");
         if(jdbc.queryForList("SELECT cur_currency_id FROM currency WHERE UPPER(cur_iso_code)=UPPER(?) AND cur_is_active=1",Long.class,base).isEmpty())throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Base currency is not configured and active");
-        jdbc.update("INSERT INTO product(pro_product_code,pro_product_name,pro_category_id,pro_base_currency_code,pro_status,pro_description,pro_created_by) VALUES(?,?,?,?,?,?,?)",request.productCode.toUpperCase(Locale.ROOT),request.productName.trim(),request.categoryId,base,"DRAFT",request.description,"API");
+        jdbc.update("INSERT INTO product(pro_product_code,pro_product_name,pro_category_id,pro_base_currency_code,pro_status,pro_description,pro_created_by) VALUES(?,?,?,?,?,?,?)",request.productCode.trim().toUpperCase(Locale.ROOT),request.productName.trim(),request.categoryId,base,"DRAFT",request.description,"API");
         long productId=jdbc.queryForObject("SELECT LAST_INSERT_ID()",Long.class);
         jdbc.update("INSERT INTO product_translation(pt_product_id,pt_locale_tag,pt_product_name,pt_description) VALUES(?,?,?,?)",productId,"en",request.productName.trim(),request.description);
         long ruleType=jdbc.queryForObject("SELECT rut_rule_type_id FROM rule_type WHERE rut_rule_type_code='FD_TENURE_RATE'",Long.class);
@@ -60,7 +61,7 @@ public class FdOfferController {
         return response(productId);
     }
 
-    @GetMapping public List<OfferResponse> list(){return jdbc.queryForList("SELECT pro_product_id FROM product WHERE pro_category_id IN (SELECT pc_category_id FROM product_category WHERE UPPER(pc_category_code) LIKE '%FD%') ORDER BY pro_product_id",Long.class).stream().map(this::response).toList();}
+    @GetMapping public List<OfferResponse> list(){Set<Integer> ids=fdCategories.ids();if(ids.isEmpty())return List.of();String placeholders=String.join(",",Collections.nCopies(ids.size(),"?"));return jdbc.queryForList("SELECT pro_product_id FROM product WHERE pro_category_id IN ("+placeholders+") ORDER BY pro_product_id",Long.class,ids.toArray()).stream().map(this::response).toList();}
 
     @PutMapping("/{productId}") @Transactional
     public OfferResponse update(@PathVariable long productId,@Valid @RequestBody ProductUpdateRequest request){
@@ -74,12 +75,15 @@ public class FdOfferController {
     @PostMapping("/{productId}/activate") @Transactional
     public OfferResponse activate(@PathVariable long productId){
         OfferResponse offer=response(productId);
+        if(!"DRAFT".equals(offer.status()) && !"INACTIVE".equals(offer.status()))throw new ResponseStatusException(HttpStatus.CONFLICT,"Only a draft or inactive FD product can be activated");
         List<Map<String,Object>> configs=jdbc.queryForList("SELECT p.pcc_currency_id,p.pcc_is_base_currency,c.cur_iso_code,c.cur_decimal_places,p.pcc_minimum_amount,p.pcc_maximum_amount FROM product_currency_config p JOIN currency c ON c.cur_currency_id=p.pcc_currency_id WHERE p.pcc_product_id=? AND c.cur_is_active=1",productId);
         if(configs.isEmpty())throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"FD offer needs an active currency configuration");
         long baseCount=configs.stream().filter(c->Boolean.TRUE.equals(c.get("pcc_is_base_currency"))).count();
         if(baseCount!=1)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"FD offer must have exactly one base currency");
-        int rates=jdbc.queryForObject("SELECT COUNT(*) FROM product_rule r JOIN rule_outcome o ON o.ro_rule_id=r.pr_rule_id WHERE r.pr_product_id=? AND r.pr_rule_name='TENURE_RATE' AND r.pr_is_active=1 AND o.ro_outcome_type='INTEREST_RATE'",Integer.class,productId);
-        if(rates<configs.size())throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Each configured currency requires at least one interest rate band");
+        for(Map<String,Object> config:configs){
+            int rates=jdbc.queryForObject("SELECT COUNT(*) FROM product_rule r JOIN rule_outcome o ON o.ro_rule_id=r.pr_rule_id WHERE r.pr_product_id=? AND r.pr_rule_name='TENURE_RATE' AND r.pr_is_active=1 AND o.ro_outcome_type='INTEREST_RATE' AND o.ro_currency_id=?",Integer.class,productId,config.get("pcc_currency_id"));
+            if(rates==0)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Currency "+config.get("cur_iso_code")+" needs at least one interest rate band");
+        }
         jdbc.update("UPDATE product SET pro_status='ACTIVE',pro_event_version=pro_event_version+1,pro_updated_by='API',pro_updated_date=UTC_TIMESTAMP(6) WHERE pro_product_id=?",productId);
         writeOutbox(productId);
         return response(productId);
@@ -95,8 +99,9 @@ public class FdOfferController {
     }
 
     private OfferResponse response(long id){
-        List<Map<String,Object>> rows=jdbc.queryForList("SELECT p.pro_product_id,p.pro_product_code,p.pro_product_name,p.pro_status FROM product p WHERE p.pro_product_id=?",id);
+        List<Map<String,Object>> rows=jdbc.queryForList("SELECT p.pro_product_id,p.pro_product_code,p.pro_product_name,p.pro_status,p.pro_category_id FROM product p WHERE p.pro_product_id=?",id);
         if(rows.isEmpty())throw new ResponseStatusException(HttpStatus.NOT_FOUND,"FD product not found"); Map<String,Object> p=rows.get(0);
+        if(!fdCategories.ids().contains(((Number)p.get("pro_category_id")).intValue()))throw new ResponseStatusException(HttpStatus.NOT_FOUND,"FD product not found");
         List<String> currencies=jdbc.queryForList("SELECT c.cur_iso_code FROM product_currency_config p JOIN currency c ON c.cur_currency_id=p.pcc_currency_id WHERE p.pcc_product_id=? ORDER BY c.cur_iso_code",String.class,id);
         return new OfferResponse(id,id,(String)p.get("pro_product_code"),(String)p.get("pro_product_name"),(String)p.get("pro_status"),currencies);
     }

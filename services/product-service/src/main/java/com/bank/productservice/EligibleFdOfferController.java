@@ -11,14 +11,16 @@ import java.util.*;
 @RestController
 public class EligibleFdOfferController {
     private final JdbcTemplate jdbc;
+    private final FixedDepositCategories fdCategories;
 
-    public EligibleFdOfferController(JdbcTemplate jdbc) {
+    public EligibleFdOfferController(JdbcTemplate jdbc, FixedDepositCategories fdCategories) {
         this.jdbc = jdbc;
+        this.fdCategories = fdCategories;
     }
 
     @GetMapping("/api/v1/fd-products/eligible")
     public List<EligibleOffer> eligibleOffers(@RequestParam(defaultValue = "en") String lang) {
-        List<Integer> categoryIds = fixedDepositCategoryIds().stream().sorted().toList();
+        List<Integer> categoryIds = fdCategories.ids().stream().sorted().toList();
         if (categoryIds.isEmpty()) return List.of();
 
         String categoryPlaceholders = String.join(",", Collections.nCopies(categoryIds.size(), "?"));
@@ -59,32 +61,6 @@ public class EligibleFdOfferController {
                             productRows.getString(3), currencies, "ACTUAL_365");
                 }, queryArguments.toArray()).stream().filter(Objects::nonNull).toList();
     }
-
-    private Set<Integer> fixedDepositCategoryIds() {
-        List<CategoryNode> categories = jdbc.query(
-                "SELECT pc_category_id,pc_category_code,pc_parent_category_id FROM product_category",
-                (rows, rowNumber) -> new CategoryNode(rows.getInt(1), rows.getString(2),
-                        rows.getObject(3) == null ? null : rows.getInt(3)));
-        Map<Integer, CategoryNode> byId = new HashMap<>();
-        categories.forEach(category -> byId.put(category.id(), category));
-
-        Set<Integer> result = new HashSet<>();
-        for (CategoryNode category : categories) {
-            CategoryNode current = category;
-            Set<Integer> visited = new HashSet<>();
-            while (current != null && visited.add(current.id())) {
-                String code = current.code() == null ? "" : current.code().trim().toUpperCase(Locale.ROOT);
-                if ("FIXED_DEPOSIT".equals(code) || "FD".equals(code) || code.contains("FD")) {
-                    result.add(category.id());
-                    break;
-                }
-                current = current.parentId() == null ? null : byId.get(current.parentId());
-            }
-        }
-        return result;
-    }
-
-    private record CategoryNode(int id, String code, Integer parentId) { }
 
     public record EligibleOffer(@JsonProperty("product_id") long productId,
                                 @JsonProperty("product_code") String productCode,

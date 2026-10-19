@@ -12,6 +12,7 @@ export interface ProductCategoryOption {
   categoryId: number;
   categoryCode: string;
   categoryName: string;
+  parentCategoryId: number | null;
 }
 
 export interface CurrencyAdminOption {

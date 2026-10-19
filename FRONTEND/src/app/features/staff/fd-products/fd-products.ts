@@ -107,6 +107,11 @@ export class FdProductsAdmin implements OnInit {
         this.errorMessage = 'Enter a product code and name, then select a category.';
         return;
       }
+      const existing = this.offers.find((offer) => offer.product_code.toUpperCase() === this.productCode.trim().toUpperCase());
+      if (existing) {
+        this.errorMessage = `Product code ${existing.product_code} already exists. Choose a different code or edit the existing product below.`;
+        return;
+      }
       this.offerStep = 2;
       return;
     }
@@ -131,11 +136,11 @@ export class FdProductsAdmin implements OnInit {
     this.errorMessage = '';
     forkJoin({ categories: this.service.listCategories(), currencies: this.service.listCurrencies(), offers: this.service.listOffers() }).subscribe({
       next: ({ categories, currencies, offers }) => {
-        this.categories = categories;
+        this.categories = this.fixedDepositCategories(categories);
         this.currencies = currencies.filter((currency) => currency.active);
         this.offers = offers;
         this.offerPage = 0;
-        this.categoryId = categories.find((category) => category.categoryCode === 'FIXED_DEPOSIT')?.categoryId ?? categories[0]?.categoryId ?? null;
+        this.categoryId = this.categories.find((category) => category.categoryCode === 'FIXED_DEPOSIT')?.categoryId ?? this.categories[0]?.categoryId ?? null;
         this.resetSchedules();
         this.loading = false;
       },
@@ -185,6 +190,11 @@ export class FdProductsAdmin implements OnInit {
     if (!this.canSubmit(form)) {
       form.control.markAllAsTouched();
       this.errorMessage = 'Add at least one currency schedule, then complete its amount limits and five rate bands before saving.';
+      return;
+    }
+    if (this.offers.some((offer) => offer.product_code.toUpperCase() === this.productCode.trim().toUpperCase())) {
+      this.errorMessage = `Product code ${this.productCode.trim().toUpperCase()} already exists. Choose a different code or edit the existing product below.`;
+      this.offerStep = 1;
       return;
     }
 
@@ -374,5 +384,20 @@ export class FdProductsAdmin implements OnInit {
     }
     const message = error.error?.message ?? error.error?.error;
     return typeof message === 'string' && message ? message : fallback;
+  }
+
+  private fixedDepositCategories(categories: ProductCategoryOption[]): ProductCategoryOption[] {
+    const byId = new Map(categories.map((category) => [category.categoryId, category]));
+    return categories.filter((category) => {
+      const visited = new Set<number>();
+      let current: ProductCategoryOption | undefined = category;
+      while (current && !visited.has(current.categoryId)) {
+        visited.add(current.categoryId);
+        const code = current.categoryCode.trim().toUpperCase();
+        if (code === 'FIXED_DEPOSIT' || code === 'FD' || code.includes('FD')) return true;
+        current = current.parentCategoryId == null ? undefined : byId.get(current.parentCategoryId);
+      }
+      return false;
+    });
   }
 }

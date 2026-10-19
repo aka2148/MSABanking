@@ -48,6 +48,7 @@ class IdentityCustomerMigrationTest {
         properties.add("spring.datasource.username", MYSQL::getUsername);
         properties.add("spring.datasource.password", MYSQL::getPassword);
         properties.add("app.jwt.secret", () -> TEST_JWT_SECRET);
+        properties.add("app.security.mfa-encryption-key", () -> TEST_JWT_SECRET);
     }
 
     @Autowired
@@ -66,6 +67,7 @@ class IdentityCustomerMigrationTest {
         assertTrue(tableExists("user_credentials"));
         assertTrue(tableExists("customers"));
         assertTrue(tableExists("outbox_event"));
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM roles WHERE rol_role_code='ROLE_BANK_OFFICER'", Integer.class));
     }
 
     @Test
@@ -109,7 +111,7 @@ class IdentityCustomerMigrationTest {
         Long customerId=jdbc.queryForObject("SELECT cus_customer_id FROM customers c JOIN user_credentials u ON u.ucr_user_id=c.cus_user_id WHERE u.ucr_username=?",Long.class,username);
         mvc.perform(get("/api/v1/customers/"+customerId).header("Authorization","Bearer "+customerToken))
                 .andExpect(status().isForbidden());
-        mvc.perform(get("/api/v1/customers/"+customerId).header("Authorization","Bearer "+token("staff","ROLE_BANK_OFFICER")))
+        mvc.perform(get("/api/v1/customers/"+customerId).header("Authorization","Bearer "+bankOfficerToken()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.username").value(username));
     }
 
@@ -120,7 +122,7 @@ class IdentityCustomerMigrationTest {
         jdbc.update(connection->{var statement=connection.prepareStatement("INSERT INTO users(usr_user_type,usr_status) VALUES('CUSTOMER','ACTIVE')",Statement.RETURN_GENERATED_KEYS);return statement;},key);
         long userId=key.getKey().longValue();
         jdbc.update("INSERT INTO user_credentials(ucr_user_id,ucr_username,ucr_password_hash) VALUES(?,?,?)",userId,username,"test-hash");
-        String admin=token("staff","ROLE_BANK_OFFICER");
+        String admin=bankOfficerToken();
         String created=mvc.perform(post("/api/v1/customers").header("Authorization","Bearer "+admin)
                         .contentType("application/json").content("{\"userId\":"+userId+",\"fullName\":\"Admin Created Customer\"}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.username").value(username))
@@ -138,11 +140,16 @@ class IdentityCustomerMigrationTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.kycStatus").value("VERIFIED"));
     }
 
-    private String token(String subject,String role) {
-        Date now=new Date();
-        return Jwts.builder().setSubject(subject).claim("roles",role).setIssuedAt(now)
-                .setExpiration(new Date(now.getTime()+60000))
-                .signWith(Keys.hmacShaKeyFor(Decoders.BASE64.decode(TEST_JWT_SECRET)),SignatureAlgorithm.HS512).compact();
+    private String bankOfficerToken() throws Exception {
+        String username=newUsername(); register(username);
+        long userId=jdbc.queryForObject("SELECT ucr_user_id FROM user_credentials WHERE ucr_username=?",Long.class,username);
+        long roleId=jdbc.queryForObject("SELECT rol_role_id FROM roles WHERE rol_role_code='ROLE_BANK_OFFICER'",Long.class);
+        jdbc.update("INSERT INTO user_roles(ur_user_id,ur_role_id) VALUES(?,?)",userId,roleId);
+        String response=mvc.perform(post("/api/v1/auth/login").contentType("application/json")
+                        .content("{\"username\":\""+username+"\",\"password\":\"DemoPassword123\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.roles").isArray())
+                .andReturn().getResponse().getContentAsString();
+        return com.fasterxml.jackson.databind.json.JsonMapper.builder().build().readTree(response).get("token").asText();
     }
 
     private String newUsername() { return "demo_" + UUID.randomUUID().toString().substring(0, 8); }

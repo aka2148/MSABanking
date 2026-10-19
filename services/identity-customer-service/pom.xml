@@ -89,8 +89,7 @@
                 <directory>${project.basedir}/../../BACKEND/src/main/resources/db/service-migration/customer</directory>
                 <targetPath>db/service-migration/customer</targetPath>
                 <includes>
-                    <include>V1__initial_schema.sql</include>
-                    <include>V2__identity_security_admin.sql</include>
+                    <include>V*.sql</include>
                 </includes>
             </resource>
         </resources>
