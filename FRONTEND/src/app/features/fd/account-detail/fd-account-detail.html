@@ -136,7 +136,7 @@
         <ol class="fd-timeline" *ngIf="!historyLoading && sortedHistory.length > 0">
           <li *ngFor="let entry of sortedHistory" [attr.data-entry-type]="entry.entry_type">
             <span class="fd-timeline-marker" aria-hidden="true"></span>
-            <div class="fd-timeline-main"><div><strong> {{ (entryLabel(entry.entry_type)) | translate }} </strong><span *ngIf="entry.entry_type === 'ACCRUAL' || entry.entry_type === 'CAPITALIZATION'; else eventTime"> {{ 'Business date: {0}' | translate: [(entry.entry_date | date:'mediumDate':'UTC')] }} </span><ng-template #eventTime><span> {{ '{0} IST' | translate: [(entry.entry_date | date:'medium':'+0530')] }} </span></ng-template></div><p>{{ entryDescription(entry) | translate }}</p></div>
+            <div class="fd-timeline-main"><div><strong> {{ (entryLabel(entry.entry_type)) | translate }} </strong><span *ngIf="entry.entry_type === 'ACCRUAL' || entry.entry_type === 'CAPITALIZATION'; else eventTime"> {{ 'Business date: {0}' | translate: [(entry.entry_date | date:'mediumDate':'UTC')] }} </span><ng-template #eventTime><span> {{ '{0} IST' | translate: [(entry.entry_date | date:'medium':'+0530')] }} </span></ng-template></div><p>{{ entryDescription(entry) | translate }}<span *ngIf="entry.source_savings_account_id"> {{ 'Source savings account: {0}.' | translate: [entry.source_savings_account_id] }} </span></p></div>
             <div class="fd-timeline-value"><strong>{{ entry.amount | number:'1.2-2' }} {{ entry.currency_code }}</strong><span *ngIf="entry.running_balance !== null"> {{ 'Balance {0}' | translate: [(entry.running_balance | number:'1.2-2')] }} </span></div>
           </li>
         </ol>

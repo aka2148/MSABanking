@@ -44,6 +44,7 @@ export class FdBooking implements OnInit {
   submittedAccount: AccountResponse | null = null;
   tenureOptions: GlassSelectOption[] = [];
   savingsOptions: GlassSelectOption[] = [];
+  savingsAccounts: SavingsAccount[] = [];
   savingsLoading = false;
   readonly bookingForm: FormGroup<{
     fundingSavingsAccountId: FormControl<string>;
@@ -62,6 +63,7 @@ export class FdBooking implements OnInit {
       principalAmount: ['', [this.requiredValue()]],
       tenureMonths: ['', [this.requiredValue()]],
     });
+    this.bookingForm.controls.principalAmount.valueChanges.subscribe(() => this.updateSavingsOptions());
   }
 
   ngOnInit(): void {
@@ -112,6 +114,7 @@ export class FdBooking implements OnInit {
         this.bookingError = 'Check the amount and exact term before reviewing the booking.';
         return;
       }
+      if (!this.hasSufficientSavings()) { this.bookingError = 'The selected savings account does not have enough funds for this deposit.'; return; }
       this.bookingError = '';
       this.step = 3;
     }
@@ -132,6 +135,7 @@ export class FdBooking implements OnInit {
       this.bookingError = 'Check the booking details before confirming.';
       return;
     }
+    if (!this.hasSufficientSavings()) { this.step = 2; this.bookingError = 'The selected savings account does not have enough funds for this deposit.'; return; }
 
     const values = this.bookingForm.getRawValue();
     const request: BookingRequest = {
@@ -176,6 +180,15 @@ export class FdBooking implements OnInit {
     return this.savingsOptions.find((option) => option.value === selected)?.label ?? 'Selected savings account';
   }
 
+  private hasSufficientSavings(): boolean {
+    const values = this.bookingForm.getRawValue();
+    const selected = this.savingsAccounts.find(account => account.account_id === Number(values.fundingSavingsAccountId));
+    return !!selected && selected.status === 'ACTIVE' && selected.currency_code === this.selectedCurrencyOffer?.currency_code
+      && selected.balance >= Number(values.principalAmount);
+  }
+
+  private maskAccount(number: string): string { return `•••• ${number.slice(-4)}`; }
+
   formatFrequency(value: string | null | undefined): string {
     if (!value) return 'not specified';
     return value.toLowerCase().split('_').map((part) => part ? part[0].toUpperCase() + part.slice(1) : '').join(' ');
@@ -196,8 +209,8 @@ export class FdBooking implements OnInit {
     this.savingsLoading = true;
     this.fdService.listSavings().subscribe({
       next: (accounts: SavingsAccount[]) => {
-        this.savingsOptions = accounts.filter(a => a.currency_code === currency.currency_code && a.status === 'ACTIVE')
-          .map(a => ({ value: String(a.account_id), label: a.display_name + ' · ' + a.account_number }));
+        this.savingsAccounts = accounts;
+        this.updateSavingsOptions();
         this.savingsLoading = false;
       },
       error: (error: HttpErrorResponse) => { this.savingsLoading = false; this.bookingError = normalizeApiError(error).message; },
@@ -216,6 +229,16 @@ export class FdBooking implements OnInit {
       this.requiredValue(), this.tenureBounds(tier.maximum_tenure_months, tier.maximum_tenure_months),
     ]);
     this.bookingForm.updateValueAndValidity();
+  }
+
+  private updateSavingsOptions(): void {
+    const amount = Number(this.bookingForm.controls.principalAmount.value);
+    this.savingsOptions = this.savingsAccounts.map(account => ({
+      value: String(account.account_id),
+      label: `${account.display_name} · ${this.maskAccount(account.account_number)} · ${account.currency_code} · ${account.balance.toFixed(2)} available · ${account.status}${amount > 0 && account.balance < amount ? ' · insufficient balance' : ''}`,
+      disabled: account.currency_code !== this.selectedCurrencyOffer?.currency_code || account.status !== 'ACTIVE'
+        || (amount > 0 && account.balance < amount),
+    }));
   }
 
   private messageFor(error: ApiErrorResponse): string {

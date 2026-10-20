@@ -10,12 +10,16 @@
         <a routerLink="/dashboard" routerLinkActive="is-active"> {{ 'Overview' | translate }} </a>
         <a *ngIf="!staff" routerLink="/savings" routerLinkActive="is-active"> {{ 'Savings' | translate }} </a>
         <a *ngIf="!staff" routerLink="/fd" [routerLinkActiveOptions]="{exact: true}" routerLinkActive="is-active"> {{ 'Fixed deposits' | translate }} </a>
+        <a *ngIf="!staff" routerLink="/loans" routerLinkActive="is-active"> {{ 'Loans' | translate }} </a>
+        <a *ngIf="!staff" routerLink="/forex" routerLinkActive="is-active"> {{ 'Forex' | translate }} </a>
+        <a *ngIf="!staff" routerLink="/applications" routerLinkActive="is-active"> {{ 'My applications' | translate }} </a>
         <a *ngIf="!staff" routerLink="/fd/accounts" routerLinkActive="is-active"> {{ 'My deposits' | translate }} </a>
         <a *ngIf="staff" routerLink="/staff/product-builder" routerLinkActive="is-active"> {{ 'Product configuration' | translate }} </a>
         <a *ngIf="staff" routerLink="/staff/fd-products" routerLinkActive="is-active"> {{ 'FD offers' | translate }} </a>
         <a *ngIf="staff" routerLink="/staff/customers" routerLinkActive="is-active"> {{ 'Customers' | translate }} </a>
         <a *ngIf="staff" routerLink="/staff/fd" routerLinkActive="is-active"> {{ 'FD accounts' | translate }} </a>
         <a *ngIf="staff" routerLink="/staff/savings" routerLinkActive="is-active"> {{ 'Savings ops' | translate }} </a>
+        <a *ngIf="admin" routerLink="/staff/loans" routerLinkActive="is-active"> {{ 'Loan review' | translate }} </a>
         <a *ngIf="staff" routerLink="/compliance" routerLinkActive="is-active"> {{ 'Compliance' | translate }} </a>
         <a *ngIf="admin" routerLink="/staff/operations/clock" routerLinkActive="is-active"> {{ 'Operations' | translate }} </a>
       </nav>

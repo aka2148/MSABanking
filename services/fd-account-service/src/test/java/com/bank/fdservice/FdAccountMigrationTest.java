@@ -55,8 +55,8 @@ class FdAccountMigrationTest {
 
     @Test
     void appliesAllFdMigrationsAndCreatesWorkflowSchema() {
-        assertEquals(3, jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1", Integer.class));
-        assertEquals(3, jdbc.queryForObject("SELECT MAX(version) FROM flyway_schema_history WHERE success=1", Integer.class));
+        assertEquals(8, jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1", Integer.class));
+        assertEquals(8, jdbc.queryForObject("SELECT MAX(version) FROM flyway_schema_history WHERE success=1", Integer.class));
 
         assertTrue(table("fd_accounts"));
         assertTrue(table("savings_accounts"));
@@ -68,6 +68,9 @@ class FdAccountMigrationTest {
         assertTrue(table("fd_operation_idempotency"));
         assertTrue(table("fd_journals"));
         assertTrue(table("fd_journal_lines"));
+        assertTrue(table("loan_applications"));
+        assertTrue(table("loan_application_events"));
+        assertTrue(table("forex_requests"));
 
         assertEquals(8, decimalScale("fd_accounts", "fa_principal_amount"));
         assertEquals(8, decimalScale("savings_accounts", "sa_balance"));
@@ -123,10 +126,16 @@ class FdAccountMigrationTest {
         long fdId = new com.fasterxml.jackson.databind.ObjectMapper().readTree(booked.getResponse().getContentAsString()).get("account_id").asLong();
         org.junit.jupiter.api.Assertions.assertEquals("PENDING", new com.fasterxml.jackson.databind.ObjectMapper().readTree(booked.getResponse().getContentAsString()).get("status").asText());
 
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/fixed-deposits/{id}/fund", fdId)
+                        .header("Authorization", "Bearer " + customerToken).header("Idempotency-Key", "fund-wrong-account")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"savingsAccountId\":999999}"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isConflict());
+
         var funded = mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/fixed-deposits/{id}/fund", fdId)
                         .header("Authorization", "Bearer " + customerToken).header("Idempotency-Key", "fund-701-1"))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk()).andReturn();
         org.junit.jupiter.api.Assertions.assertEquals("ACTIVE", new com.fasterxml.jackson.databind.ObjectMapper().readTree(funded.getResponse().getContentAsString()).get("status").asText());
+        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM fd_transactions WHERE ft_account_id=? AND ft_source_savings_account_id=?",Integer.class,fdId,1));
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/fixed-deposits/{id}", fdId)
                         .header("Authorization", "Bearer " + customerToken))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())

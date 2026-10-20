@@ -308,7 +308,7 @@ export class FdAccountDetail implements OnInit {
 
   private executeFunding(): void {
     if (!this.account || !this.isAllowed('FUND')) return;
-    const request = { amount: this.account.principal_amount, currency_code: this.account.currency_code };
+    const request = { amount: this.account.principal_amount, currency_code: this.account.currency_code, savings_account_id: this.account.funding_savings_account_id ?? undefined };
     this.execute('FUND', () => this.fdService.fund(this.accountId, request), (value) => {
       this.result = { kind: 'funding', value };
       this.successMessage = 'Funding was recorded in the demonstration. No external payment was processed.';

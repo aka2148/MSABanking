@@ -12,6 +12,7 @@
       class="glass-select__option"
       *ngFor="let option of options"
       [class.glass-select__option--selected]="option.value === selectedValue"
+      [disabled]="option.disabled"
       (click)="select(option)"
     >{{ translateOptions ? (option.label | translate) : option.label }}</button>
   </div>

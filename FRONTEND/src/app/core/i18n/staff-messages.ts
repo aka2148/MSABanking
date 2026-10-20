@@ -113,6 +113,7 @@ Admin operations|प्रशासक संचालन|ಆಡಳಿತ ಕಾ
 Business clock & end of day|कार्य समय और दिन का अंत|ವ್ಯವಹಾರ ಗಡಿಯಾರ ಮತ್ತು ದಿನಾಂತ್ಯ|業務時計と日次締め|ساعة العمل ونهاية اليوم|Reloj operativo y cierre diario
 Move the demo business date forward and run interest accrual and maturity processing.|प्रदर्शन कार्य तिथि आगे बढ़ाएँ और ब्याज संचय तथा परिपक्वता प्रक्रिया चलाएँ।|ಪ್ರದರ್ಶನ ವ್ಯವಹಾರ ದಿನಾಂಕ ಮುಂದಕ್ಕೆ ಸರಿಸಿ ಬಡ್ಡಿ ಸಂಚಯ ಮತ್ತು ಮುಕ್ತಾಯ ಪ್ರಕ್ರಿಯೆ ನಡೆಸಿ.|デモ営業日を進めて利息計上と満期処理を実行します。|قدّم تاريخ العمل التجريبي وشغّل احتساب الفائدة ومعالجة الاستحقاق.|Avanza la fecha operativa de demostración y procesa intereses y vencimientos.
 ADMIN ONLY|केवल प्रशासक|ಆಡಳಿತಗಾರರಿಗೆ ಮಾತ್ರ|管理者専用|للمشرف فقط|SOLO ADMINISTRACIÓN
+Loan review|ऋण समीक्षा|ಸಾಲ ಪರಿಶೀಲನೆ|ローン審査|مراجعة القروض|Revisión de préstamos
 Loading clock status…|समय स्थिति लोड हो रही है…|ಗಡಿಯಾರ ಸ್ಥಿತಿ ಲೋಡ್ ಆಗುತ್ತಿದೆ…|時計の状態を読み込み中…|جارٍ تحميل حالة الساعة…|Cargando estado del reloj…
 Current state|वर्तमान स्थिति|ಪ್ರಸ್ತುತ ಸ್ಥಿತಿ|現在の状態|الحالة الحالية|Estado actual
 Business date|कार्य तिथि|ವ್ಯವಹಾರ ದಿನಾಂಕ|営業日|تاريخ العمل|Fecha operativa

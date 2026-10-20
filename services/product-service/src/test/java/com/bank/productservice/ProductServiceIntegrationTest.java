@@ -43,6 +43,26 @@ class ProductServiceIntegrationTest {
         assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM rule_type WHERE rut_rule_type_code='FD_TENURE_RATE'",Integer.class));
     }
 
+    @Test void customerLoanCatalogShowsOnlyPublishedCompleteOffers() throws Exception {
+        long category=jdbc.queryForObject("SELECT pc_category_id FROM product_category WHERE pc_category_code='LOAN'",Long.class);
+        long currency=jdbc.queryForObject("SELECT cur_currency_id FROM currency WHERE cur_iso_code='INR'",Long.class);
+        String code="LOAN-TEST-"+java.util.UUID.randomUUID().toString().substring(0,8);
+        jdbc.update("INSERT INTO product(pro_product_code,pro_product_name,pro_category_id,pro_base_currency_code,pro_status) VALUES(?,?,?,'INR','DRAFT')",code,"Catalog test loan",category);
+        long id=jdbc.queryForObject("SELECT pro_product_id FROM product WHERE pro_product_code=?",Long.class,code);
+        String snapshot="{\"baseCurrencyCode\":\"INR\",\"currencies\":[{\"currencyCode\":\"INR\",\"minimumAmount\":1000,\"maximumAmount\":50000}],\"pricingBands\":[{\"currencyCode\":\"INR\",\"valueFrom\":12,\"valueTo\":36,\"rate\":0.11}],\"eligibilityRules\":[],\"charges\":[]}";
+        jdbc.update("INSERT INTO product_currency_config(pcc_product_id,pcc_currency_id,pcc_is_base_currency,pcc_minimum_amount,pcc_maximum_amount) VALUES(?,?,1,1000,50000)",id,currency);
+        jdbc.update("INSERT INTO product_configuration_revision(pcr_product_id,pcr_revision_no,pcr_status,pcr_snapshot_json,pcr_created_by) VALUES(?,1,'DRAFT',?,'TEST')",id,snapshot);
+        String customer="Bearer "+token("ROLE_CUSTOMER");
+        mvc.perform(get("/api/v1/customer-products/LOAN/"+id).header("Authorization",customer)).andExpect(status().isNotFound());
+        jdbc.update("UPDATE product SET pro_status='ACTIVE' WHERE pro_product_id=?",id);
+        jdbc.update("UPDATE product_configuration_revision SET pcr_status='ACTIVE' WHERE pcr_product_id=?",id);
+        mvc.perform(get("/api/v1/customer-products/LOAN/"+id).header("Authorization",customer))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.productCode").value(code))
+                .andExpect(jsonPath("$.currencies[0].minimumAmount").value(1000));
+        jdbc.update("UPDATE product SET pro_status='INACTIVE' WHERE pro_product_id=?",id);
+        mvc.perform(get("/api/v1/customer-products/LOAN/"+id).header("Authorization",customer)).andExpect(status().isNotFound());
+    }
+
     @Test void adminCanValidateAndCreateBuilderDraftUsingMetadataIds()throws Exception{
         String staff=token("ROLE_BANK_OFFICER");
         var mapper=com.fasterxml.jackson.databind.json.JsonMapper.builder().build();

@@ -149,6 +149,7 @@ services:
       FD_DB_URL: ${FD_DB_URL:-jdbc:mysql://fd-db:3306/moneypal_fd?serverTimezone=UTC}
       FD_DB_USERNAME: ${FD_DB_USERNAME:-${MYSQL_APP_USER}}
       FD_DB_PASSWORD: ${FD_DB_PASSWORD:-${MYSQL_APP_PASSWORD}}
+      PRODUCT_SERVICE_URL: http://product-service:8082
       JWT_SECRET: ${JWT_SECRET}
       KAFKA_ENABLED: "true"
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092

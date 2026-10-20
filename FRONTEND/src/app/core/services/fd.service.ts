@@ -114,8 +114,7 @@ export class FdService {
   }
 
   fund(accountId: number, request: FundingRequest): Observable<FundingResponse> {
-    void request;
-    return this.write<BackendFdAccount>(`/fixed-deposits/${accountId}/fund`).pipe(map(account => ({
+    return this.write<BackendFdAccount>(`/fixed-deposits/${accountId}/fund`, { savingsAccountId: request.savings_account_id }).pipe(map(account => ({
       ...accountView(account), funding_recorded: true as const,
       funding_description: 'Internal demonstration transfer from the linked savings account.',
     })));
@@ -176,6 +175,7 @@ export class FdService {
       running_balance: row.balance_after,
       source: row.record_type === 'ACCRUAL' ? 'ACCRUAL' : 'TRANSACTION',
       description: row.remarks ?? row.event_type,
+      source_savings_account_id: row.source_savings_account_id,
     }))));
   }
 
@@ -284,6 +284,7 @@ interface BackendCloseResponse { accountId: number; status: string; settledAmoun
 interface BackendHistoryEntry {
   record_type: string; record_id: number; occurred_at: string; event_type: string;
   amount: number; balance_after: number | null; remarks: string | null; currency_code?: string;
+  source_savings_account_id?: number | null;
 }
 
 function accountView(account: BackendFdAccount): AccountResponse {

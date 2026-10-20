@@ -36,6 +36,10 @@ export class CustomerAdminService {
     return this.http.get<CustomerAdminPage>(apiUrl(this.baseUrl, '/api/v1/customers'), { params });
   }
 
+  byUser(userId: number): Observable<CustomerAdminRecord> {
+    return this.http.get<CustomerAdminRecord>(apiUrl(this.baseUrl, `/api/v1/customers/by-user/${userId}`));
+  }
+
   update(customerId: number, update: Pick<CustomerAdminRecord, 'fullName' | 'kycStatus' | 'riskCategory' | 'legalEntityType'>): Observable<CustomerAdminRecord> {
     return this.http.put<CustomerAdminRecord>(apiUrl(this.baseUrl, `/api/v1/customers/${customerId}`), update);
   }

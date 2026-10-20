@@ -9,8 +9,8 @@ Banking Lab is a college demonstration application for customer identity, produc
 | Angular frontend | Customer and staff web application | http://localhost:4200 |
 | API gateway (Nginx) | Routes frontend API calls | http://localhost:8080 |
 | Identity and Customer | Sign-in, roles, customers, staff, MFA | http://localhost:8081 |
-| Product | Products, categories, currencies, FD offers | http://localhost:8082 |
-| FD Account | Savings accounts, FD lifecycle, transactions | http://localhost:8083 |
+| Product | Products, categories, currencies, FD offers, customer loan/forex offers | http://localhost:8082 |
+| FD Account | Savings accounts, FD lifecycle, loan applications, forex requests, transactions | http://localhost:8083 |
 | Kafka UI | Browse Kafka clusters, topics, and messages | http://localhost:8084 |
 | Kafka | Service event broker | localhost:29092 |
 | MySQL: customer | Identity/customer service database | localhost:3307 |
@@ -112,6 +112,26 @@ The SQL files are schema setup files for fresh databases, not application seed d
 - Compose stores MySQL and Kafka data in named volumes, so containers can be recreated without losing data.
 - Password reset email delivery is disabled by default. Enabling it requires provider settings in the ignored `.env`.
 - Workbench setup and Compose database setup are separate options; the SQL files are not mounted into the running containers.
+
+## Customer loans and forex requests
+
+Administrators create loan and forex offers in **Product configuration** using the existing Product Builder templates, customize the sample values, and activate the completed configuration. The customer catalog shows only currently effective, active Product Builder revisions with complete currency and pricing bands. Offers with eligibility rules needing customer facts that are not available to Product Service, or with charges this request workflow cannot collect, are withheld. Sample template rates are illustrative, not official bank rates. No product or customer IDs are hardcoded.
+
+Customers can open multiple savings accounts. For a fixed deposit, choose an active account in the offer currency at booking. The booking stores that account; funding verifies ownership, status, currency, balance, deposit state, and idempotency before debiting it once. The funding transaction and history include the source savings-account ID. The selected account is also shown on the deposit page.
+
+For a loan, browse **Loans**, enter an amount, tenure, currency, purpose, and an active savings account in the same currency. Submission records `PENDING_REVIEW`; it does not credit funds. A `ROLE_ADMIN` user opens **Loan review** to approve or reject with a reason. After approval, a separate **Disburse** action credits the selected savings account once and records its transaction ID. The destination is fixed for the application. The customer can inspect status and history under **My applications**. KYC details remain in the existing customer administration screen; document uploads and repayment collection are outside this lab workflow. The demonstrated loan lifecycle ends at `DISBURSED`; repayment, `ACTIVE`, and `CLOSED` loan servicing states are not implemented.
+
+Forex uses an indicative **request** flow. Customers choose an active product, destination currency, and funding amount, then inspect the configured markup and submitted request history. The request records no debit, exchange, destination credit, or live rate. Because no reference rate service exists, the app does not quote a destination amount or execute a trade. Forex request recording has no fee; it displays the configured markup and the recorded zero fee.
+
+| API path | Purpose |
+| --- | --- |
+| `GET /api/v1/customer-products/LOAN` and `/LOAN/{id}` | Current complete loan offers |
+| `GET /api/v1/customer-products/FOREX` and `/FOREX/{id}` | Current complete forex offers |
+| `POST /api/v1/loans`, `GET /api/v1/loans`, `GET /api/v1/loans/{id}`, `GET /api/v1/loans/{id}/history` | Customer applications and status |
+| `GET /api/v1/admin/loans`, `GET /api/v1/admin/loans/{id}`, `POST /api/v1/admin/loans/{id}/approve`, `/reject`, `/disburse` | Admin decisions and credit |
+| `POST /api/v1/forex-requests`, `GET /api/v1/forex-requests`, `GET /api/v1/forex-requests/{id}` | Customer indicative requests |
+
+Loan and forex `POST` requests use an `Idempotency-Key` header. Customer identity comes from the bearer token. The FD service owns the new `V7__loan_forex_requests.sql` and `V8__request_product_names.sql` Flyway migrations; Product Service continues to own product configuration. After changing code, run `docker compose up --build -d`, then `npm run build` in `FRONTEND`. The configured demo administrator can review loans, and a registered customer can create their own accounts and applications. For a funded FD demo, the one-time savings demo opening credit may be enabled in Compose.
 
 ## Troubleshooting
 

@@ -53,6 +53,7 @@ export interface BookingRequest {
 export interface FundingRequest {
   amount: number;
   currency_code: string;
+  savings_account_id?: number;
 }
 
 export interface PrematureClosureRequest {
@@ -153,6 +154,7 @@ export interface HistoryEntry {
   running_balance: number | null;
   source: 'TRANSACTION' | 'ACCRUAL';
   description: string;
+  source_savings_account_id?: number | null;
 }
 
 export interface ApiErrorEnvelope {

@@ -6,6 +6,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 export interface GlassSelectOption {
   label: string;
   value: string;
+  disabled?: boolean;
 }
 
 @Component({
@@ -44,6 +45,7 @@ export class GlassSelect implements ControlValueAccessor {
   }
 
   select(option: GlassSelectOption): void {
+    if (option.disabled) return;
     this.selectedValue = option.value;
     this.onChange(option.value);
     this.isOpen = false;

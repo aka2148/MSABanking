@@ -135,6 +135,9 @@ Creating account…|खाता बन रहा है…|ಖಾತೆ ರಚ�
 Create account|खाता बनाएँ|ಖಾತೆ ರಚಿಸಿ|口座を作成|إنشاء حساب|Crear cuenta
 Fixed Deposits|सावधि जमा|ನಿಶ್ಚಿತ ಠೇವಣಿಗಳು|定期預金|الودائع لأجل|Depósitos a plazo
 Forex|विदेशी मुद्रा|ವಿದೇಶಿ ವಿನಿಮಯ|外国為替|العملات الأجنبية|Divisas
+Loans|ऋण|ಸಾಲಗಳು|ローン|القروض|Préstamos
+My applications|मेरे आवेदन|ನನ್ನ ಅರ್ಜಿಗಳು|申込一覧|طلباتي|Mis solicitudes
+Source savings account: {0}.|स्रोत बचत खाता: {0}।|ಮೂಲ ಉಳಿತಾಯ ಖಾತೆ: {0}.|資金元の普通預金口座：{0}。|حساب التوفير المصدر: {0}.|Cuenta de ahorro de origen: {0}.
 AI Chatbot|AI चैटबॉट|AI ಚಾಟ್‌ಬಾಟ್|AIチャットボット|مساعد محادثة ذكي|Asistente de IA
 Reports & Analytics|रिपोर्ट और विश्लेषण|ವರದಿಗಳು ಮತ್ತು ವಿಶ್ಲೇಷಣೆ|レポートと分析|التقارير والتحليلات|Informes y análisis
 Audit & Compliance|लेखापरीक्षा और अनुपालन|ಲೆಕ್ಕಪರಿಶೋಧನೆ ಮತ್ತು ಅನುಸರಣೆ|監査とコンプライアンス|التدقيق والامتثال|Auditoría y cumplimiento

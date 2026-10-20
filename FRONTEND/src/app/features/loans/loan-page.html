@@ -1,0 +1,73 @@
+<app-workspace-shell>
+  <main class="glass-card glass-card--wide workflow-card">
+    <p class="workflow-eyebrow">MoneyPal lending</p>
+    <h2>{{ mode === 'catalog' ? 'Loan products' : mode === 'product' ? offer?.productName : mode === 'applications' ? 'My loan applications' : 'Loan application' }}</h2>
+    <p class="glass-card__sub">Applications are reviewed by an administrator. Submitting an application does not move money.</p>
+    <nav class="workflow-links"><a routerLink="/loans">Browse loans</a><a routerLink="/applications">My applications</a></nav>
+    <p role="status" *ngIf="loading">Loading…</p>
+    <p class="glass-error" role="alert" *ngIf="error">{{ error }}</p>
+
+    <section *ngIf="mode === 'catalog' && !loading">
+      <p *ngIf="offers.length === 0">No active loan products are available for application.</p>
+      <div class="workflow-grid">
+        <article class="workflow-tile" *ngFor="let item of offers">
+          <h3>{{ item.productName }}</h3><p>{{ item.description }}</p>
+          <p *ngFor="let currency of item.currencies">{{ currency.code }} {{ currency.minimumAmount | number:'1.2-2' }}–{{ currency.maximumAmount | number:'1.2-2' }}</p>
+          <a class="glass-btn" [routerLink]="['/loans', item.productId]">View and apply</a>
+        </article>
+      </div>
+    </section>
+
+    <section *ngIf="mode === 'product' && offer as product">
+      <p>{{ product.description }}</p>
+      <div class="workflow-tile"><strong>Available terms</strong>
+        <p *ngFor="let band of product.pricingBands">{{ band.currencyCode }} · {{ band.valueFrom }}–{{ band.valueTo }} months · {{ band.rate * 100 | number:'1.2-2' }}% annual sample rate</p>
+      </div>
+      <form [formGroup]="form" (ngSubmit)="submit()" class="workflow-form">
+        <label>Currency <select formControlName="currencyCode"><option *ngFor="let currency of product.currencies" [value]="currency.code">{{ currency.code }}</option></select></label>
+        <label>Requested amount <input type="number" min="0.01" step="0.01" formControlName="amount"></label>
+        <label>Tenure in months <input type="number" min="1" step="1" formControlName="tenureMonths"></label>
+        <label class="workflow-wide">Purpose <textarea formControlName="purpose" maxlength="500" rows="3"></textarea></label>
+        <label class="workflow-wide">Disbursement savings account
+          <select formControlName="destinationSavingsAccountId">
+            <option [ngValue]="0">Choose your savings account</option>
+            <option *ngFor="let account of eligibleSavings" [ngValue]="account.account_id" [disabled]="account.status !== 'ACTIVE'">
+              {{ account.display_name }} · {{ mask(account.account_number) }} · {{ account.currency_code }} · {{ account.balance | number:'1.2-2' }} available · {{ account.status }}
+            </option>
+          </select>
+        </label>
+        <p class="workflow-wide">This account receives the approved amount only after an admin approves and disburses the loan. Its selection is fixed after submission. Document upload is not available in this lab.</p>
+        <button class="glass-btn" type="submit" [disabled]="busy">{{ busy ? 'Submitting…' : 'Submit for review' }}</button>
+      </form>
+    </section>
+
+    <section *ngIf="mode === 'applications' && !loading">
+      <p *ngIf="applications.length === 0">You have not submitted a loan application.</p>
+      <div class="workflow-grid">
+        <article class="workflow-tile" *ngFor="let application of applications">
+          <h3>{{ application.productName }} · #{{ application.id }}</h3>
+          <p>{{ application.status | titlecase }} · {{ application.requestedAmount | number:'1.2-2' }} {{ application.currencyCode }}</p>
+          <p>Destination: {{ application.destinationAccountName }} · {{ mask(application.destinationAccountNumber) }}</p>
+          <a [routerLink]="['/applications', application.id]">View status and history</a>
+        </article>
+      </div>
+    </section>
+
+    <section *ngIf="mode === 'detail' && application as item">
+      <p class="workflow-status">{{ item.status | titlecase }}</p>
+      <dl class="workflow-facts">
+        <div><dt>Requested</dt><dd>{{ item.requestedAmount | number:'1.2-2' }} {{ item.currencyCode }}</dd></div>
+        <div><dt>Product</dt><dd>{{ item.productName }}</dd></div>
+        <div><dt>Approved</dt><dd>{{ item.approvedAmount == null ? 'Awaiting decision' : (item.approvedAmount | number:'1.2-2') + ' ' + item.currencyCode }}</dd></div>
+        <div><dt>Tenure</dt><dd>{{ item.tenureMonths }} months</dd></div>
+        <div><dt>Purpose</dt><dd>{{ item.purpose }}</dd></div>
+        <div><dt>Destination</dt><dd>{{ item.destinationAccountName }} · {{ mask(item.destinationAccountNumber) }}</dd></div>
+        <div><dt>Decision</dt><dd>{{ item.decidedAt ? (item.decidedAt | date:'medium') : 'Pending review' }}</dd></div>
+        <div *ngIf="item.rejectionReason"><dt>Rejection reason</dt><dd>{{ item.rejectionReason }}</dd></div>
+        <div *ngIf="item.disbursementTransactionId"><dt>Savings credit transaction</dt><dd>#{{ item.disbursementTransactionId }}</dd></div>
+      </dl>
+      <h3>Status history</h3>
+      <ol class="workflow-history"><li *ngFor="let event of history">{{ event.status | titlecase }} · {{ event.createdAt | date:'medium' }}<span *ngIf="event.reason"> · {{ event.reason }}</span></li></ol>
+    </section>
+  </main>
+</app-workspace-shell>
