@@ -1,31 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
-import { FormsModule, NgForm } from '@angular/forms';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
 import {
-  CurrencyAdminOption,
   FdOfferAdmin,
-  FdOfferCreateRequest,
   FdProductAdminService,
-  ProductCategoryOption,
 } from '../../../core/services/fd-product-admin.service';
 import { WorkspaceShell } from '../../../shared/components/workspace-shell/workspace-shell';
-
-interface RateBandDraft {
-  durationMonths: 6 | 12 | 18 | 24 | 30;
-  annualRatePercent: number | null;
-}
-
-interface CurrencyScheduleDraft {
-  currencyCode: string;
-  decimalPlaces: number;
-  minimumAmount: string;
-  maximumAmount: string;
-  rateBands: RateBandDraft[];
-}
 
 interface ProductTranslationDraft { locale: string; productName: string; description: string; }
 interface ProductEditDraft { productName: string; description: string; }
@@ -38,20 +21,8 @@ interface ProductEditDraft { productName: string; description: string; }
   styleUrl: './fd-products.scss',
 })
 export class FdProductsAdmin implements OnInit {
-  private readonly bandDurations = [6, 12, 18, 24, 30] as const;
-  categories: ProductCategoryOption[] = [];
-  currencies: CurrencyAdminOption[] = [];
   offers: FdOfferAdmin[] = [];
-  categoryId: number | null = null;
-  productCode = '';
-  productName = '';
-  description = '';
-  currencySchedules: CurrencyScheduleDraft[] = [];
-  selectedCurrencyCode = '';
-  currencyToAdd = '';
-  createdOffer: FdOfferAdmin | null = null;
   loading = true;
-  saving = false;
   activatingId: number | null = null;
   editingTranslationId: number | null = null;
   savingTranslationId: number | null = null;
@@ -61,7 +32,6 @@ export class FdProductsAdmin implements OnInit {
   productEditDrafts: Record<number, ProductEditDraft> = {};
   errorMessage = '';
   successMessage = '';
-  offerStep: 1 | 2 | 3 = 1;
   offerPage = 0;
   readonly offerPageSize = 8;
 
@@ -72,7 +42,7 @@ export class FdProductsAdmin implements OnInit {
   }
 
   get listedOffers(): FdOfferAdmin[] {
-    return this.offers.filter((offer) => offer.fd_product_id !== this.createdOffer?.fd_product_id);
+    return this.offers;
   }
 
   get visibleOffers(): FdOfferAdmin[] {
@@ -82,51 +52,6 @@ export class FdProductsAdmin implements OnInit {
 
   get offerPageCount(): number { return Math.max(1, Math.ceil(this.listedOffers.length / this.offerPageSize)); }
 
-  get selectedSchedule(): CurrencyScheduleDraft | undefined {
-    return this.currencySchedules.find((schedule) => schedule.currencyCode === this.selectedCurrencyCode);
-  }
-
-  get availableCurrencies(): CurrencyAdminOption[] {
-    return this.currencies.filter((currency) => !this.currencySchedules.some((schedule) => schedule.currencyCode === currency.isoCode));
-  }
-
-  get allSchedulesValid(): boolean {
-    return this.currencySchedules.length > 0 && this.currencySchedules.every((schedule) => this.scheduleIsValid(schedule));
-  }
-
-  categoryName(): string {
-    return this.categories.find((category) => category.categoryId === this.categoryId)?.categoryName ?? 'Select a category';
-  }
-
-  nextOfferStep(form: NgForm): void {
-    this.errorMessage = '';
-    if (this.offerStep === 1) {
-      const required = ['productCode', 'productName', 'categoryId'];
-      if (required.some((name) => form.controls[name]?.invalid)) {
-        required.forEach((name) => form.controls[name]?.markAsTouched());
-        this.errorMessage = 'Enter a product code and name, then select a category.';
-        return;
-      }
-      const existing = this.offers.find((offer) => offer.product_code.toUpperCase() === this.productCode.trim().toUpperCase());
-      if (existing) {
-        this.errorMessage = `Product code ${existing.product_code} already exists. Choose a different code or edit the existing product below.`;
-        return;
-      }
-      this.offerStep = 2;
-      return;
-    }
-    if (!this.allSchedulesValid) {
-      this.errorMessage = 'Add a currency schedule and complete its limits and five term rates before continuing.';
-      return;
-    }
-    this.offerStep = 3;
-  }
-
-  previousOfferStep(): void {
-    this.errorMessage = '';
-    if (this.offerStep > 1) this.offerStep = (this.offerStep - 1) as 1 | 2 | 3;
-  }
-
   ngOnInit(): void {
     this.load();
   }
@@ -134,101 +59,13 @@ export class FdProductsAdmin implements OnInit {
   load(): void {
     this.loading = true;
     this.errorMessage = '';
-    forkJoin({ categories: this.service.listCategories(), currencies: this.service.listCurrencies(), offers: this.service.listOffers() }).subscribe({
-      next: ({ categories, currencies, offers }) => {
-        this.categories = this.fixedDepositCategories(categories);
-        this.currencies = currencies.filter((currency) => currency.active);
+    this.service.listOffers().subscribe({
+      next: (offers) => {
         this.offers = offers;
         this.offerPage = 0;
-        this.categoryId = this.categories.find((category) => category.categoryCode === 'FIXED_DEPOSIT')?.categoryId ?? this.categories[0]?.categoryId ?? null;
-        this.resetSchedules();
         this.loading = false;
       },
-      error: (error: HttpErrorResponse) => { this.errorMessage = this.errorText(error, 'Could not load product categories, currencies, or staff offers.'); this.loading = false; },
-    });
-  }
-
-  selectCurrency(currencyCode: string): void {
-    this.selectedCurrencyCode = currencyCode;
-  }
-
-  addCurrencySchedule(): void {
-    const currency = this.availableCurrencies.find((item) => item.isoCode === this.currencyToAdd);
-    if (!currency) return;
-    this.currencySchedules.push(this.newSchedule(currency));
-    this.selectedCurrencyCode = currency.isoCode;
-    this.currencyToAdd = this.availableCurrencies[0]?.isoCode ?? '';
-  }
-
-  removeCurrencySchedule(schedule: CurrencyScheduleDraft): void {
-    this.currencySchedules = this.currencySchedules.filter((item) => item.currencyCode !== schedule.currencyCode);
-    this.selectedCurrencyCode = this.currencySchedules[0]?.currencyCode ?? '';
-  }
-
-  unformatAmount(schedule: CurrencyScheduleDraft, field: 'minimumAmount' | 'maximumAmount'): void {
-    const amount = this.parseAmount(schedule[field], schedule.decimalPlaces);
-    if (amount !== null) schedule[field] = String(amount);
-  }
-
-  formatAmount(schedule: CurrencyScheduleDraft, field: 'minimumAmount' | 'maximumAmount'): void {
-    const amount = this.parseAmount(schedule[field], schedule.decimalPlaces);
-    if (amount === null) return;
-    const locale = typeof navigator !== 'undefined' ? navigator.language : 'en-US';
-    schedule[field] = new Intl.NumberFormat(locale, {
-      style: 'currency', currency: schedule.currencyCode, minimumFractionDigits: schedule.decimalPlaces, maximumFractionDigits: schedule.decimalPlaces,
-    }).format(amount);
-  }
-
-  canSubmit(form: NgForm): boolean {
-    return form.valid === true && this.categoryId !== null && !this.saving && !this.createdOffer
-      && this.currencySchedules.length > 0 && this.currencySchedules.every((schedule) => this.scheduleIsValid(schedule));
-  }
-
-  createDraft(form: NgForm): void {
-    this.successMessage = '';
-    this.errorMessage = '';
-    if (!this.canSubmit(form)) {
-      form.control.markAllAsTouched();
-      this.errorMessage = 'Add at least one currency schedule, then complete its amount limits and five rate bands before saving.';
-      return;
-    }
-    if (this.offers.some((offer) => offer.product_code.toUpperCase() === this.productCode.trim().toUpperCase())) {
-      this.errorMessage = `Product code ${this.productCode.trim().toUpperCase()} already exists. Choose a different code or edit the existing product below.`;
-      this.offerStep = 1;
-      return;
-    }
-
-    const request: FdOfferCreateRequest = {
-      productCode: this.productCode.trim().toUpperCase(),
-      productName: this.productName.trim(),
-      categoryId: this.categoryId!,
-      description: this.description.trim(),
-      currencies: this.currencySchedules.map((schedule) => ({
-        currencyCode: schedule.currencyCode,
-        minimumAmount: this.parseAmount(schedule.minimumAmount, schedule.decimalPlaces)!,
-        maximumAmount: this.parseAmount(schedule.maximumAmount, schedule.decimalPlaces)!,
-        rateBands: [...schedule.rateBands]
-          .sort((left, right) => left.durationMonths - right.durationMonths)
-          .map((band) => ({
-            minimumTenureMonths: band.durationMonths - 5,
-            maximumTenureMonths: band.durationMonths,
-            annualRate: band.annualRatePercent! / 100,
-          })),
-      })),
-    };
-
-    this.saving = true;
-    this.service.createOffer(request).subscribe({
-      next: (offer) => {
-        this.createdOffer = offer;
-        this.offers = [offer, ...this.offers.filter((existing) => existing.fd_product_id !== offer.fd_product_id)];
-        this.successMessage = 'Draft saved. Review the schedule and activate it to show it to customers.';
-        this.saving = false;
-      },
-      error: (error: HttpErrorResponse) => {
-        this.errorMessage = this.errorText(error, 'Could not save this FD product.');
-        this.saving = false;
-      },
+      error: (error: HttpErrorResponse) => { this.errorMessage = this.errorText(error, 'Could not load fixed-deposit offers.'); this.loading = false; },
     });
   }
 
@@ -239,7 +76,6 @@ export class FdProductsAdmin implements OnInit {
     this.service.activateOffer(offer.fd_product_id).subscribe({
       next: (active) => {
         this.offers = this.offers.map((existing) => existing.fd_product_id === active.fd_product_id ? active : existing);
-        if (this.createdOffer?.fd_product_id === active.fd_product_id) this.createdOffer = active;
         this.successMessage = `${active.product_name} is active and available to customers.`;
         this.activatingId = null;
       },
@@ -317,65 +153,6 @@ export class FdProductsAdmin implements OnInit {
     });
   }
 
-  resetForm(form: NgForm): void {
-    form.resetForm();
-    this.offerStep = 1;
-    this.productCode = '';
-    this.productName = '';
-    this.description = '';
-    this.createdOffer = null;
-    this.categoryId = this.categories.find((category) => category.categoryCode === 'FIXED_DEPOSIT')?.categoryId
-      ?? this.categories[0]?.categoryId ?? null;
-    this.resetSchedules();
-    this.successMessage = '';
-    this.errorMessage = '';
-  }
-
-  scheduleIsValid(schedule: CurrencyScheduleDraft): boolean {
-    const minimum = this.parseAmount(schedule.minimumAmount, schedule.decimalPlaces);
-    const maximum = this.parseAmount(schedule.maximumAmount, schedule.decimalPlaces);
-    if (!this.positive(minimum) || !this.positive(maximum) || minimum! > maximum!
-        || schedule.rateBands.length !== this.bandDurations.length) return false;
-    return schedule.rateBands.every((band, index) => {
-      return band.durationMonths === this.bandDurations[index]
-        && band.annualRatePercent !== null
-        && Number.isFinite(band.annualRatePercent)
-        && band.annualRatePercent >= 0
-        && band.annualRatePercent <= 100
-        && Math.round(band.annualRatePercent * 100) === band.annualRatePercent * 100;
-    });
-  }
-
-  private positive(value: number | null): boolean {
-    return value !== null && Number.isFinite(value) && value > 0;
-  }
-
-  private parseAmount(value: string, scale: number): number | null {
-    const normalized = value.replace(/[^\d.-]/g, '');
-    const pattern = scale === 0 ? /^\d+$/ : new RegExp(`^\\d+(\\.\\d{0,${scale}})?$`);
-    if (!normalized || !pattern.test(normalized)) return null;
-    const amount = Number(normalized);
-    return Number.isFinite(amount) ? amount : null;
-  }
-
-  private newSchedule(currency: CurrencyAdminOption): CurrencyScheduleDraft {
-    return {
-      currencyCode: currency.isoCode,
-      decimalPlaces: currency.decimalPlaces,
-      minimumAmount: '',
-      maximumAmount: '',
-      rateBands: this.bandDurations.map((durationMonths) => ({ durationMonths, annualRatePercent: null })),
-    };
-  }
-
-  private resetSchedules(): void {
-    const preferred = ['USD', 'INR'].map((code) => this.currencies.find((currency) => currency.isoCode === code)).filter((currency): currency is CurrencyAdminOption => !!currency);
-    const initial = preferred.length ? preferred : this.currencies.slice(0, 1);
-    this.currencySchedules = initial.map((currency) => this.newSchedule(currency));
-    this.selectedCurrencyCode = this.currencySchedules[0]?.currencyCode ?? '';
-    this.currencyToAdd = this.availableCurrencies[0]?.isoCode ?? '';
-  }
-
   private errorText(error: HttpErrorResponse, fallback: string): string {
     if (error.status === 401) return 'Your session expired. Sign in again with a staff account.';
     if (error.status === 403) {
@@ -384,20 +161,5 @@ export class FdProductsAdmin implements OnInit {
     }
     const message = error.error?.message ?? error.error?.error;
     return typeof message === 'string' && message ? message : fallback;
-  }
-
-  private fixedDepositCategories(categories: ProductCategoryOption[]): ProductCategoryOption[] {
-    const byId = new Map(categories.map((category) => [category.categoryId, category]));
-    return categories.filter((category) => {
-      const visited = new Set<number>();
-      let current: ProductCategoryOption | undefined = category;
-      while (current && !visited.has(current.categoryId)) {
-        visited.add(current.categoryId);
-        const code = current.categoryCode.trim().toUpperCase();
-        if (code === 'FIXED_DEPOSIT' || code === 'FD' || code.includes('FD')) return true;
-        current = current.parentCategoryId == null ? undefined : byId.get(current.parentCategoryId);
-      }
-      return false;
-    });
   }
 }

@@ -10,8 +10,6 @@
 
 .fd-admin-header,
 .fd-admin-section-heading,
-.fd-currency-editor__heading,
-.fd-created-offer,
 .fd-admin-product-row,
 .fd-admin-product-row__right {
   display: flex;
@@ -22,9 +20,7 @@
 
 .fd-admin-header { margin-bottom: 24px; }
 .fd-admin-header h2,
-.fd-admin-section-heading h3,
-.fd-currency-editor h4,
-.fd-created-offer h4 {
+.fd-admin-section-heading h3 {
   font-family: var(--font-display);
   margin: 0;
 }
@@ -53,21 +49,8 @@
 
 .fd-admin-section-heading { align-items: center; margin-bottom: 18px; }
 .fd-admin-section-heading h3 { font-size: var(--fs-lg); }
-.fd-offer-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 0; margin: 0 0 8px; list-style: none; }
-.fd-offer-steps li { display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 8px 12px; border-bottom: 2px solid var(--ws-line); color: var(--ws-muted); font: 500 .8rem var(--font-mono); }
-.fd-offer-steps li::first-letter { font-size: 1.1rem; }
-.fd-offer-steps li.is-current { border-color: var(--gold-500); color: var(--ws-text); }
-.fd-offer-steps li.is-done { border-color: rgba(142,224,199,.65); color: #8ee0c7; }
-.fd-offer-steps span { font: 600 .9rem var(--font-body); }
-.fd-offer-step-copy { margin: 0 0 18px; text-align: left; }
-.fd-offer-review { padding: 20px; border: 1px solid var(--ws-line); border-radius: 12px; background: var(--ws-surface-raised); }
-.fd-offer-review h4 { margin: 0; font: 600 1.15rem var(--font-display); }
-.fd-offer-review > p { color: var(--ws-muted); }
-.fd-offer-review__currency { display: grid; grid-template-columns: minmax(80px, .5fr) repeat(2, minmax(0, 1fr)); gap: 12px; padding: 12px 0; border-top: 1px solid var(--ws-line); color: var(--ws-muted); }
-.fd-offer-review__currency strong { color: var(--ws-text); }
 .fd-offer-pagination { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
 .fd-admin-note,
-.fd-admin-hint,
 .fd-admin-info {
   color: rgba(255, 255, 255, .68);
   font-size: var(--fs-xs);
@@ -75,102 +58,9 @@
 }
 .fd-admin-note { text-align: right; }
 .fd-admin-info { margin: 12px 0; }
-.fd-admin-hint { margin: 8px 0 0; }
-
-.fd-admin-fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0 16px;
-}
-.fd-admin-description { grid-column: 1 / -1; }
-.fd-admin-description textarea {
-  box-sizing: border-box;
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid rgba(255, 255, 255, .25);
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, .1);
-  color: white;
-  font: var(--fs-base) var(--font-body);
-  resize: vertical;
-}
-.fd-admin-description textarea:focus {
-  outline: none;
-  border-color: var(--gold-500);
-  box-shadow: 0 0 0 3px rgba(199, 154, 62, .25);
-}
-
-.fd-currency-editor {
-  margin-top: 18px;
-  padding: 18px;
-  border: 1px solid rgba(255, 255, 255, .16);
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, .055);
-}
-.fd-currency-editor { padding: 1.5rem; }
-.fd-currency-editor__heading { align-items: center; margin-bottom: 12px; }
-.fd-currency-editor__heading h4 { font-size: var(--fs-lg); }
-.fd-admin-fields--amounts { max-width: 680px; }
-.fd-currency-picker { max-width: 360px; }
-.fd-currency-picker-row, .fd-currency-editor__actions { display: flex; align-items: end; gap: 14px; }
-.fd-currency-editor__actions { align-items: center; flex-wrap: wrap; }
-.fd-currency-editor__actions .glass-link { cursor: pointer; }
-.fd-admin-warning {
-  margin: 10px 0;
-  color: var(--gold-100);
-  font-size: var(--fs-sm);
-}
-.fd-admin-warning[hidden] { display: none; }
-.fd-admin-fixed-term {
-  display: flex;
-  min-height: 44px;
-  align-items: center;
-  color: var(--gold-100);
-  font-family: var(--font-mono);
-}
-
-.fd-rate-editor-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 10px 0 8px;
-  color: rgba(255, 255, 255, .65);
-  font-size: var(--fs-xs);
-}
-.fd-rate-editor-heading > div { display: flex; gap: 38px; }
 .fd-text-button { border: 0; background: transparent; cursor: pointer; }
 .fd-text-button:disabled { opacity: .55; cursor: not-allowed; }
 
-.fd-rate-band-row {
-  display: grid;
-  grid-template-columns: minmax(130px, .8fr) minmax(130px, 1.2fr);
-  align-items: start;
-  gap: 12px;
-  padding: 12px 0 2px;
-  border-top: 1px solid rgba(255, 255, 255, .1);
-}
-.fd-remove-band {
-  margin-top: 27px;
-  padding: 8px 10px;
-  border: 1px solid rgba(255, 255, 255, .28);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: rgba(255, 255, 255, .86);
-  cursor: pointer;
-}
-.fd-remove-band:disabled { opacity: .45; cursor: not-allowed; }
-
-.fd-admin-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
-.fd-created-offer {
-  align-items: center;
-  margin-top: 18px;
-  padding: 16px;
-  border: 1px solid rgba(31, 138, 112, .45);
-  border-radius: var(--radius-md);
-  background: rgba(31, 138, 112, .12);
-}
-.fd-created-offer h4 span { color: rgba(255, 255, 255, .65); font: var(--fs-xs) var(--font-mono); }
-.fd-created-offer p:last-child { margin: 6px 0 0; color: rgba(255,255,255,.7); font-size: var(--fs-xs); }
 .fd-admin-success { padding: 11px 13px; border: 1px solid rgba(31,138,112,.45); border-radius: var(--radius-sm); background: rgba(31,138,112,.14); color: #D5FFF0; }
 
 .fd-admin-product-list { display: grid; gap: 8px; }
@@ -193,8 +83,6 @@
 @media (max-width: 720px) {
   .fd-admin-header,
   .fd-admin-section-heading,
-  .fd-currency-editor__heading,
-  .fd-created-offer,
   .fd-admin-product-row { flex-direction: column; }
   .fd-admin-note { text-align: left; }
   .fd-admin-product-row__right { justify-content: flex-start; }
@@ -202,12 +90,6 @@
 
 @media (max-width: 480px) {
   .fd-admin-card.glass-card.glass-card--wide { width: 100%; margin: 8px; padding: 26px 18px; }
-  .fd-admin-fields { grid-template-columns: 1fr; }
-  .fd-admin-description { grid-column: auto; }
-  .fd-rate-band-row { grid-template-columns: 1fr 1fr; gap: 0 10px; }
-  .fd-admin-actions { flex-direction: column; }
-  .fd-admin-actions .glass-btn { width: 100%; }
   .fd-offer-pagination { justify-content: stretch; }
   .fd-offer-pagination .glass-btn { flex: 1; }
-  .fd-offer-review__currency { grid-template-columns: 1fr; gap: 4px; }
 }

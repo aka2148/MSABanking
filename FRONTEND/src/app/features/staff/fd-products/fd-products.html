@@ -1,191 +1,28 @@
 <app-workspace-shell>
   <main class="glass-card glass-card--wide fd-admin-card">
-    <nav class="fd-admin-breadcrumb" aria-label="Staff navigation"><a routerLink="/dashboard" class="glass-link fd-admin-back">← Staff overview</a><a routerLink="/staff/customers" class="glass-link fd-admin-back">Manage customers →</a></nav>
+    <nav class="fd-admin-breadcrumb" aria-label="Staff navigation"><a routerLink="/dashboard" class="glass-link fd-admin-back">← Staff overview</a><a routerLink="/staff/product-builder" class="glass-link fd-admin-back">Product configuration →</a></nav>
     <header class="fd-admin-header">
       <div>
         <p class="fd-eyebrow">Staff workspace</p>
-        <h2>Fixed-deposit products</h2>
-        <p class="glass-card__sub">Create an offer with currency-specific limits and rates. Supported currencies and decimal places come from reference data.</p>
+        <h2>Fixed-deposit offer management</h2>
+        <p class="glass-card__sub">Manage existing offers here. Create new products in Product configuration using a template or custom setup.</p>
       </div>
       <span class="fd-admin-badge">{{ sessionRoleLabel }}</span>
     </header>
 
     <p class="glass-error" *ngIf="errorMessage" role="alert">{{ errorMessage }}</p>
     <p class="fd-admin-success" *ngIf="successMessage" role="status">{{ successMessage }}</p>
-    <p class="fd-state" *ngIf="loading" role="status">Loading product categories and staff offers…</p>
+    <p class="fd-state" *ngIf="loading" role="status">Loading fixed-deposit offers…</p>
 
     <ng-container *ngIf="!loading">
-      <section class="fd-admin-section" aria-labelledby="create-fd-product-heading">
-        <div class="fd-admin-section-heading">
-          <div>
-            <p class="fd-eyebrow">Offer setup</p>
-            <h3 id="create-fd-product-heading">Create a product draft</h3>
-          </div>
-          <span class="fd-admin-note">Quarterly compounding · payout at maturity</span>
-        </div>
-
-        <p class="fd-admin-info" *ngIf="categories.length === 0">
-          No product category is available. Check the backend database migration status, then retry.
-        </p>
-
-        <form #offerForm="ngForm" (ngSubmit)="createDraft(offerForm)" novalidate>
-          <ol class="fd-offer-steps" aria-label="Offer setup progress">
-            <li [class.is-current]="offerStep === 1" [class.is-done]="offerStep > 1">1 <span>Product</span></li>
-            <li [class.is-current]="offerStep === 2" [class.is-done]="offerStep > 2">2 <span>Rates</span></li>
-            <li [class.is-current]="offerStep === 3">3 <span>Review</span></li>
-          </ol>
-          <p class="fd-admin-note fd-offer-step-copy">Step {{ offerStep }} of 3 · {{ offerStep === 1 ? 'Name and categorize the offer.' : offerStep === 2 ? 'Set currency limits and term rates.' : 'Review the complete offer before saving.' }}</p>
-
-          <div [hidden]="offerStep !== 1">
-          <div class="fd-admin-fields">
-            <label class="glass-field">
-              <span class="glass-field__label">Product code</span>
-              <input name="productCode" [(ngModel)]="productCode" required maxlength="32"
-                     placeholder="e.g. GLOBAL_FD_01" autocomplete="off" #codeField="ngModel" />
-              <span class="glass-field__error" *ngIf="codeField.invalid && codeField.touched">Enter a product code of up to 32 characters.</span>
-            </label>
-            <label class="glass-field">
-              <span class="glass-field__label">Product name</span>
-              <input name="productName" [(ngModel)]="productName" required maxlength="255"
-                     placeholder="Customer-facing name" #nameField="ngModel" />
-              <span class="glass-field__error" *ngIf="nameField.invalid && nameField.touched">Enter a product name of up to 255 characters.</span>
-            </label>
-            <label class="glass-field">
-              <span class="glass-field__label">Product category</span>
-              <select name="categoryId" [(ngModel)]="categoryId" required #categoryField="ngModel">
-                <option [ngValue]="null" disabled>Select category</option>
-                <option *ngFor="let category of categories" [ngValue]="category.categoryId">
-                  {{ category.categoryName }} · {{ category.categoryCode }}
-                </option>
-              </select>
-              <span class="glass-field__error" *ngIf="categoryField.invalid && categoryField.touched">Select a product category.</span>
-            </label>
-            <label class="glass-field fd-admin-description">
-              <span class="glass-field__label">Description <small>optional</small></span>
-              <textarea name="description" [(ngModel)]="description" maxlength="1000"
-                        rows="2" placeholder="Short product description"></textarea>
-            </label>
-          </div>
-          </div>
-
-          <div [hidden]="offerStep !== 2">
-          <div class="fd-currency-picker-row">
-            <label class="glass-field" *ngIf="availableCurrencies.length">
-              <span class="glass-field__label">Add currency schedule</span>
-              <select name="currencyToAdd" [(ngModel)]="currencyToAdd">
-                <option *ngFor="let currency of availableCurrencies" [ngValue]="currency.isoCode">
-                  {{ currency.isoCode }} · {{ currency.currencyName }} · {{ currency.decimalPlaces }} decimals
-                </option>
-              </select>
-            </label>
-            <button class="glass-btn glass-btn--ghost" type="button" [disabled]="!currencyToAdd" (click)="addCurrencySchedule()">Add currency</button>
-          </div>
-          <p class="fd-admin-info" *ngIf="currencySchedules.length === 0">Add an active currency before creating this offer.</p>
-          <label class="glass-field fd-currency-picker" *ngIf="currencySchedules.length">
-            <span class="glass-field__label">Edit schedule</span>
-            <select name="selectedCurrencyCode" [(ngModel)]="selectedCurrencyCode" (ngModelChange)="selectCurrency($event)">
-              <option *ngFor="let schedule of currencySchedules" [ngValue]="schedule.currencyCode">
-                {{ schedule.currencyCode }} · {{ schedule.decimalPlaces }} decimals{{ scheduleIsValid(schedule) ? '' : ' — incomplete' }}
-              </option>
-            </select>
-          </label>
-          <p class="fd-admin-warning" *ngFor="let schedule of currencySchedules" [hidden]="scheduleIsValid(schedule)" role="status">
-            {{ schedule.currencyCode }} schedule incomplete. Complete its limits and all rate bands before saving.
-          </p>
-
-          <section class="fd-currency-editor" *ngIf="selectedSchedule as schedule"
-                   [attr.aria-labelledby]="'currency-heading-' + schedule.currencyCode">
-            <div class="fd-currency-editor__heading">
-              <div>
-                <p class="fd-eyebrow">Currency schedule</p>
-                <h4 [id]="'currency-heading-' + schedule.currencyCode">{{ schedule.currencyCode }}</h4>
-              </div>
-              <div class="fd-currency-editor__actions">
-                <span class="fd-admin-note">Currency-specific amount limits and rates · {{ schedule.decimalPlaces }} decimals</span>
-                <button class="glass-link" type="button" (click)="removeCurrencySchedule(schedule)">Remove currency</button>
-              </div>
-            </div>
-
-            <div class="fd-admin-fields fd-admin-fields--amounts">
-              <label class="glass-field">
-                <span class="glass-field__label">Minimum deposit <small>{{ schedule.currencyCode }}</small></span>
-                <input type="text" inputmode="decimal" name="{{ schedule.currencyCode }}-minimum"
-                       [(ngModel)]="schedule.minimumAmount" (focus)="unformatAmount(schedule, 'minimumAmount')"
-                       (blur)="formatAmount(schedule, 'minimumAmount')" required />
-              </label>
-              <label class="glass-field">
-                <span class="glass-field__label">Maximum deposit <small>{{ schedule.currencyCode }}</small></span>
-                <input type="text" inputmode="decimal" name="{{ schedule.currencyCode }}-maximum"
-                       [(ngModel)]="schedule.maximumAmount" (focus)="unformatAmount(schedule, 'maximumAmount')"
-                       (blur)="formatAmount(schedule, 'maximumAmount')" required />
-              </label>
-            </div>
-
-            <div class="fd-rate-editor-heading">
-              <div><span>Term band</span><span>Annual rate (%)</span></div>
-            </div>
-            <div class="fd-rate-band-row" *ngFor="let band of schedule.rateBands">
-              <label class="glass-field fd-rate-band-duration">
-                <span class="glass-field__label">Duration</span>
-                <span class="fd-admin-fixed-term">{{ band.durationMonths }} months</span>
-              </label>
-              <label class="glass-field">
-                <span class="glass-field__label">Annual rate <small>% p.a.</small></span>
-                <input type="number" name="{{ schedule.currencyCode }}-{{ band.durationMonths }}-rate"
-                       [(ngModel)]="band.annualRatePercent" min="0" max="100" step="0.01"
-                       placeholder="e.g. 6.50" required />
-              </label>
-            </div>
-            <p class="fd-admin-hint">Each rate applies to its six-month range ending at the displayed duration (for example, 7–12 months uses the 12-month rate). Enter percentages (6.50 means 6.50%); the server stores decimal fractions.</p>
-          </section>
-          </div>
-
-          <section class="fd-offer-review" *ngIf="offerStep === 3" aria-label="Offer review">
-            <p class="fd-eyebrow">Review offer</p>
-            <h4>{{ productName || 'Unnamed offer' }}</h4>
-            <p>{{ productCode || 'No product code' }} · {{ categoryName() }}</p>
-            <p *ngIf="description.trim()">{{ description }}</p>
-            <article class="fd-offer-review__currency" *ngFor="let schedule of currencySchedules">
-              <strong>{{ schedule.currencyCode }}</strong>
-              <span>{{ schedule.minimumAmount || '—' }} to {{ schedule.maximumAmount || '—' }}</span>
-              <span>{{ schedule.rateBands.length }} term rates · {{ schedule.decimalPlaces }} decimals</span>
-            </article>
-            <p class="fd-admin-warning" *ngIf="!allSchedulesValid">Complete every currency schedule before saving.</p>
-          </section>
-
-          <div class="fd-admin-actions">
-            <button type="button" class="glass-btn glass-btn--ghost" *ngIf="offerStep > 1" (click)="previousOfferStep()" [disabled]="saving">Back</button>
-            <button type="button" class="glass-btn" *ngIf="offerStep < 3" (click)="nextOfferStep(offerForm)" [disabled]="saving || categories.length === 0">Continue</button>
-            <button type="submit" class="glass-btn" *ngIf="offerStep === 3" [disabled]="saving || !!createdOffer || categories.length === 0">
-              {{ saving ? 'Saving draft…' : 'Save product draft' }}
-            </button>
-            <button type="button" class="glass-btn glass-btn--ghost" *ngIf="createdOffer" (click)="resetForm(offerForm)">
-              Create another product
-            </button>
-          </div>
-        </form>
-
-        <article class="fd-created-offer" *ngIf="createdOffer as created" aria-live="polite">
-          <div>
-            <p class="fd-eyebrow">Draft created</p>
-            <h4>{{ created.product_name }} <span>{{ created.product_code }}</span></h4>
-            <p>FD product ID {{ created.fd_product_id }} · {{ created.currency_codes.join(' / ') }}</p>
-          </div>
-          <button type="button" class="glass-btn" *ngIf="created.status === 'DRAFT'"
-                  [disabled]="activatingId === created.fd_product_id" (click)="activate(created)">
-            {{ activatingId === created.fd_product_id ? 'Activating…' : 'Activate for customers' }}
-          </button>
-          <span class="fd-status-chip" *ngIf="created.status === 'ACTIVE'">ACTIVE</span>
-        </article>
-      </section>
-
       <section class="fd-admin-section" aria-labelledby="existing-fd-products-heading">
         <div class="fd-admin-section-heading">
-          <div><p class="fd-eyebrow">Catalog</p><h3 id="existing-fd-products-heading">Product status</h3></div>
+          <div><p class="fd-eyebrow">Existing offers</p><h3 id="existing-fd-products-heading">Offer status</h3></div>
           <button type="button" class="glass-link fd-text-button" (click)="load()" [disabled]="loading">Refresh</button>
         </div>
+        <p class="fd-admin-info">To create a product, open <a routerLink="/staff/product-builder">Product configuration</a>. This page only manages existing fixed-deposit offers.</p>
         <p class="fd-admin-info fd-admin-empty" *ngIf="listedOffers.length === 0">
-          {{ createdOffer ? 'No other FD products are configured.' : 'No FD products are configured yet.' }}
+          No fixed-deposit offers are configured yet.
         </p>
         <p class="fd-admin-note" *ngIf="listedOffers.length > 0">{{ listedOffers.length }} product(s) · page {{ offerPage + 1 }} of {{ offerPageCount }}</p>
         <div class="fd-admin-product-list" *ngIf="listedOffers.length > 0">

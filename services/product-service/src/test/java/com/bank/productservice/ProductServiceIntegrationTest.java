@@ -36,9 +36,41 @@ class ProductServiceIntegrationTest {
     @Autowired MockMvc mvc; @Autowired JdbcTemplate jdbc;
 
     @Test void migrationsCreateOwnedSchemaAndLocalization(){
-        assertEquals(3,jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1",Integer.class));
+        assertEquals(4,jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1",Integer.class));
+        assertEquals(2,jdbc.queryForObject("SELECT cur_decimal_places FROM currency WHERE cur_iso_code='INR' AND cur_is_active=1",Integer.class));
+        assertEquals(2,jdbc.queryForObject("SELECT cur_decimal_places FROM currency WHERE cur_iso_code='USD' AND cur_is_active=1",Integer.class));
         assertTrue(tableExists("product"));assertTrue(tableExists("outbox_event"));assertTrue(tableExists("product_translation"));
         assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM rule_type WHERE rut_rule_type_code='FD_TENURE_RATE'",Integer.class));
+    }
+
+    @Test void adminCanValidateAndCreateBuilderDraftUsingMetadataIds()throws Exception{
+        String staff=token("ROLE_BANK_OFFICER");
+        var mapper=com.fasterxml.jackson.databind.json.JsonMapper.builder().build();
+        var all=mapper.readTree(mvc.perform(get("/api/v1/product-configurations/metadata").header("Authorization","Bearer "+staff))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        long categoryId=0;
+        for(var category:all.path("categories"))if("FIXED_DEPOSIT".equals(category.path("code").asText()))categoryId=category.path("id").asLong();
+        var metadata=mapper.readTree(mvc.perform(get("/api/v1/product-configurations/metadata").param("categoryId",Long.toString(categoryId)).header("Authorization","Bearer "+staff))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        long compoundingId=0,payoutId=0;
+        for(var attribute:metadata.path("attributes")){
+            if("COMPOUNDING_BASIS".equals(attribute.path("key").asText()))compoundingId=attribute.path("id").asLong();
+            if("PAYOUT_FREQUENCY".equals(attribute.path("key").asText()))payoutId=attribute.path("id").asLong();
+        }
+        assertTrue(categoryId>0&&compoundingId>0&&payoutId>0);
+        String code="FD-BUILDER-"+java.util.UUID.randomUUID().toString().substring(0,8).toUpperCase();
+        String body="""
+                {"productCode":"%s","productName":"Sample Builder Deposit","categoryId":%d,
+                 "description":"Sample terms","baseCurrencyCode":"INR",
+                 "currencies":[{"currencyCode":"INR","minimumAmount":1000,"maximumAmount":1000000}],
+                 "attributes":[{"definitionId":%d,"value":"QUARTERLY"},{"definitionId":%d,"value":"AT_MATURITY"}],
+                 "eligibilityRules":[],"pricingBands":[{"currencyCode":"INR","fact":"TENURE_MONTHS","valueFrom":1,"valueTo":12,"rate":0.06,"outcomeType":"INTEREST_RATE","rateUnit":"DECIMAL_FRACTION","calculationMethod":"FD_QUARTERLY"}],
+                 "charges":[],"roleConstraints":[]}
+                """.formatted(code,categoryId,compoundingId,payoutId);
+        mvc.perform(post("/api/v1/product-configurations/validate").header("Authorization","Bearer "+staff).contentType("application/json").content(body))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.valid").value(true));
+        mvc.perform(post("/api/v1/product-configurations").header("Authorization","Bearer "+staff).contentType("application/json").content(body))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("DRAFT")).andExpect(jsonPath("$.revision").value(1));
     }
 
     @Test void adminCanCreateAndActivateLocalizedMulticurrencyFdOfferAndWriteOutbox()throws Exception{
@@ -46,8 +78,6 @@ class ProductServiceIntegrationTest {
         String category=mvc.perform(post("/api/v1/product-categories").header("Authorization","Bearer "+staff).contentType("application/json").content("{\"categoryCode\":\"FD\",\"categoryName\":\"Fixed Deposit\"}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         long categoryId=com.fasterxml.jackson.databind.json.JsonMapper.builder().build().readTree(category).get("categoryId").asLong();
-        mvc.perform(post("/api/v1/currencies").header("Authorization","Bearer "+staff).contentType("application/json").content("{\"isoCode\":\"USD\",\"currencyName\":\"US Dollar\",\"currencySymbol\":\"$\",\"decimalPlaces\":2}"))
-                .andExpect(status().isCreated());
         String body="{\"productCode\":\"FD-DEMO\",\"productName\":\"Demo Fixed Deposit\",\"categoryId\":"+categoryId+",\"baseCurrencyCode\":\"USD\",\"currencies\":["
                 +"{\"currencyCode\":\"USD\",\"minimumAmount\":100,\"maximumAmount\":100000,\"rateBands\":[{\"minimumTenureMonths\":1,\"maximumTenureMonths\":6,\"annualRate\":0.05},{\"minimumTenureMonths\":7,\"maximumTenureMonths\":12,\"annualRate\":0.06}]},"
                 +"{\"currencyCode\":\"KWD\",\"minimumAmount\":25,\"maximumAmount\":25000,\"rateBands\":[{\"minimumTenureMonths\":1,\"maximumTenureMonths\":12,\"annualRate\":0.04}]}]}";

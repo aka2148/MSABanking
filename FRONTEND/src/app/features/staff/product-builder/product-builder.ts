@@ -16,6 +16,7 @@ import {
   ProductFamily,
 } from '../../../core/services/product-configuration-admin.service';
 import { WorkspaceShell } from '../../../shared/components/workspace-shell/workspace-shell';
+import { PRODUCT_TEMPLATES, ProductTemplate } from './product-templates';
 
 interface CurrencyDraft { currencyCode: string; minimumAmount: number | null; maximumAmount: number | null; }
 interface PricingDraft { currencyCode: string; valueFrom: number | null; valueTo: number | null; ratePercent: number | null; }
@@ -38,6 +39,8 @@ interface ChargeDraft {
 })
 export class ProductBuilder implements OnInit {
   readonly productSteps = ['Product family', 'Identity', 'Terms', 'Money', 'Eligibility', 'Pricing', 'Review', 'Publish'];
+  readonly templates = PRODUCT_TEMPLATES;
+  selectedTemplateKey: string | null = null;
   productStep = 1;
   catalogPage = 0;
   readonly catalogPageSize = 8;
@@ -57,7 +60,7 @@ export class ProductBuilder implements OnInit {
   charges: ChargeDraft[] = [];
   roleSelections: Record<number, boolean> = {};
   previewFacts: Record<string, string> = {
-    AMOUNT: '100000', TENURE_MONTHS: '12', BALANCE: '50000', TRANSFER_AMOUNT: '100000',
+    AMOUNT: '100000', TENURE_MONTHS: '12', BALANCE_AMOUNT: '50000', TRANSFER_AMOUNT: '100000',
     REFERENCE_RATE: '83.25', CURRENCY: 'INR', FUNDING_CURRENCY: 'INR', DESTINATION_CURRENCY: 'USD',
     REFERENCE_RATE_DIRECTION: 'FUNDING_PER_DESTINATION', FOREX_AMOUNT_MODE: 'CONVERSION_PRINCIPAL',
   };
@@ -80,6 +83,7 @@ export class ProductBuilder implements OnInit {
   }
 
   get family(): ProductFamily { return this.selectedCategory?.family ?? 'UNKNOWN'; }
+  get selectedTemplate(): ProductTemplate | undefined { return this.templates.find((template) => template.key === this.selectedTemplateKey); }
   get attributes(): AttributeOption[] { return this.metadata?.attributes ?? []; }
   get currencies(): CurrencyOption[] { return this.metadata?.currencies ?? []; }
   get executableFacts(): FactOption[] { return this.metadata?.facts.filter((fact) => fact.executable) ?? []; }
@@ -118,15 +122,89 @@ export class ProductBuilder implements OnInit {
   }
 
   categoryChanged(): void {
+    this.selectedTemplateKey = null;
     if (this.categoryId == null) return;
-    this.service.metadata(this.categoryId).subscribe({
+    const requestedCategoryId = this.categoryId;
+    this.service.metadata(requestedCategoryId).subscribe({
       next: (metadata) => {
+        if (this.categoryId !== requestedCategoryId || this.selectedTemplateKey) return;
         this.metadata = metadata;
         this.initializeAttributes();
         this.initializeFamilyDefaults();
       },
       error: (error: HttpErrorResponse) => { this.errorMessage = this.errorText(error, 'Could not load category fields.'); },
     });
+  }
+
+  canUseTemplate(template: ProductTemplate): boolean {
+    return !!this.metadata?.categories.some((category) => category.code === template.categoryCode && category.family === template.family)
+      && template.currencies.every((currency) => this.currencies.some((option) => option.code === currency.code));
+  }
+
+  templateChanged(): void {
+    const template = this.selectedTemplate;
+    if (!template || !this.metadata) return;
+    const category = this.metadata.categories.find((option) => option.code === template.categoryCode && option.family === template.family);
+    if (!category || !this.canUseTemplate(template)) {
+      this.errorMessage = 'This template requires a category or active currency that is not configured.';
+      this.selectedTemplateKey = null;
+      return;
+    }
+    this.categoryId = category.id;
+    this.service.metadata(category.id).subscribe({
+      next: (metadata) => {
+        if (this.categoryId !== category.id || this.selectedTemplateKey !== template.key) return;
+        const missing = Object.keys(template.attributes).filter((key) => !metadata.attributes.some((attribute) =>
+          attribute.key === key && (!attribute.choices.length || attribute.choices.includes(template.attributes[key]))));
+        if (missing.length) {
+          this.errorMessage = `Template attributes are unavailable for this category: ${missing.join(', ')}`;
+          this.selectedTemplateKey = null;
+          return;
+        }
+        this.metadata = metadata;
+        this.initializeAttributes();
+        this.initializeFamilyDefaults();
+        this.applyTemplate(template);
+      },
+      error: (error: HttpErrorResponse) => { this.errorMessage = this.errorText(error, 'Could not load template fields.'); },
+    });
+  }
+
+  private applyTemplate(template: ProductTemplate): void {
+    this.clearMessages();
+    this.productCode = this.availableProductCode(template.productCode);
+    this.productName = template.name;
+    this.description = template.description;
+    this.effectiveFrom = '';
+    this.effectiveTo = '';
+    this.attributeValues = Object.fromEntries(this.attributes.map((attribute) =>
+      [attribute.id, template.attributes[attribute.key] ?? attribute.defaultValue ?? '']));
+    this.currencyDrafts = template.currencies.map((currency) => ({
+      currencyCode: currency.code, minimumAmount: currency.minimumAmount, maximumAmount: currency.maximumAmount,
+    }));
+    this.baseCurrencyCode = template.currencies[0].code;
+    this.pricingDrafts = template.pricing.map((band) => ({
+      currencyCode: band.currencyCode, valueFrom: band.from, valueTo: band.to, ratePercent: band.ratePercent,
+    }));
+    this.eligibilityRules = template.eligibility ? [{
+      ...template.eligibility, valueTo: '', valueSet: '', combineLogic: 'AND',
+    }] : [];
+    this.charges = [];
+    this.roleSelections = {};
+    this.previewFacts['AMOUNT'] = String(Math.max(template.currencies[0].minimumAmount, 1));
+    this.previewFacts['TENURE_MONTHS'] = String(template.pricing[0].from);
+    this.previewFacts['BALANCE_AMOUNT'] = String(Math.max(Number(template.attributes['MINIMUM_BALANCE'] ?? 0), template.pricing[0].from));
+    this.previewFacts['TRANSFER_AMOUNT'] = String(template.pricing[0].from);
+    if (template.eligibility) this.previewFacts[template.eligibility.fact] = template.eligibility.valueFrom;
+    this.syncForexPreviewCurrencies();
+  }
+
+  private availableProductCode(base: string): string {
+    const codes = new Set(this.products.map((product) => product.productCode.toUpperCase()));
+    if (!codes.has(base)) return base;
+    let suffix = 2;
+    while (codes.has(`${base}_${suffix}`)) suffix++;
+    return `${base}_${suffix}`;
   }
 
   currencySelected(code: string): boolean { return this.currencyDrafts.some((draft) => draft.currencyCode === code); }
@@ -389,7 +467,7 @@ export class ProductBuilder implements OnInit {
   }
 
   private pricingFact(): string {
-    return this.family === 'CASA' ? 'BALANCE' : this.family === 'FOREX' ? 'TRANSFER_AMOUNT' : 'TENURE_MONTHS';
+    return this.family === 'CASA' ? 'BALANCE_AMOUNT' : this.family === 'FOREX' ? 'TRANSFER_AMOUNT' : 'TENURE_MONTHS';
   }
   private outcomeType(): string {
     return this.family === 'CASA' ? 'CREDIT_INTEREST_RATE' : this.family === 'FOREX' ? 'MARKUP_RATE' : 'INTEREST_RATE';

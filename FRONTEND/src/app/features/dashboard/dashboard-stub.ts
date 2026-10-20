@@ -21,8 +21,8 @@ import { WorkspaceShell } from '../../shared/components/workspace-shell/workspac
           <a *ngIf="!canManageProducts" routerLink="/savings"><span>Savings accounts</span><small>Open and manage savings</small></a>
           <a *ngIf="!canManageProducts" routerLink="/fd"><span>Fixed deposits</span><small>Browse eligible offers</small></a>
           <a *ngIf="!canManageProducts" routerLink="/fd/accounts"><span>My deposits</span><small>View account activity</small></a>
-          <a *ngIf="canManageProducts" routerLink="/staff/fd-products"><span>Products</span><small>Offers and rate schedules</small></a>
-          <a *ngIf="canManageProducts" routerLink="/staff/product-builder"><span>Product configuration</span><small>Configure product rules</small></a>
+          <a *ngIf="canManageProducts" routerLink="/staff/product-builder"><span>Product configuration</span><small>Create products from templates or a custom setup</small></a>
+          <a *ngIf="canManageProducts" routerLink="/staff/fd-products"><span>FD offer management</span><small>Activate and update existing fixed-deposit offers</small></a>
           <a *ngIf="canManageProducts" routerLink="/staff/customers"><span>Customers</span><small>Profiles and KYC status</small></a>
           <a *ngIf="canManageProducts" routerLink="/staff/fd"><span>FD accounts</span><small>Deposit status and maturity</small></a>
           <a *ngIf="canManageProducts" routerLink="/staff/savings"><span>Savings operations</span><small>Balances and teller activity</small></a>

@@ -25,7 +25,6 @@ export class AuthService {
   login(identifier: string, password: string): Observable<LoginResponse> {
     const payload = {
       username: identifier,
-      identifier,
       password,
       context: this.buildContext(),
     };

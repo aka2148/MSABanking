@@ -30,6 +30,17 @@
           <strong>{{ family }}</strong>
         </div>
         <label class="glass-field">
+          <span class="glass-field__label">Start from a sample template</span>
+          <select name="productTemplate" [(ngModel)]="selectedTemplateKey" (ngModelChange)="templateChanged()">
+            <option [ngValue]="null">Custom configuration</option>
+            <option *ngFor="let template of templates" [value]="template.key" [disabled]="!canUseTemplate(template)">
+              {{ template.name }} · {{ template.family }}
+            </option>
+          </select>
+        </label>
+        <p class="builder-hint">Sample terms and rates only. Selecting a template fills the editable fields below; no product is created until you save the draft.</p>
+        <p class="builder-hint" *ngIf="selectedTemplate?.limitation">{{ selectedTemplate?.limitation }}</p>
+        <label class="glass-field">
           <span class="glass-field__label">Category / subcategory</span>
           <select name="categoryId" [(ngModel)]="categoryId" (ngModelChange)="categoryChanged()" required>
             <option [ngValue]="null" disabled>Select category</option>
@@ -237,7 +248,7 @@
             <input name="previewTenure" [(ngModel)]="previewFacts['TENURE_MONTHS']" />
           </label>
           <label class="glass-field" *ngIf="family === 'CASA'"><span class="glass-field__label">Sample balance</span>
-            <input name="previewBalance" [(ngModel)]="previewFacts['BALANCE']" />
+            <input name="previewBalance" [(ngModel)]="previewFacts['BALANCE_AMOUNT']" />
           </label>
           <label class="glass-field" *ngIf="family === 'FOREX'"><span class="glass-field__label">{{ baseCurrencyCode }} conversion principal / budget</span>
             <input name="previewTransfer" [(ngModel)]="previewFacts['TRANSFER_AMOUNT']" />

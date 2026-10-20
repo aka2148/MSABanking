@@ -8,22 +8,6 @@ export const BACKEND_API_BASE_URL = new InjectionToken<string>('BACKEND_API_BASE
   factory: () => inject(API_BASE_URL),
 });
 
-export interface ProductCategoryOption {
-  categoryId: number;
-  categoryCode: string;
-  categoryName: string;
-  parentCategoryId: number | null;
-}
-
-export interface CurrencyAdminOption {
-  currencyId: number;
-  isoCode: string;
-  currencyName: string;
-  currencySymbol: string;
-  decimalPlaces: number;
-  active: boolean;
-}
-
 export interface FdOfferAdmin {
   fd_product_id: number;
   catalog_product_id: number;
@@ -31,23 +15,6 @@ export interface FdOfferAdmin {
   product_name: string;
   status: 'DRAFT' | 'ACTIVE' | 'INACTIVE';
   currency_codes: string[];
-}
-
-export interface FdOfferCreateRequest {
-  productCode: string;
-  productName: string;
-  categoryId: number;
-  description: string;
-  currencies: Array<{
-    currencyCode: string;
-    minimumAmount: number;
-    maximumAmount: number;
-    rateBands: Array<{
-      minimumTenureMonths: number;
-      maximumTenureMonths: number;
-      annualRate: number;
-    }>;
-  }>;
 }
 
 export interface CatalogProductDetails {
@@ -71,20 +38,8 @@ export class FdProductAdminService {
     @Inject(BACKEND_API_BASE_URL) private readonly backendUrl: string,
   ) {}
 
-  listCategories(): Observable<ProductCategoryOption[]> {
-    return this.http.get<ProductCategoryOption[]>(this.path('/api/v1/product-categories'));
-  }
-
-  listCurrencies(): Observable<CurrencyAdminOption[]> {
-    return this.http.get<CurrencyAdminOption[]>(this.path('/api/v1/currencies?active=true'));
-  }
-
   listOffers(): Observable<FdOfferAdmin[]> {
     return this.http.get<FdOfferAdmin[]>(this.path('/api/v1/fd-products'));
-  }
-
-  createOffer(request: FdOfferCreateRequest): Observable<FdOfferAdmin> {
-    return this.http.post<FdOfferAdmin>(this.path('/api/v1/fd-products'), request);
   }
 
   activateOffer(fdProductId: number): Observable<FdOfferAdmin> {
