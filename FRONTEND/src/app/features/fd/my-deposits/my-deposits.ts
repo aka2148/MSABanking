@@ -1,3 +1,4 @@
+import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
@@ -12,7 +13,7 @@ const BOOKING_PATH = '/accounts';
 @Component({
   selector: 'app-my-deposits',
   standalone: true,
-  imports: [CommonModule, RouterLink, WorkspaceShell],
+  imports: [TranslatePipe, CommonModule, RouterLink, WorkspaceShell],
   templateUrl: './my-deposits.html',
   styleUrl: './my-deposits.scss',
 })

@@ -1,36 +1,36 @@
 <app-workspace-shell>
   <main class="glass-card savings-page">
     <header class="savings-page__header">
-      <div><p class="fd-eyebrow">Your money</p><h2>Savings accounts</h2>
-        <p class="glass-card__sub">Create a savings account to fund a fixed deposit and receive its maturity payout.</p></div>
-      <a routerLink="/fd" class="glass-btn glass-btn--ghost">Browse fixed deposits</a>
+      <div><p class="fd-eyebrow"> {{ 'Your money' | translate }} </p><h2> {{ 'Savings accounts' | translate }} </h2>
+        <p class="glass-card__sub"> {{ 'Create a savings account to fund a fixed deposit and receive its maturity payout.' | translate }} </p></div>
+      <a routerLink="/fd" class="glass-btn glass-btn--ghost"> {{ 'Browse fixed deposits' | translate }} </a>
     </header>
-    <p class="glass-error" *ngIf="error" role="alert">{{ error }}</p>
-    <p class="fd-step-copy" *ngIf="message" role="status">{{ message }}</p>
-    <p class="fd-step-copy" *ngIf="currenciesLoading" role="status">Loading supported currencies…</p>
+    <p class="glass-error" *ngIf="error" role="alert">{{ error | translate }}</p>
+    <p class="fd-step-copy" *ngIf="message" role="status">{{ message | translate: messageParameters }}</p>
+    <p class="fd-step-copy" *ngIf="currenciesLoading" role="status"> {{ 'Loading supported currencies…' | translate }} </p>
     <form [formGroup]="form" (ngSubmit)="create()" class="savings-page__form" aria-labelledby="create-savings-heading">
-      <div class="savings-page__section-heading"><div><p class="fd-eyebrow">New account</p><h3 id="create-savings-heading">Create a savings account</h3></div><span>Starts at zero balance</span></div>
+      <div class="savings-page__section-heading"><div><p class="fd-eyebrow"> {{ 'New account' | translate }} </p><h3 id="create-savings-heading"> {{ 'Create a savings account' | translate }} </h3></div><span> {{ 'Starts at zero balance' | translate }} </span></div>
       <div class="glass-field-row">
-        <label class="glass-field"><span class="glass-field__label">Account name</span>
-          <input formControlName="displayName" maxlength="80" placeholder="My savings" />
-          <span class="glass-field__error" *ngIf="form.controls.displayName.touched && form.controls.displayName.invalid">Enter a name of up to 80 characters.</span>
+        <label class="glass-field"><span class="glass-field__label"> {{ 'Account name' | translate }} </span>
+          <input formControlName="displayName" maxlength="80" [placeholder]="'My savings' | translate" />
+          <span class="glass-field__error" *ngIf="form.controls.displayName.touched && form.controls.displayName.invalid"> {{ 'Enter a name of up to 80 characters.' | translate }} </span>
         </label>
-        <label class="glass-field"><span class="glass-field__label">Currency</span>
+        <label class="glass-field"><span class="glass-field__label"> {{ 'Currency' | translate }} </span>
           <app-glass-select formControlName="currencyCode" [options]="currencies"></app-glass-select>
-          <span class="glass-field__error" *ngIf="form.controls.currencyCode.touched && form.controls.currencyCode.invalid">Choose a currency.</span>
+          <span class="glass-field__error" *ngIf="form.controls.currencyCode.touched && form.controls.currencyCode.invalid"> {{ 'Choose a currency.' | translate }} </span>
         </label>
       </div>
-      <button class="glass-btn" type="submit" [disabled]="submitting || currenciesLoading || currencies.length === 0">{{ submitting ? 'Creating…' : 'Create savings account' }}</button>
+      <button class="glass-btn" type="submit" [disabled]="submitting || currenciesLoading || currencies.length === 0"> {{ (submitting ? 'Creating…' : 'Create savings account') | translate }} </button>
     </form>
     <section class="savings-page__list" aria-labelledby="savings-list">
-      <div class="savings-page__section-heading"><div><p class="fd-eyebrow">Accounts</p><h3 id="savings-list">Your savings accounts</h3></div><span *ngIf="!loading">{{ accounts.length }} shown</span></div>
-      <p *ngIf="loading" role="status">Loading accounts…</p>
-      <p class="savings-page__empty" *ngIf="!loading && !error && accounts.length === 0">No savings accounts yet. Create your first account above.</p>
+      <div class="savings-page__section-heading"><div><p class="fd-eyebrow"> {{ 'Accounts' | translate }} </p><h3 id="savings-list"> {{ 'Your savings accounts' | translate }} </h3></div><span *ngIf="!loading"> {{ '{0} shown' | translate: [(accounts.length)] }} </span></div>
+      <p *ngIf="loading" role="status"> {{ 'Loading accounts…' | translate }} </p>
+      <p class="savings-page__empty" *ngIf="!loading && !error && accounts.length === 0"> {{ 'No savings accounts yet. Create your first account above.' | translate }} </p>
       <dl class="fd-review-list savings-page__account" *ngFor="let account of accounts">
         <div><dt>{{ account.display_name }}</dt><dd>{{ account.account_number }}</dd></div>
-        <div><dt>Balance</dt><dd>{{ account.balance | number:'1.2-4' }} {{ account.currency_code }}</dd></div>
-        <div><dt>Status</dt><dd>{{ statusLabel(account.status) }}</dd></div>
-        <div *ngIf="demoEnabled"><dt>Demo only</dt><dd><button type="button" class="glass-btn glass-btn--ghost" [disabled]="demoBusy" (click)="demoOpening(account)">Add demo opening funds</button></dd></div>
+        <div><dt> {{ 'Balance' | translate }} </dt><dd>{{ account.balance | number:'1.2-4' }} {{ account.currency_code }}</dd></div>
+        <div><dt> {{ 'Status' | translate }} </dt><dd> {{ (statusLabel(account.status)) | translate }} </dd></div>
+        <div *ngIf="demoEnabled"><dt> {{ 'Demo only' | translate }} </dt><dd><button type="button" class="glass-btn glass-btn--ghost" [disabled]="demoBusy" (click)="demoOpening(account)"> {{ 'Add demo opening funds' | translate }} </button></dd></div>
       </dl>
     </section>
   </main>

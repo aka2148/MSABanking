@@ -1,3 +1,4 @@
+import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
@@ -8,7 +9,7 @@ import { WorkspaceShell } from '../../../shared/components/workspace-shell/works
 @Component({
   selector: 'app-fd-home',
   standalone: true,
-  imports: [CommonModule, RouterLink, WorkspaceShell],
+  imports: [TranslatePipe, CommonModule, RouterLink, WorkspaceShell],
   templateUrl: './fd-home.html',
   styleUrl: './fd-home.scss',
 })

@@ -1,30 +1,30 @@
 <app-workspace-shell>
   <main class="glass-card glass-card--wide customer-admin">
-    <a routerLink="/dashboard" class="glass-link">← Staff overview</a>
+    <a routerLink="/dashboard" class="glass-link"> {{ '← Staff overview' | translate }} </a>
     <header class="customer-admin__header">
       <div>
-        <p class="fd-eyebrow">Staff workspace</p>
-        <h2>Customer management</h2>
-        <p class="glass-card__sub">Search customer profiles and update their name, KYC status, risk category, and entity type.</p>
+        <p class="fd-eyebrow"> {{ 'Staff workspace' | translate }} </p>
+        <h2> {{ 'Customer management' | translate }} </h2>
+        <p class="glass-card__sub"> {{ 'Search customer profiles and update their name, KYC status, risk category, and entity type.' | translate }} </p>
       </div>
-      <span class="fd-admin-badge">STAFF ONLY</span>
+      <span class="fd-admin-badge"> {{ 'STAFF ONLY' | translate }} </span>
     </header>
 
     <form class="customer-search" (ngSubmit)="load(0)">
       <label class="glass-field">
-        <span class="glass-field__label">Search name, customer ID, or username</span>
+        <span class="glass-field__label"> {{ 'Search name, customer ID, or username' | translate }} </span>
         <input name="search" [(ngModel)]="search" maxlength="120" autocomplete="off" />
       </label>
-      <button class="glass-btn" type="submit" [disabled]="loading">Search</button>
+      <button class="glass-btn" type="submit" [disabled]="loading"> {{ 'Search' | translate }} </button>
     </form>
 
-    <p class="glass-error" *ngIf="error" role="alert">{{ error }}</p>
-    <p class="customer-admin__success" *ngIf="message" role="status">{{ message }}</p>
-    <p class="fd-state" *ngIf="loading" role="status">Loading customers…</p>
+    <p class="glass-error" *ngIf="error" role="alert">{{ error | translate }}</p>
+    <p class="customer-admin__success" *ngIf="message" role="status">{{ message | translate }}</p>
+    <p class="fd-state" *ngIf="loading" role="status"> {{ 'Loading customers…' | translate }} </p>
 
-    <section *ngIf="!loading && page" aria-label="Customer results">
-      <p class="customer-admin__count">{{ page.totalElements }} customer profile(s)</p>
-      <p class="fd-admin-info customer-admin__empty" *ngIf="page.content.length === 0">No customers matched this search. Try a name, customer ID or username.</p>
+    <section *ngIf="!loading && page" [attr.aria-label]="'Customer results' | translate">
+      <p class="customer-admin__count"> {{ '{0} customer profile(s)' | translate: [(page.totalElements)] }} </p>
+      <p class="fd-admin-info customer-admin__empty" *ngIf="page.content.length === 0"> {{ 'No customers matched this search. Try a name, customer ID or username.' | translate }} </p>
       <article class="customer-row" *ngFor="let customer of page.content">
         <div class="customer-row__identity">
           <strong>{{ customer.fullName || 'Name not set' }}</strong>
@@ -32,38 +32,36 @@
         </div>
         <div class="customer-row__fields">
           <label class="glass-field">
-            <span class="glass-field__label">Full name</span>
+            <span class="glass-field__label"> {{ 'Full name' | translate }} </span>
             <input [name]="'name-' + customer.id" [(ngModel)]="customer.fullName" maxlength="160" />
-            <span class="glass-field__error" *ngIf="!customer.fullName?.trim()">Enter the customer's full name before saving.</span>
+            <span class="glass-field__error" *ngIf="!customer.fullName?.trim()"> {{ 'Enter the customer\'s full name before saving.' | translate }} </span>
           </label>
           <label class="glass-field">
-            <span class="glass-field__label">KYC status</span>
+            <span class="glass-field__label"> {{ 'KYC status' | translate }} </span>
             <select [name]="'kyc-' + customer.id" [(ngModel)]="customer.kycStatus">
               <option *ngFor="let status of kycStatuses" [ngValue]="status">{{ status }}</option>
             </select>
           </label>
           <label class="glass-field">
-            <span class="glass-field__label">Risk category</span>
+            <span class="glass-field__label"> {{ 'Risk category' | translate }} </span>
             <select [name]="'risk-' + customer.id" [(ngModel)]="customer.riskCategory">
               <option *ngFor="let risk of riskCategories" [ngValue]="risk">{{ risk }}</option>
             </select>
           </label>
           <label class="glass-field">
-            <span class="glass-field__label">Entity type</span>
+            <span class="glass-field__label"> {{ 'Entity type' | translate }} </span>
             <select [name]="'entity-' + customer.id" [(ngModel)]="customer.legalEntityType">
-              <option value="INDIVIDUAL">Individual</option>
-              <option value="COMPANY">Company</option>
+              <option value="INDIVIDUAL"> {{ 'Individual' | translate }} </option>
+              <option value="COMPANY"> {{ 'Company' | translate }} </option>
             </select>
           </label>
         </div>
-        <button class="glass-btn glass-btn--ghost" type="button" [disabled]="savingId === customer.id" (click)="save(customer)" [attr.aria-label]="'Save changes for ' + (customer.fullName || customer.customerNumber)">
-          {{ savingId === customer.id ? 'Saving…' : 'Save changes' }}
-        </button>
+        <button class="glass-btn glass-btn--ghost" type="button" [disabled]="savingId === customer.id" (click)="save(customer)" [attr.aria-label]="'Save changes for {0}' | translate: [customer.fullName || customer.customerNumber]"> {{ (savingId === customer.id ? 'Saving…' : 'Save changes') | translate }} </button>
       </article>
-      <nav class="customer-pages" *ngIf="page.totalPages > 1" aria-label="Customer pages">
-        <button class="glass-btn glass-btn--ghost" type="button" [disabled]="page.first" (click)="load(page.number - 1)">Previous</button>
-        <span>Page {{ page.number + 1 }} of {{ page.totalPages }}</span>
-        <button class="glass-btn glass-btn--ghost" type="button" [disabled]="page.last" (click)="load(page.number + 1)">Next</button>
+      <nav class="customer-pages" *ngIf="page.totalPages > 1" [attr.aria-label]="'Customer pages' | translate">
+        <button class="glass-btn glass-btn--ghost" type="button" [disabled]="page.first" (click)="load(page.number - 1)"> {{ 'Previous' | translate }} </button>
+        <span> {{ 'Page {0} of {1}' | translate: [(page.number + 1), (page.totalPages)] }} </span>
+        <button class="glass-btn glass-btn--ghost" type="button" [disabled]="page.last" (click)="load(page.number + 1)"> {{ 'Next' | translate }} </button>
       </nav>
     </section>
   </main>

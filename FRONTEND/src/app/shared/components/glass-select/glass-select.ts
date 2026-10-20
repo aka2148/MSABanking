@@ -1,3 +1,4 @@
+import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { Component, ElementRef, HostListener, Input, forwardRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
@@ -10,7 +11,7 @@ export interface GlassSelectOption {
 @Component({
   selector: 'app-glass-select',
   standalone: true,
-  imports: [CommonModule],
+  imports: [TranslatePipe, CommonModule],
   templateUrl: './glass-select.html',
   styleUrl: './glass-select.scss',
   providers: [
@@ -20,6 +21,7 @@ export interface GlassSelectOption {
 export class GlassSelect implements ControlValueAccessor {
   @Input() options: GlassSelectOption[] = [];
   @Input() placeholder = 'Select';
+  @Input() translateOptions = true;
 
   isOpen = false;
   selectedValue: string | null = null;

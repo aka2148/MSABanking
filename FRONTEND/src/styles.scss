@@ -2,12 +2,28 @@
 @import 'app/shared/styles/glass';
 @import 'app/shared/styles/workspace';
 
-* {
-  box-sizing: border-box;
-}
-
+*, *::before, *::after { box-sizing: border-box; }
 html, body {
   margin: 0;
   padding: 0;
+  min-height: 100%;
+  background: #0a0a0f;
+  color: #fafafa;
   font-family: var(--font-body);
+  color-scheme: dark;
 }
+html {
+  --language-clearance: calc(96px + env(safe-area-inset-bottom, 0px));
+  scroll-padding-bottom: var(--language-clearance);
+}
+app-root { display: block; min-height: 100dvh; }
+// Reserve space inside each page's painted surface, never as bare body padding.
+app-landing { padding-bottom: var(--language-clearance); }
+app-glass-shell .glass-shell { isolation: isolate; }
+html[dir='rtl'] :is(input[type='email'], input[type='tel'], input[type='number'], input[type='date'], input[autocomplete='username']) {
+  direction: ltr;
+  text-align: start;
+}
+html[dir='rtl'] :is(.glass-field__label, .glass-select__trigger, .glass-select__option, th) { text-align: start; }
+html[dir='rtl'] :is(.fd-eyebrow, .signup-card__eyebrow) { letter-spacing: normal; }
+html[dir='rtl'] .workspace .fd-journal :is(td, th):not(:first-child) { text-align: end; }

@@ -1,6 +1,6 @@
 .glass-shell {
   position: relative;
-  min-height: 100vh;
+  min-height: 100dvh;
   overflow-x: hidden;
 }
 
@@ -49,9 +49,9 @@
   display: flex;
   align-items: center;
 
-  min-height: 100vh;
+  min-height: 100dvh;
 
-  padding: 24px;
+  padding: 24px 24px var(--language-clearance, 96px);
   gap: 60px;
 
   &--right {

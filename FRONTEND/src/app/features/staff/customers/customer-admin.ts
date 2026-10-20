@@ -1,3 +1,4 @@
+import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
@@ -9,7 +10,7 @@ import { WorkspaceShell } from '../../../shared/components/workspace-shell/works
 @Component({
   selector: 'app-customer-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, WorkspaceShell],
+  imports: [TranslatePipe, CommonModule, FormsModule, RouterLink, WorkspaceShell],
   templateUrl: './customer-admin.html',
   styleUrl: './customer-admin.scss',
 })

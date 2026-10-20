@@ -1,100 +1,86 @@
 <app-workspace-shell>
   <main class="glass-card glass-card--wide fd-admin-card">
-    <nav class="fd-admin-breadcrumb" aria-label="Staff navigation"><a routerLink="/dashboard" class="glass-link fd-admin-back">← Staff overview</a><a routerLink="/staff/product-builder" class="glass-link fd-admin-back">Product configuration →</a></nav>
+    <nav class="fd-admin-breadcrumb" [attr.aria-label]="'Staff navigation' | translate"><a routerLink="/dashboard" class="glass-link fd-admin-back"> {{ '← Staff overview' | translate }} </a><a routerLink="/staff/product-builder" class="glass-link fd-admin-back"> {{ 'Product configuration →' | translate }} </a></nav>
     <header class="fd-admin-header">
       <div>
-        <p class="fd-eyebrow">Staff workspace</p>
-        <h2>Fixed-deposit offer management</h2>
-        <p class="glass-card__sub">Manage existing offers here. Create new products in Product configuration using a template or custom setup.</p>
+        <p class="fd-eyebrow"> {{ 'Staff workspace' | translate }} </p>
+        <h2> {{ 'Fixed-deposit offer management' | translate }} </h2>
+        <p class="glass-card__sub"> {{ 'Manage existing offers here. Create new products in Product configuration using a template or custom setup.' | translate }} </p>
       </div>
-      <span class="fd-admin-badge">{{ sessionRoleLabel }}</span>
+      <span class="fd-admin-badge"> {{ (sessionRoleLabel) | translate }} </span>
     </header>
 
-    <p class="glass-error" *ngIf="errorMessage" role="alert">{{ errorMessage }}</p>
-    <p class="fd-admin-success" *ngIf="successMessage" role="status">{{ successMessage }}</p>
-    <p class="fd-state" *ngIf="loading" role="status">Loading fixed-deposit offers…</p>
+    <p class="glass-error" *ngIf="errorMessage" role="alert"> {{ (errorMessage) | translate }} </p>
+    <p class="fd-admin-success" *ngIf="successMessage" role="status"> {{ (successMessage) | translate }} </p>
+    <p class="fd-state" *ngIf="loading" role="status"> {{ 'Loading fixed-deposit offers…' | translate }} </p>
 
     <ng-container *ngIf="!loading">
       <section class="fd-admin-section" aria-labelledby="existing-fd-products-heading">
         <div class="fd-admin-section-heading">
-          <div><p class="fd-eyebrow">Existing offers</p><h3 id="existing-fd-products-heading">Offer status</h3></div>
-          <button type="button" class="glass-link fd-text-button" (click)="load()" [disabled]="loading">Refresh</button>
+          <div><p class="fd-eyebrow"> {{ 'Existing offers' | translate }} </p><h3 id="existing-fd-products-heading"> {{ 'Offer status' | translate }} </h3></div>
+          <button type="button" class="glass-link fd-text-button" (click)="load()" [disabled]="loading"> {{ 'Refresh' | translate }} </button>
         </div>
-        <p class="fd-admin-info">To create a product, open <a routerLink="/staff/product-builder">Product configuration</a>. This page only manages existing fixed-deposit offers.</p>
-        <p class="fd-admin-info fd-admin-empty" *ngIf="listedOffers.length === 0">
-          No fixed-deposit offers are configured yet.
-        </p>
-        <p class="fd-admin-note" *ngIf="listedOffers.length > 0">{{ listedOffers.length }} product(s) · page {{ offerPage + 1 }} of {{ offerPageCount }}</p>
+        <p class="fd-admin-info"> {{ 'To create a product, open' | translate }} <a routerLink="/staff/product-builder"> {{ 'Product configuration' | translate }} </a> {{ '. This page only manages existing fixed-deposit offers.' | translate }} </p>
+        <p class="fd-admin-info fd-admin-empty" *ngIf="listedOffers.length === 0"> {{ 'No fixed-deposit offers are configured yet.' | translate }} </p>
+        <p class="fd-admin-note" *ngIf="listedOffers.length > 0"> {{ '{0} product(s) · page {1} of {2}' | translate: [(listedOffers.length), (offerPage + 1), (offerPageCount)] }} </p>
         <div class="fd-admin-product-list" *ngIf="listedOffers.length > 0">
           <article class="fd-admin-product-row" *ngFor="let offer of visibleOffers">
             <div>
               <strong>{{ offer.product_name }}</strong>
-              <span>{{ offer.product_code }} · ID {{ offer.fd_product_id }}</span>
+              <span> {{ '{0} · ID {1}' | translate: [(offer.product_code), (offer.fd_product_id)] }} </span>
             </div>
             <div class="fd-admin-product-row__right">
               <span class="fd-status-chip" [attr.data-status]="offer.status">{{ offer.status }}</span>
               <span class="fd-admin-note">{{ offer.currency_codes.join(' / ') }}</span>
               <button type="button" class="glass-btn glass-btn--ghost" *ngIf="offer.status === 'DRAFT' || offer.status === 'INACTIVE'"
-                      [disabled]="activatingId === offer.fd_product_id" (click)="activate(offer)">
-                {{ activatingId === offer.fd_product_id ? 'Activating…' : offer.status === 'INACTIVE' ? 'Reactivate' : 'Activate' }}
-              </button>
+                      [disabled]="activatingId === offer.fd_product_id" (click)="activate(offer)"> {{ (activatingId === offer.fd_product_id ? 'Activating…' : offer.status === 'INACTIVE' ? 'Reactivate' : 'Activate') | translate }} </button>
               <button type="button" class="glass-btn glass-btn--ghost" *ngIf="offer.status === 'ACTIVE'"
-                      [disabled]="activatingId === offer.fd_product_id" (click)="deactivate(offer)">
-                {{ activatingId === offer.fd_product_id ? 'Saving…' : 'Deactivate' }}
-              </button>
-              <button type="button" class="glass-link fd-text-button" (click)="toggleTranslation(offer)">
-                {{ editingTranslationId === offer.fd_product_id ? 'Close translation' : 'Manage translation' }}
-              </button>
-              <button type="button" class="glass-link fd-text-button" (click)="toggleProductEditor(offer)">
-                {{ editingProductId === offer.fd_product_id ? 'Close product editor' : 'Edit product details' }}
-              </button>
+                      [disabled]="activatingId === offer.fd_product_id" (click)="deactivate(offer)"> {{ (activatingId === offer.fd_product_id ? 'Saving…' : 'Deactivate') | translate }} </button>
+              <button type="button" class="glass-link fd-text-button" (click)="toggleTranslation(offer)"> {{ (editingTranslationId === offer.fd_product_id ? 'Close translation' : 'Manage translation') | translate }} </button>
+              <button type="button" class="glass-link fd-text-button" (click)="toggleProductEditor(offer)"> {{ (editingProductId === offer.fd_product_id ? 'Close product editor' : 'Edit product details') | translate }} </button>
             </div>
             <div class="fd-product-translation" *ngIf="editingProductId === offer.fd_product_id">
-              <p class="fd-admin-note" *ngIf="!productEditDrafts[offer.fd_product_id]">Loading product details…</p>
+              <p class="fd-admin-note" *ngIf="!productEditDrafts[offer.fd_product_id]"> {{ 'Loading product details…' | translate }} </p>
               <ng-container *ngIf="productEditDrafts[offer.fd_product_id] as draft">
                 <label class="glass-field">
-                  <span class="glass-field__label">Product name</span>
+                  <span class="glass-field__label"> {{ 'Product name' | translate }} </span>
                   <input [name]="'product-name-' + offer.fd_product_id" [(ngModel)]="draft.productName"
                          maxlength="255" required />
                 </label>
                 <label class="glass-field fd-admin-description">
-                  <span class="glass-field__label">Description</span>
+                  <span class="glass-field__label"> {{ 'Description' | translate }} </span>
                   <textarea [name]="'product-description-' + offer.fd_product_id" [(ngModel)]="draft.description"
                             maxlength="1000" rows="2"></textarea>
                 </label>
                 <button type="button" class="glass-btn glass-btn--ghost"
                         [disabled]="savingProductId === offer.fd_product_id || !draft.productName.trim()"
-                        (click)="saveProduct(offer)">
-                  {{ savingProductId === offer.fd_product_id ? 'Saving…' : 'Save product details' }}
-                </button>
+                        (click)="saveProduct(offer)"> {{ (savingProductId === offer.fd_product_id ? 'Saving…' : 'Save product details') | translate }} </button>
               </ng-container>
             </div>
             <div class="fd-product-translation" *ngIf="editingTranslationId === offer.fd_product_id">
               <label class="glass-field">
-                <span class="glass-field__label">Locale tag</span>
+                <span class="glass-field__label"> {{ 'Locale tag' | translate }} </span>
                 <input [name]="'locale-' + offer.fd_product_id" [(ngModel)]="translationDrafts[offer.fd_product_id].locale"
-                       maxlength="35" placeholder="es, fr, hi…" required />
+                       maxlength="35" [placeholder]="'es, fr, hi…' | translate" required />
               </label>
               <label class="glass-field">
-                <span class="glass-field__label">Translated product name</span>
+                <span class="glass-field__label"> {{ 'Translated product name' | translate }} </span>
                 <input [name]="'translation-name-' + offer.fd_product_id" [(ngModel)]="translationDrafts[offer.fd_product_id].productName"
                        maxlength="255" required />
               </label>
               <label class="glass-field fd-admin-description">
-                <span class="glass-field__label">Translated description</span>
+                <span class="glass-field__label"> {{ 'Translated description' | translate }} </span>
                 <textarea [name]="'translation-description-' + offer.fd_product_id" [(ngModel)]="translationDrafts[offer.fd_product_id].description"
                           maxlength="1000" rows="2"></textarea>
               </label>
               <button type="button" class="glass-btn glass-btn--ghost" [disabled]="savingTranslationId === offer.fd_product_id"
-                      (click)="saveTranslation(offer)">
-                {{ savingTranslationId === offer.fd_product_id ? 'Saving…' : 'Save translation' }}
-              </button>
+                      (click)="saveTranslation(offer)"> {{ (savingTranslationId === offer.fd_product_id ? 'Saving…' : 'Save translation') | translate }} </button>
             </div>
           </article>
         </div>
-        <nav class="fd-offer-pagination" *ngIf="listedOffers.length > offerPageSize" aria-label="Product catalog pages">
-          <button type="button" class="glass-btn glass-btn--ghost" (click)="offerPage = offerPage - 1" [disabled]="offerPage === 0">Previous</button>
-          <button type="button" class="glass-btn glass-btn--ghost" (click)="offerPage = offerPage + 1" [disabled]="offerPage + 1 >= offerPageCount">Next</button>
+        <nav class="fd-offer-pagination" *ngIf="listedOffers.length > offerPageSize" [attr.aria-label]="'Product catalog pages' | translate">
+          <button type="button" class="glass-btn glass-btn--ghost" (click)="offerPage = offerPage - 1" [disabled]="offerPage === 0"> {{ 'Previous' | translate }} </button>
+          <button type="button" class="glass-btn glass-btn--ghost" (click)="offerPage = offerPage + 1" [disabled]="offerPage + 1 >= offerPageCount"> {{ 'Next' | translate }} </button>
         </nav>
       </section>
     </ng-container>

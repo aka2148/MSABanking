@@ -1,3 +1,4 @@
+import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
@@ -8,7 +9,7 @@ import { GlassShell } from '../../../shared/components/glass-shell/glass-shell';
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, GlassShell],
+  imports: [TranslatePipe, CommonModule, ReactiveFormsModule, RouterLink, GlassShell],
   templateUrl: './login.html',
   styleUrl: './login.scss',
 })

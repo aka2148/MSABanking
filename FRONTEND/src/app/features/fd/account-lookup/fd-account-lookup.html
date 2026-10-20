@@ -1,26 +1,22 @@
 <app-workspace-shell>
   <main class="glass-card fd-lookup-card">
-    <a routerLink="/fd/accounts" class="glass-link fd-back-link">← My deposits</a>
-    <p class="fd-eyebrow">Your deposits</p>
-    <h2>Open an existing deposit</h2>
-    <p class="glass-card__sub">Enter the numeric reference from your booking to view and manage your deposit.</p>
+    <a routerLink="/fd/accounts" class="glass-link fd-back-link"> {{ '← My deposits' | translate }} </a>
+    <p class="fd-eyebrow"> {{ 'Your deposits' | translate }} </p>
+    <h2> {{ 'Open an existing deposit' | translate }} </h2>
+    <p class="glass-card__sub"> {{ 'Enter the numeric reference from your booking to view and manage your deposit.' | translate }} </p>
 
-    <p class="glass-error" *ngIf="errorMessage" role="alert">{{ errorMessage }}</p>
+    <p class="glass-error" *ngIf="errorMessage" role="alert"> {{ (errorMessage) | translate }} </p>
 
     <form [formGroup]="form" (ngSubmit)="openAccount()" novalidate>
       <label class="glass-field">
-        <span class="glass-field__label">Deposit reference</span>
-        <input type="number" min="1" step="1" formControlName="accountId" inputmode="numeric" placeholder="Example: 1042" />
-        <span class="glass-field__error" *ngIf="form.controls.accountId.touched && form.controls.accountId.invalid">
-          Use a positive numeric deposit reference.
-        </span>
+        <span class="glass-field__label"> {{ 'Deposit reference' | translate }} </span>
+        <input type="number" min="1" step="1" formControlName="accountId" inputmode="numeric" [placeholder]="'Example: 1042' | translate" />
+        <span class="glass-field__error" *ngIf="form.controls.accountId.touched && form.controls.accountId.invalid"> {{ 'Use a positive numeric deposit reference.' | translate }} </span>
       </label>
 
-      <button type="submit" class="glass-btn glass-btn--full" [disabled]="loading">
-        {{ loading ? 'Opening…' : 'Open deposit' }}
-      </button>
+      <button type="submit" class="glass-btn glass-btn--full" [disabled]="loading"> {{ (loading ? 'Opening…' : 'Open deposit') | translate }} </button>
     </form>
 
-    <p class="glass-card__footer"><a routerLink="/fd" class="glass-link">Browse FD products</a></p>
+    <p class="glass-card__footer"><a routerLink="/fd" class="glass-link"> {{ 'Browse FD products' | translate }} </a></p>
   </main>
 </app-workspace-shell>

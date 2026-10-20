@@ -1,4 +1,8 @@
-import { Component } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { LANGUAGES } from '../../../core/i18n/language';
+import { TranslationService } from '../../../core/i18n/translation.service';
+import { TranslatePipe } from '../../../core/i18n/translate.pipe';
+import { Component, inject, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   ReactiveFormsModule,
@@ -36,6 +40,7 @@ const CURRENCY_FOCAL_POINTS: Record<
   selector: 'app-signup',
   standalone: true,
   imports: [
+    TranslatePipe,
     CommonModule,
     ReactiveFormsModule,
     RouterLink,
@@ -76,6 +81,8 @@ const CURRENCY_FOCAL_POINTS: Record<
   ],
 })
 export class Signup {
+  private readonly translations = inject(TranslationService);
+  private readonly destroyRef = inject(DestroyRef);
   readonly reducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   loading = false;
   errorMessage = '';
@@ -97,10 +104,8 @@ export class Signup {
   ];
 
   languageOptions: GlassSelectOption[] = [
-    { label: 'English', value: 'English' },
-    { label: 'Hindi', value: 'Hindi' },
-    { label: 'Kannada', value: 'Kannada' },
-    { label: 'Tamil', value: 'Tamil' },
+    ...LANGUAGES.map(language => ({ label: language.name, value: language.profileName })),
+    { label: 'தமிழ்', value: 'Tamil' },
   ];
 
   proofTypeOptions: GlassSelectOption[] = [
@@ -168,7 +173,7 @@ export class Signup {
         fatherOrSpouseName: ['', Validators.required],
         occupation: ['', Validators.required],
         countryOfOrigin: ['', Validators.required],
-        preferredLanguage: ['English', Validators.required],
+        preferredLanguage: [LANGUAGES.find(language => language.code === this.translations.language())!.profileName, Validators.required],
       }),
 
       documents: this.fb.group({
@@ -240,6 +245,12 @@ export class Signup {
      * The validation rules for proofOfIdValue change
      * depending on the selected proofOfIdType.
      */
+    this.personalGroup.get('preferredLanguage')!.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe((name: string) => {
+        const language = LANGUAGES.find(option => option.profileName === name);
+        if (language) this.translations.setLanguage(language.code);
+      });
+
     this.documentsGroup
       .get('proofOfIdType')!
       .valueChanges.subscribe((type: string) => {
@@ -358,7 +369,7 @@ export class Signup {
     }
 
     if (c.errors['required']) {
-      return `${label} is required.`;
+      return this.translations.translate('{0} is required.', [this.translations.translate(label)]);
     }
 
     if (c.errors['email']) {
@@ -387,11 +398,11 @@ export class Signup {
         }
       }
 
-      return `Enter a valid ${label.toLowerCase()}.`;
+      return this.translations.translate('Enter a valid value for {0}.', [this.translations.translate(label)]);
     }
 
     if (c.errors['minlength']) {
-      return `${label} is too short.`;
+      return this.translations.translate('{0} is too short.', [this.translations.translate(label)]);
     }
 
     return 'Invalid value.';

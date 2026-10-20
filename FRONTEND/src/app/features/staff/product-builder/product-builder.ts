@@ -1,3 +1,4 @@
+import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
@@ -33,7 +34,7 @@ interface ChargeDraft {
 @Component({
   selector: 'app-product-builder',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, WorkspaceShell],
+  imports: [TranslatePipe, CommonModule, FormsModule, RouterLink, WorkspaceShell],
   templateUrl: './product-builder.html',
   styleUrl: './product-builder.scss',
 })

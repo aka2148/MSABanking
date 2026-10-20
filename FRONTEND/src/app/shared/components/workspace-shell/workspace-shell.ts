@@ -1,3 +1,4 @@
+import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { CommonModule } from '@angular/common';
 import { Component, Input } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
@@ -7,7 +8,7 @@ import { GlassShell } from '../glass-shell/glass-shell';
 @Component({
   selector: 'app-workspace-shell',
   standalone: true,
-  imports: [CommonModule, RouterLink, RouterLinkActive, GlassShell],
+  imports: [TranslatePipe, CommonModule, RouterLink, RouterLinkActive, GlassShell],
   templateUrl: './workspace-shell.html',
   styleUrl: './workspace-shell.scss',
 })

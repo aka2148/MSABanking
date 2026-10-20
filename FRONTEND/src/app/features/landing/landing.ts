@@ -1,3 +1,4 @@
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -13,7 +14,7 @@ interface Product {
 @Component({
   selector: 'app-landing',
   standalone: true,
-  imports: [CommonModule, RouterLink, GlobeHero, TeamChart],
+  imports: [TranslatePipe, CommonModule, RouterLink, GlobeHero, TeamChart],
   templateUrl: './landing.html',
   styleUrl: './landing.scss',
 })

@@ -7,22 +7,19 @@
       <span class="landing__brand-name">MoneyPal Bank</span>
     </div>
     <div class="landing__nav-actions">
-      <a routerLink="/login" class="landing__nav-link">Sign in</a>
-      <a routerLink="/signup" class="landing__cta landing__cta--small">Get started</a>
+      <a routerLink="/login" class="landing__nav-link"> {{ 'Sign in' | translate }} </a>
+      <a routerLink="/signup" class="landing__cta landing__cta--small"> {{ 'Get started' | translate }} </a>
     </div>
   </nav>
 
   <!-- Hero -->
   <section class="landing__hero">
     <div class="landing__hero-copy">
-      <h1>Banking, <span class="landing__accent">held to a ledger.</span></h1>
-      <p>
-        Every session, every rate, every transaction - timestamped, traceable,
-        and built on infrastructure designed for accountability.
-      </p>
+      <h1> {{ 'Banking,' | translate }} <span class="landing__accent"> {{ 'held to a ledger.' | translate }} </span></h1>
+      <p> {{ 'Every session, every rate, every transaction - timestamped, traceable, and built on infrastructure designed for accountability.' | translate }} </p>
       <div class="landing__hero-actions">
-        <a routerLink="/signup" class="landing__cta">Open an account</a>
-        <a routerLink="/login" class="landing__cta landing__cta--ghost">Sign in</a>
+        <a routerLink="/signup" class="landing__cta"> {{ 'Open an account' | translate }} </a>
+        <a routerLink="/login" class="landing__cta landing__cta--ghost"> {{ 'Sign in' | translate }} </a>
       </div>
     </div>
     <div class="landing__hero-globe">
@@ -32,20 +29,20 @@
 
   <!-- Products -->
   <section class="landing__products">
-    <h2>Everything in one place</h2>
+    <h2> {{ 'Everything in one place' | translate }} </h2>
     <div class="landing__product-grid">
       <div class="landing__product-card" *ngFor="let p of products">
         <div class="landing__product-icon">{{ p.icon }}</div>
-        <h3>{{ p.title }}</h3>
-        <p>{{ p.description }}</p>
+        <h3> {{ (p.title) | translate }} </h3>
+        <p> {{ (p.description) | translate }} </p>
       </div>
     </div>
   </section>
 
   <!-- Team -->
   <section class="landing__team">
-    <h2>Our Team</h2>
-    <p class="landing__team-sub">The people building this, module by module.</p>
+    <h2> {{ 'Our Team' | translate }} </h2>
+    <p class="landing__team-sub"> {{ 'The people building this, module by module.' | translate }} </p>
     <app-team-chart></app-team-chart>
   </section>
 

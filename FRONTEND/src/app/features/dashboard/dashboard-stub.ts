@@ -1,3 +1,4 @@
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
@@ -7,30 +8,30 @@ import { WorkspaceShell } from '../../shared/components/workspace-shell/workspac
 @Component({
   selector: 'app-dashboard-stub',
   standalone: true,
-  imports: [CommonModule, RouterLink, WorkspaceShell],
+  imports: [TranslatePipe, CommonModule, RouterLink, WorkspaceShell],
   template: `
     <app-workspace-shell>
       <main class="workspace-home">
         <header class="workspace-home__header">
-          <p class="fd-eyebrow">MoneyPal workspace</p>
-          <h1>{{ canManageProducts ? 'Staff workspace' : 'Welcome back' }}</h1>
-          <p>{{ canManageProducts ? 'Choose an area to continue.' : 'Manage savings and fixed deposits.' }}</p>
+          <p class="fd-eyebrow"> {{ 'MoneyPal workspace' | translate }} </p>
+          <h1> {{ (canManageProducts ? 'Staff workspace' : 'Welcome back') | translate }} </h1>
+          <p> {{ (canManageProducts ? 'Choose an area to continue.' : 'Manage savings and fixed deposits.') | translate }} </p>
         </header>
 
-        <nav class="workspace-home__links" aria-label="Workspace shortcuts">
-          <a *ngIf="!canManageProducts" routerLink="/savings"><span>Savings accounts</span><small>Open and manage savings</small></a>
-          <a *ngIf="!canManageProducts" routerLink="/fd"><span>Fixed deposits</span><small>Browse eligible offers</small></a>
-          <a *ngIf="!canManageProducts" routerLink="/fd/accounts"><span>My deposits</span><small>View account activity</small></a>
-          <a *ngIf="canManageProducts" routerLink="/staff/product-builder"><span>Product configuration</span><small>Create products from templates or a custom setup</small></a>
-          <a *ngIf="canManageProducts" routerLink="/staff/fd-products"><span>FD offer management</span><small>Activate and update existing fixed-deposit offers</small></a>
-          <a *ngIf="canManageProducts" routerLink="/staff/customers"><span>Customers</span><small>Profiles and KYC status</small></a>
-          <a *ngIf="canManageProducts" routerLink="/staff/fd"><span>FD accounts</span><small>Deposit status and maturity</small></a>
-          <a *ngIf="canManageProducts" routerLink="/staff/savings"><span>Savings operations</span><small>Balances and teller activity</small></a>
-          <a *ngIf="canManageProducts" routerLink="/compliance"><span>Compliance</span><small>Rates and effective dates</small></a>
-          <a *ngIf="isAdmin" routerLink="/staff/operations/clock"><span>Operations</span><small>Administrative tools</small></a>
+        <nav class="workspace-home__links" [attr.aria-label]="'Workspace shortcuts' | translate">
+          <a *ngIf="!canManageProducts" routerLink="/savings"><span> {{ 'Savings accounts' | translate }} </span><small> {{ 'Open and manage savings' | translate }} </small></a>
+          <a *ngIf="!canManageProducts" routerLink="/fd"><span> {{ 'Fixed deposits' | translate }} </span><small> {{ 'Browse eligible offers' | translate }} </small></a>
+          <a *ngIf="!canManageProducts" routerLink="/fd/accounts"><span> {{ 'My deposits' | translate }} </span><small> {{ 'View account activity' | translate }} </small></a>
+          <a *ngIf="canManageProducts" routerLink="/staff/product-builder"><span> {{ 'Product configuration' | translate }} </span><small> {{ 'Create products from templates or a custom setup' | translate }} </small></a>
+          <a *ngIf="canManageProducts" routerLink="/staff/fd-products"><span> {{ 'FD offer management' | translate }} </span><small> {{ 'Activate and update existing fixed-deposit offers' | translate }} </small></a>
+          <a *ngIf="canManageProducts" routerLink="/staff/customers"><span> {{ 'Customers' | translate }} </span><small> {{ 'Profiles and KYC status' | translate }} </small></a>
+          <a *ngIf="canManageProducts" routerLink="/staff/fd"><span> {{ 'FD accounts' | translate }} </span><small> {{ 'Deposit status and maturity' | translate }} </small></a>
+          <a *ngIf="canManageProducts" routerLink="/staff/savings"><span> {{ 'Savings operations' | translate }} </span><small> {{ 'Balances and teller activity' | translate }} </small></a>
+          <a *ngIf="canManageProducts" routerLink="/compliance"><span> {{ 'Compliance' | translate }} </span><small> {{ 'Rates and effective dates' | translate }} </small></a>
+          <a *ngIf="isAdmin" routerLink="/staff/operations/clock"><span> {{ 'Operations' | translate }} </span><small> {{ 'Administrative tools' | translate }} </small></a>
         </nav>
 
-        <button type="button" class="workspace-home__signout" (click)="logout()">Sign out</button>
+        <button type="button" class="workspace-home__signout" (click)="logout()"> {{ 'Sign out' | translate }} </button>
       </main>
     </app-workspace-shell>
   `,

@@ -1,3 +1,4 @@
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -10,12 +11,13 @@ import { GlassSelect } from '../../shared/components/glass-select/glass-select';
 
 @Component({
   selector: 'app-savings-accounts', standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, WorkspaceShell, GlassSelect],
+  imports: [TranslatePipe, CommonModule, ReactiveFormsModule, RouterLink, WorkspaceShell, GlassSelect],
   templateUrl: './savings-accounts.html', styleUrl: './savings-accounts.scss',
 })
 export class SavingsAccounts implements OnInit {
   accounts: SavingsAccount[] = [];
   loading = false; submitting = false; error = ''; message = '';
+  messageParameters: readonly unknown[] = [];
   demoEnabled = false; demoBusy = false;
   currenciesLoading = true;
   private submission: { body: string; key: string } | null = null;
@@ -82,7 +84,8 @@ export class SavingsAccounts implements OnInit {
     this.fd.createSavings(request, this.submission.key).subscribe({
       next: account => {
         this.submitting = false; this.submission = null;
-        this.message = 'Savings account ' + account.account_number + ' created.';
+        this.message = 'Savings account {0} created.';
+        this.messageParameters = [account.account_number];
         this.form.controls.displayName.reset(); this.load();
       },
       error: (e: HttpErrorResponse) => { this.submitting = false; this.error = normalizeApiError(e).message; },

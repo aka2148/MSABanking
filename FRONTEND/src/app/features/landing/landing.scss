@@ -11,7 +11,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 24px 6%;
+  padding-block: 24px;
+  padding-inline: 6% clamp(16px, 2.5vw, 48px);
+  gap: 20px;
+  flex-wrap: wrap;
 }
 
 .landing__brand {
@@ -40,6 +43,9 @@
 .landing__nav-actions {
   display: flex;
   align-items: center;
+  margin-inline-start: auto;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 20px;
 }
 .landing__nav-link {
@@ -113,6 +119,7 @@
 
 .landing__hero-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   @media (max-width: 900px) {
     justify-content: center;

@@ -1,7 +1,7 @@
 :host { display: block; width: 100%; }
 .workspace-stage { min-height: 100vh; background: radial-gradient(ellipse 70% 42% at 83% 0%, rgba(245, 158, 11, .045), transparent 70%), #0a0a0f; }
 .workspace-stage .workspace { width: 100%; max-width: none; padding-inline: clamp(1.25rem, 4vw, 4.5rem); }
-.workspace-stage .workspace__content { padding-block: clamp(2rem, 3vw, 3.25rem) 5rem; }
+.workspace-stage .workspace__content { padding-block: clamp(2rem, 3vw, 3.25rem) var(--language-clearance, 96px); }
 .workspace { width: min(100%, 1200px); min-width: 0; margin: 0 auto; }
 .workspace__skip { position: absolute; z-index: 10; top: -100px; left: 1rem; padding: .7rem 1rem; background: var(--gold-500); color: var(--ink-900); border-radius: .5rem; }
 .workspace__skip:focus { top: .5rem; }

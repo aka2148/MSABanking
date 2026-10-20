@@ -1,3 +1,32 @@
-// Intentionally empty — this page uses the shared .glass-card / .glass-field
-// classes from shared/styles/_glass.scss. Add page-specific overrides here
-// only if this screen needs something no other glass screen needs.
+
+// Match the charcoal surfaces used by the authenticated workspace.
+.glass-card {
+  background: rgba(18, 18, 26, 0.96);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  text-align: start;
+
+  &::before {
+    display: none;
+  }
+}
+
+.glass-field {
+  display: block;
+  margin-bottom: 20px;
+
+  input {
+    background: #1a1a24;
+  }
+}
+
+.glass-btn--full {
+  margin-top: 8px;
+  min-height: 44px;
+}
+
+@media (max-width: 480px) {
+  .glass-card {
+    padding: 28px 24px;
+  }
+}

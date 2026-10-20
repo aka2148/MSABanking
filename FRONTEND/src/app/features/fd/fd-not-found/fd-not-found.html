@@ -1,10 +1,8 @@
 <app-workspace-shell>
   <main class="glass-card fd-not-found-card">
-    <p class="fd-eyebrow">Fixed deposits</p>
-    <h2>Page unavailable</h2>
-    <p class="fd-not-found-copy">
-      The link does not match a supported fixed-deposit screen. Your account and financial records were not changed.
-    </p>
-    <a class="glass-btn" routerLink="/fd">Return to fixed deposits</a>
+    <p class="fd-eyebrow"> {{ 'Fixed deposits' | translate }} </p>
+    <h2> {{ 'Page unavailable' | translate }} </h2>
+    <p class="fd-not-found-copy"> {{ 'The link does not match a supported fixed-deposit screen. Your account and financial records were not changed.' | translate }} </p>
+    <a class="glass-btn" routerLink="/fd"> {{ 'Return to fixed deposits' | translate }} </a>
   </main>
 </app-workspace-shell>

@@ -1,34 +1,27 @@
 <app-glass-shell backgroundUrl="/world-map.png" align="right" [focalX]="71.9" [focalY]="42.0">
   <div class="glass-card">
-    <h2>Sign in</h2>
-    <p class="glass-card__sub">Use your registered mobile number or username.</p>
+    <h2> {{ 'Sign in' | translate }} </h2>
+    <p class="glass-card__sub"> {{ 'Use your registered mobile number or username.' | translate }} </p>
 
-    <p class="glass-error" *ngIf="errorMessage">{{ errorMessage }}</p>
+    <p class="glass-error" *ngIf="errorMessage"> {{ (errorMessage) | translate }} </p>
 
     <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
       <label class="glass-field">
-        <span class="glass-field__label">Mobile number or username</span>
+        <span class="glass-field__label"> {{ 'Mobile number or username' | translate }} </span>
         <input type="text" formControlName="identifier" autocomplete="username" placeholder="9876543210" />
-        <span class="glass-field__error" *ngIf="form.get('identifier')?.touched && form.get('identifier')?.invalid">
-          This field is required.
-        </span>
+        <span class="glass-field__error" *ngIf="form.get('identifier')?.touched && form.get('identifier')?.invalid"> {{ 'This field is required.' | translate }} </span>
       </label>
 
       <label class="glass-field">
-        <span class="glass-field__label">Password</span>
+        <span class="glass-field__label"> {{ 'Password' | translate }} </span>
         <input type="password" formControlName="password" autocomplete="current-password" placeholder="••••••••" />
-        <span class="glass-field__error" *ngIf="form.get('password')?.touched && form.get('password')?.hasError('required')">
-          Enter your password.
-        </span>
+        <span class="glass-field__error" *ngIf="form.get('password')?.touched && form.get('password')?.hasError('required')"> {{ 'Enter your password.' | translate }} </span>
       </label>
 
-      <button type="submit" class="glass-btn glass-btn--full" [disabled]="loading">
-        {{ loading ? 'Signing in…' : 'Sign in' }}
-      </button>
+      <button type="submit" class="glass-btn glass-btn--full" [disabled]="loading"> {{ (loading ? 'Signing in…' : 'Sign in') | translate }} </button>
     </form>
 
-    <p class="glass-card__footer">
-      New here? <a routerLink="/signup" class="glass-link">Create an account</a>
+    <p class="glass-card__footer"> {{ 'New here?' | translate }} <a routerLink="/signup" class="glass-link"> {{ 'Create an account' | translate }} </a>
     </p>
   </div>
 </app-glass-shell>

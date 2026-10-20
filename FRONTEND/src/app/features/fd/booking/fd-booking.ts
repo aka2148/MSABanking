@@ -1,3 +1,4 @@
+import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
@@ -27,7 +28,7 @@ import { GlassSelect, GlassSelectOption } from '../../../shared/components/glass
 @Component({
   selector: 'app-fd-booking',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, WorkspaceShell, GlassSelect],
+  imports: [TranslatePipe, CommonModule, ReactiveFormsModule, RouterLink, WorkspaceShell, GlassSelect],
   templateUrl: './fd-booking.html',
   styleUrl: './fd-booking.scss',
 })

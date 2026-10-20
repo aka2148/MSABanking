@@ -1,3 +1,4 @@
+import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
@@ -25,7 +26,7 @@ type Result =
 @Component({
   selector: 'app-fd-account-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, WorkspaceShell],
+  imports: [TranslatePipe, CommonModule, RouterLink, WorkspaceShell],
   templateUrl: './fd-account-detail.html',
   styleUrl: './fd-account-detail.scss',
 })

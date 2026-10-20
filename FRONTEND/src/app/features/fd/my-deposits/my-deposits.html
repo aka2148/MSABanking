@@ -1,37 +1,33 @@
 <app-workspace-shell>
   <main class="glass-card glass-card--wide deposits-card">
-    <a class="glass-link deposits-back" routerLink="/fd">← Fixed deposits</a>
+    <a class="glass-link deposits-back" routerLink="/fd"> {{ '← Fixed deposits' | translate }} </a>
     <header class="deposits-heading">
       <div>
-        <p class="fd-eyebrow">Customer deposits</p>
-        <h2>My deposits</h2>
-        <p class="glass-card__sub">Fixed deposits associated with your customer account.</p>
+        <p class="fd-eyebrow"> {{ 'Customer deposits' | translate }} </p>
+        <h2> {{ 'My deposits' | translate }} </h2>
+        <p class="glass-card__sub"> {{ 'Fixed deposits associated with your customer account.' | translate }} </p>
       </div>
-      <a class="glass-btn" routerLink="/fd" fragment="products">Browse products</a>
+      <a class="glass-btn" routerLink="/fd" fragment="products"> {{ 'Browse products' | translate }} </a>
     </header>
 
     <section *ngIf="pendingBookingReview" class="pending-review" role="status">
-      <p>A booking request may have completed even if its confirmation did not reach this browser.</p>
-      <p>Review this deposit list before allowing a different booking request.</p>
-      <button type="button" class="glass-btn glass-btn--ghost" (click)="clearPendingBookingAfterReview()">
-        I checked my deposits; allow a new booking
-      </button>
+      <p> {{ 'A booking request may have completed even if its confirmation did not reach this browser.' | translate }} </p>
+      <p> {{ 'Review this deposit list before allowing a different booking request.' | translate }} </p>
+      <button type="button" class="glass-btn glass-btn--ghost" (click)="clearPendingBookingAfterReview()"> {{ 'I checked my deposits; allow a new booking' | translate }} </button>
     </section>
 
-    <p class="deposits-state" *ngIf="loading" role="status">Loading your deposits…</p>
-    <div class="glass-error" *ngIf="errorMessage" role="alert">
-      {{ errorMessage }}
-      <button type="button" class="glass-link" (click)="load()" [disabled]="loading">Retry</button>
+    <p class="deposits-state" *ngIf="loading" role="status"> {{ 'Loading your deposits…' | translate }} </p>
+    <div class="glass-error" *ngIf="errorMessage" role="alert"> {{ (errorMessage) | translate }} <button type="button" class="glass-link" (click)="load()" [disabled]="loading"> {{ 'Retry' | translate }} </button>
     </div>
 
     <section *ngIf="loaded && !loading && !errorMessage && accounts.length === 0" class="deposits-empty">
-      <h3>No fixed deposits yet</h3>
-      <p>When you book a deposit, it will appear here.</p>
-      <a class="glass-btn" routerLink="/fd" fragment="products">Browse FD products</a>
+      <h3> {{ 'No fixed deposits yet' | translate }} </h3>
+      <p> {{ 'When you book a deposit, it will appear here.' | translate }} </p>
+      <a class="glass-btn" routerLink="/fd" fragment="products"> {{ 'Browse FD products' | translate }} </a>
     </section>
 
-    <section *ngIf="!loading && !errorMessage && accounts.length > 0" aria-label="Your fixed deposits">
-      <p class="deposits-count">{{ totalRecords }} {{ totalRecords === 1 ? 'deposit' : 'deposits' }}</p>
+    <section *ngIf="!loading && !errorMessage && accounts.length > 0" [attr.aria-label]="'Your fixed deposits' | translate">
+      <p class="deposits-count">{{ '{0} deposits' | translate: [totalRecords] }}</p>
       <article class="deposit-row" *ngFor="let account of accounts">
         <div class="deposit-row__heading">
           <div>
@@ -42,18 +38,18 @@
           <span class="fd-status" [attr.data-status]="account.status">{{ account.status }}</span>
         </div>
         <dl class="deposit-terms">
-          <div><dt>Principal</dt><dd>{{ account.principal_amount | currency:account.currency_code:'symbol':'1.2-2' }}</dd></div>
-          <div><dt>Term</dt><dd>{{ account.tenure_months }} months</dd></div>
-          <div><dt>Annual rate</dt><dd>{{ formatRate(account.annual_rate) }}</dd></div>
-          <div><dt>Maturity date</dt><dd>{{ account.maturity_date ? (account.maturity_date | date:'mediumDate') : '—' }}</dd></div>
+          <div><dt> {{ 'Principal' | translate }} </dt><dd>{{ account.principal_amount | currency:account.currency_code:'symbol':'1.2-2' }}</dd></div>
+          <div><dt> {{ 'Term' | translate }} </dt><dd> {{ '{0} months' | translate: [(account.tenure_months)] }} </dd></div>
+          <div><dt> {{ 'Annual rate' | translate }} </dt><dd>{{ formatRate(account.annual_rate) }}</dd></div>
+          <div><dt> {{ 'Maturity date' | translate }} </dt><dd>{{ account.maturity_date ? (account.maturity_date | date:'mediumDate') : '—' }}</dd></div>
         </dl>
-        <a class="glass-btn glass-btn--ghost" [routerLink]="['/fd/accounts', account.account_id]" [attr.aria-label]="'View deposit ' + account.account_number">View deposit</a>
+        <a class="glass-btn glass-btn--ghost" [routerLink]="['/fd/accounts', account.account_id]" [attr.aria-label]="'View deposit ' + account.account_number"> {{ 'View deposit' | translate }} </a>
       </article>
 
-      <nav class="deposits-pagination" *ngIf="totalPages > 1" aria-label="Deposit pages">
-        <button type="button" class="glass-btn glass-btn--ghost" (click)="load(page - 1)" [disabled]="page <= 1 || loading">Previous</button>
-        <span>Page {{ page }} of {{ totalPages }}</span>
-        <button type="button" class="glass-btn glass-btn--ghost" (click)="load(page + 1)" [disabled]="page >= totalPages || loading">Next</button>
+      <nav class="deposits-pagination" *ngIf="totalPages > 1" [attr.aria-label]="'Deposit pages' | translate">
+        <button type="button" class="glass-btn glass-btn--ghost" (click)="load(page - 1)" [disabled]="page <= 1 || loading"> {{ 'Previous' | translate }} </button>
+        <span> {{ 'Page {0} of {1}' | translate: [(page), (totalPages)] }} </span>
+        <button type="button" class="glass-btn glass-btn--ghost" (click)="load(page + 1)" [disabled]="page >= totalPages || loading"> {{ 'Next' | translate }} </button>
       </nav>
     </section>
   </main>

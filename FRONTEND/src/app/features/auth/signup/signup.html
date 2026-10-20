@@ -1,8 +1,8 @@
 <app-workspace-shell [guest]="true" [focalX]="focalX" [focalY]="focalY">
   <main class="glass-card glass-card--wide signup-card">
-    <p class="signup-card__eyebrow">Join MoneyPal</p>
-    <h2>Create your account</h2>
-    <p class="glass-card__sub">{{ stepLabels[currentStep] }} - step {{ currentStep + 1 }} of {{ stepKeys.length }}</p>
+    <p class="signup-card__eyebrow"> {{ 'Join MoneyPal' | translate }} </p>
+    <h2> {{ 'Create your account' | translate }} </h2>
+    <p class="glass-card__sub"> {{ '{0} - step {1} of {2}' | translate: [(stepLabels[currentStep] | translate), (currentStep + 1), (stepKeys.length)] }} </p>
 
     <div class="stepper-progress">
       <div
@@ -12,11 +12,11 @@
       ></div>
     </div>
 
-    <ol class="signup-steps" aria-label="Registration steps">
-      <li *ngFor="let label of stepLabels; let i = index" [class.signup-steps--active]="i === currentStep" [attr.aria-current]="i === currentStep ? 'step' : null">{{ label }}</li>
+    <ol class="signup-steps" [attr.aria-label]="'Registration steps' | translate">
+      <li *ngFor="let label of stepLabels; let i = index" [class.signup-steps--active]="i === currentStep" [attr.aria-current]="i === currentStep ? 'step' : null"> {{ (label) | translate }} </li>
     </ol>
 
-    <p class="glass-error" *ngIf="errorMessage">{{ errorMessage }}</p>
+    <p class="glass-error" *ngIf="errorMessage"> {{ (errorMessage) | translate }} </p>
 
     <form [formGroup]="form" (ngSubmit)="next()" novalidate>
       <div [@stepTransition]="currentStep" [@.disabled]="reducedMotion">
@@ -24,57 +24,45 @@
         <!-- Step 1: Personal details -->
         <ng-container *ngIf="currentStep === 0" [formGroup]="personalGroup">
           <label class="glass-field">
-            <span class="glass-field__label">Full name</span>
-            <input type="text" formControlName="fullName" autocomplete="name" placeholder="As per ID proof" />
-            <span class="glass-field__error" *ngIf="showError(personalGroup,'fullName')">
-              {{ errorText(personalGroup,'fullName','Full name') }}
-            </span>
+            <span class="glass-field__label"> {{ 'Full name' | translate }} </span>
+            <input type="text" formControlName="fullName" autocomplete="name" [placeholder]="'As per ID proof' | translate" />
+            <span class="glass-field__error" *ngIf="showError(personalGroup,'fullName')"> {{ (errorText(personalGroup,'fullName','Full name')) | translate }} </span>
           </label>
 
           <div class="glass-field-row">
             <label class="glass-field">
-              <span class="glass-field__label">Date of birth</span>
+              <span class="glass-field__label"> {{ 'Date of birth' | translate }} </span>
               <input type="date" formControlName="dateOfBirth" />
-              <span class="glass-field__error" *ngIf="showError(personalGroup,'dateOfBirth')">
-                {{ errorText(personalGroup,'dateOfBirth','Date of birth') }}
-              </span>
+              <span class="glass-field__error" *ngIf="showError(personalGroup,'dateOfBirth')"> {{ (errorText(personalGroup,'dateOfBirth','Date of birth')) | translate }} </span>
             </label>
             <label class="glass-field">
-              <span class="glass-field__label">Gender</span>
-              <app-glass-select formControlName="gender" [options]="genderOptions" placeholder="Select"></app-glass-select>
-              <span class="glass-field__error" *ngIf="showError(personalGroup,'gender')">
-                {{ errorText(personalGroup,'gender','Gender') }}
-              </span>
+              <span class="glass-field__label"> {{ 'Gender' | translate }} </span>
+              <app-glass-select formControlName="gender" [options]="genderOptions" [placeholder]="'Select' | translate"></app-glass-select>
+              <span class="glass-field__error" *ngIf="showError(personalGroup,'gender')"> {{ (errorText(personalGroup,'gender','Gender')) | translate }} </span>
             </label>
           </div>
 
           <label class="glass-field">
-            <span class="glass-field__label">Father's / Spouse's name</span>
-            <input type="text" formControlName="fatherOrSpouseName" placeholder="As per ID proof" />
-            <span class="glass-field__error" *ngIf="showError(personalGroup,'fatherOrSpouseName')">
-              {{ errorText(personalGroup,'fatherOrSpouseName','This field') }}
-            </span>
+            <span class="glass-field__label"> {{ 'Father\'s / Spouse\'s name' | translate }} </span>
+            <input type="text" formControlName="fatherOrSpouseName" [placeholder]="'As per ID proof' | translate" />
+            <span class="glass-field__error" *ngIf="showError(personalGroup,'fatherOrSpouseName')"> {{ (errorText(personalGroup,'fatherOrSpouseName','This field')) | translate }} </span>
           </label>
 
           <div class="glass-field-row">
             <label class="glass-field">
-              <span class="glass-field__label">Occupation</span>
-              <input type="text" formControlName="occupation" placeholder="e.g. Student, Engineer" />
-              <span class="glass-field__error" *ngIf="showError(personalGroup,'occupation')">
-                {{ errorText(personalGroup,'occupation','Occupation') }}
-              </span>
+              <span class="glass-field__label"> {{ 'Occupation' | translate }} </span>
+              <input type="text" formControlName="occupation" [placeholder]="'e.g. Student, Engineer' | translate" />
+              <span class="glass-field__error" *ngIf="showError(personalGroup,'occupation')"> {{ (errorText(personalGroup,'occupation','Occupation')) | translate }} </span>
             </label>
             <label class="glass-field">
-              <span class="glass-field__label">Country of origin</span>
-              <input type="text" formControlName="countryOfOrigin" placeholder="India" />
-              <span class="glass-field__error" *ngIf="showError(personalGroup,'countryOfOrigin')">
-                {{ errorText(personalGroup,'countryOfOrigin','Country of origin') }}
-              </span>
+              <span class="glass-field__label"> {{ 'Country of origin' | translate }} </span>
+              <input type="text" formControlName="countryOfOrigin" [placeholder]="'India' | translate" />
+              <span class="glass-field__error" *ngIf="showError(personalGroup,'countryOfOrigin')"> {{ (errorText(personalGroup,'countryOfOrigin','Country of origin')) | translate }} </span>
             </label>
           </div>
 
           <label class="glass-field">
-            <span class="glass-field__label">Preferred language</span>
+            <span class="glass-field__label"> {{ 'Preferred language' | translate }} </span>
             <app-glass-select formControlName="preferredLanguage" [options]="languageOptions"></app-glass-select>
           </label>
         </ng-container>
@@ -82,32 +70,25 @@
         <!-- Step 2: Documents -->
         <ng-container *ngIf="currentStep === 1" [formGroup]="documentsGroup">
           <label class="glass-field">
-            <span class="glass-field__label">Proof of ID type</span>
-            <app-glass-select formControlName="proofOfIdType" [options]="proofTypeOptions" placeholder="Select"></app-glass-select>
-            <span class="glass-field__error" *ngIf="showError(documentsGroup,'proofOfIdType')">
-              {{ errorText(documentsGroup,'proofOfIdType','Proof of ID type') }}
-            </span>
+            <span class="glass-field__label"> {{ 'Proof of ID type' | translate }} </span>
+            <app-glass-select formControlName="proofOfIdType" [options]="proofTypeOptions" [placeholder]="'Select' | translate"></app-glass-select>
+            <span class="glass-field__error" *ngIf="showError(documentsGroup,'proofOfIdType')"> {{ (errorText(documentsGroup,'proofOfIdType','Proof of ID type')) | translate }} </span>
           </label>
 
           <label class="glass-field">
-            <span class="glass-field__label">ID number</span>
-            <input type="text" formControlName="proofOfIdValue" placeholder="Document number" />
-            <span class="glass-field__error" *ngIf="showError(documentsGroup,'proofOfIdValue')">
-              {{ errorText(documentsGroup,'proofOfIdValue','ID number') }}
-            </span>
+            <span class="glass-field__label"> {{ 'ID number' | translate }} </span>
+            <input type="text" formControlName="proofOfIdValue" [placeholder]="'Document number' | translate" />
+            <span class="glass-field__error" *ngIf="showError(documentsGroup,'proofOfIdValue')"> {{ (errorText(documentsGroup,'proofOfIdValue','ID number')) | translate }} </span>
           </label>
 
           <label class="glass-field">
-            <span class="glass-field__label">Issue date</span>
+            <span class="glass-field__label"> {{ 'Issue date' | translate }} </span>
             <input type="date" formControlName="startDate" />
-            <span class="glass-field__error" *ngIf="showError(documentsGroup,'startDate')">
-              {{ errorText(documentsGroup,'startDate','Issue date') }}
-            </span>
+            <span class="glass-field__error" *ngIf="showError(documentsGroup,'startDate')"> {{ (errorText(documentsGroup,'startDate','Issue date')) | translate }} </span>
           </label>
 
           <label class="glass-field">
-            <span class="glass-field__label">
-              Upload scanned document <small>(optional for now)</small>
+            <span class="glass-field__label"> {{ 'Upload scanned document' | translate }} <small> {{ '(optional for now)' | translate }} </small>
             </span>
             <input type="file" accept="image/*,.pdf" (change)="onFileSelected($event)" />
           </label>
@@ -117,104 +98,82 @@
         <ng-container *ngIf="currentStep === 2" [formGroup]="accountGroup">
           <div class="glass-field-row">
             <label class="glass-field">
-              <span class="glass-field__label">Account type</span>
+              <span class="glass-field__label"> {{ 'Account type' | translate }} </span>
               <app-glass-select formControlName="legalEntityType" [options]="legalEntityOptions"></app-glass-select>
             </label>
             <label class="glass-field">
-              <span class="glass-field__label">Home branch</span>
-              <app-glass-select formControlName="homeBranchId" [options]="homeBranchOptions" placeholder="Select"></app-glass-select>
-              <span class="glass-field__error" *ngIf="showError(accountGroup,'homeBranchId')">
-                {{ errorText(accountGroup,'homeBranchId','Home branch') }}
-              </span>
+              <span class="glass-field__label"> {{ 'Home branch' | translate }} </span>
+              <app-glass-select formControlName="homeBranchId" [options]="homeBranchOptions" [placeholder]="'Select' | translate"></app-glass-select>
+              <span class="glass-field__error" *ngIf="showError(accountGroup,'homeBranchId')"> {{ (errorText(accountGroup,'homeBranchId','Home branch')) | translate }} </span>
             </label>
           </div>
 
           <label class="glass-field">
-            <span class="glass-field__label">Username</span>
-            <input type="text" formControlName="username" autocomplete="username" placeholder="Choose a username" />
-            <span class="glass-field__error" *ngIf="showError(accountGroup,'username')">
-              {{ errorText(accountGroup,'username','Username') }}
-            </span>
+            <span class="glass-field__label"> {{ 'Username' | translate }} </span>
+            <input type="text" formControlName="username" autocomplete="username" [placeholder]="'Choose a username' | translate" />
+            <span class="glass-field__error" *ngIf="showError(accountGroup,'username')"> {{ (errorText(accountGroup,'username','Username')) | translate }} </span>
           </label>
 
           <label class="glass-field">
-            <span class="glass-field__label">Mobile number</span>
+            <span class="glass-field__label"> {{ 'Mobile number' | translate }} </span>
             <input type="tel" formControlName="mobileNumber" autocomplete="tel" placeholder="9876543210" maxlength="10" />
-            <span class="glass-field__error" *ngIf="showError(accountGroup,'mobileNumber')">
-              {{ errorText(accountGroup,'mobileNumber','Mobile number') }}
-            </span>
+            <span class="glass-field__error" *ngIf="showError(accountGroup,'mobileNumber')"> {{ (errorText(accountGroup,'mobileNumber','Mobile number')) | translate }} </span>
           </label>
 
           <label class="glass-field">
-            <span class="glass-field__label">Email</span>
+            <span class="glass-field__label"> {{ 'Email' | translate }} </span>
             <input type="email" formControlName="email" autocomplete="email" placeholder="you@example.com" />
-            <span class="glass-field__error" *ngIf="showError(accountGroup,'email')">
-              {{ errorText(accountGroup,'email','Email') }}
-            </span>
+            <span class="glass-field__error" *ngIf="showError(accountGroup,'email')"> {{ (errorText(accountGroup,'email','Email')) | translate }} </span>
           </label>
 
           <label class="glass-field">
-            <span class="glass-field__label">Address line</span>
-            <input type="text" formControlName="addressLine" placeholder="Street / house no." />
-            <span class="glass-field__error" *ngIf="showError(accountGroup,'addressLine')">
-              {{ errorText(accountGroup,'addressLine','Address line') }}
-            </span>
+            <span class="glass-field__label"> {{ 'Address line' | translate }} </span>
+            <input type="text" formControlName="addressLine" [placeholder]="'Street / house no.' | translate" />
+            <span class="glass-field__error" *ngIf="showError(accountGroup,'addressLine')"> {{ (errorText(accountGroup,'addressLine','Address line')) | translate }} </span>
           </label>
 
           <div class="glass-field-row">
             <label class="glass-field">
-              <span class="glass-field__label">City</span>
-              <input type="text" formControlName="city" placeholder="Bengaluru" />
-              <span class="glass-field__error" *ngIf="showError(accountGroup,'city')">
-                {{ errorText(accountGroup,'city','City') }}
-              </span>
+              <span class="glass-field__label"> {{ 'City' | translate }} </span>
+              <input type="text" formControlName="city" [placeholder]="'Bengaluru' | translate" />
+              <span class="glass-field__error" *ngIf="showError(accountGroup,'city')"> {{ (errorText(accountGroup,'city','City')) | translate }} </span>
             </label>
             <label class="glass-field">
-              <span class="glass-field__label">Postal code</span>
+              <span class="glass-field__label"> {{ 'Postal code' | translate }} </span>
               <input type="text" formControlName="postalCode" placeholder="560001" maxlength="6" />
-              <span class="glass-field__error" *ngIf="showError(accountGroup,'postalCode')">
-                {{ errorText(accountGroup,'postalCode','Postal code') }}
-              </span>
+              <span class="glass-field__error" *ngIf="showError(accountGroup,'postalCode')"> {{ (errorText(accountGroup,'postalCode','Postal code')) | translate }} </span>
             </label>
           </div>
 
           <label class="glass-field">
-            <span class="glass-field__label">
-              Preferred currency <small>(watch the map!)</small>
+            <span class="glass-field__label"> {{ 'Preferred currency' | translate }} <small> {{ '(watch the map!)' | translate }} </small>
             </span>
             <app-glass-select formControlName="preferredCurrency" [options]="currencyOptions"></app-glass-select>
           </label>
 
           <div class="glass-field-row">
             <label class="glass-field">
-              <span class="glass-field__label">Password</span>
-              <input type="password" formControlName="password" autocomplete="new-password" placeholder="Min. 8 characters" />
-              <span class="glass-field__error" *ngIf="showError(accountGroup,'password')">
-                {{ errorText(accountGroup,'password','Password') }}
-              </span>
+              <span class="glass-field__label"> {{ 'Password' | translate }} </span>
+              <input type="password" formControlName="password" autocomplete="new-password" [placeholder]="'Min. 8 characters' | translate" />
+              <span class="glass-field__error" *ngIf="showError(accountGroup,'password')"> {{ (errorText(accountGroup,'password','Password')) | translate }} </span>
             </label>
             <label class="glass-field">
-              <span class="glass-field__label">Confirm password</span>
-              <input type="password" formControlName="confirmPassword" autocomplete="new-password" placeholder="Re-enter password" />
+              <span class="glass-field__label"> {{ 'Confirm password' | translate }} </span>
+              <input type="password" formControlName="confirmPassword" autocomplete="new-password" [placeholder]="'Re-enter password' | translate" />
             </label>
           </div>
-          <span class="glass-field__error" *ngIf="passwordsMismatch">Passwords don't match.</span>
+          <span class="glass-field__error" *ngIf="passwordsMismatch"> {{ 'Passwords don\'t match.' | translate }} </span>
         </ng-container>
 
       </div>
 
       <div class="stepper-actions" [class.stepper-actions--single]="currentStep === 0">
-        <button type="button" class="glass-btn glass-btn--ghost" *ngIf="currentStep > 0" (click)="back()">
-          Back
-        </button>
-        <button type="submit" class="glass-btn" [disabled]="loading">
-          {{ isLastStep ? (loading ? 'Creating account…' : 'Create account') : 'Continue' }}
-        </button>
+        <button type="button" class="glass-btn glass-btn--ghost" *ngIf="currentStep > 0" (click)="back()"> {{ 'Back' | translate }} </button>
+        <button type="submit" class="glass-btn" [disabled]="loading"> {{ (isLastStep ? (loading ? 'Creating account…' : 'Create account') : 'Continue') | translate }} </button>
       </div>
     </form>
 
-    <p class="glass-card__footer">
-      Already have an account? <a routerLink="/login" class="glass-link">Sign in</a>
+    <p class="glass-card__footer"> {{ 'Already have an account?' | translate }} <a routerLink="/login" class="glass-link"> {{ 'Sign in' | translate }} </a>
     </p>
   </main>
 </app-workspace-shell>

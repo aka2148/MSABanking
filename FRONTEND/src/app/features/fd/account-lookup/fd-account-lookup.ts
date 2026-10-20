@@ -1,3 +1,4 @@
+import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -7,7 +8,7 @@ import { WorkspaceShell } from '../../../shared/components/workspace-shell/works
 @Component({
   selector: 'app-fd-account-lookup',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, WorkspaceShell],
+  imports: [TranslatePipe, CommonModule, ReactiveFormsModule, RouterLink, WorkspaceShell],
   templateUrl: './fd-account-lookup.html',
   styleUrl: './fd-account-lookup.scss',
 })

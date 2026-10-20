@@ -3,7 +3,8 @@
   "version": "0.0.1",
   "scripts": {
     "start": "ng serve",
-    "build": "ng build"
+    "build": "ng build",
+    "check:i18n": "node scripts/check-i18n.mjs"
   },
   "dependencies": {
     "@angular/animations": "^18.2.0",

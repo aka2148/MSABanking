@@ -1,3 +1,4 @@
+import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
@@ -16,7 +17,7 @@ interface ProductEditDraft { productName: string; description: string; }
 @Component({
   selector: 'app-fd-products-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, WorkspaceShell],
+  imports: [TranslatePipe, CommonModule, FormsModule, RouterLink, WorkspaceShell],
   templateUrl: './fd-products.html',
   styleUrl: './fd-products.scss',
 })

@@ -2,34 +2,30 @@
   <main class="glass-card glass-card--wide fd-home-card">
     <header class="fd-home-card__header">
       <div>
-        <p class="fd-eyebrow">Fixed deposits</p>
-        <h2>Fixed deposits</h2>
-        <p class="glass-card__sub">Choose a currency and rate option for a new deposit, or open one you have already booked.</p>
+        <p class="fd-eyebrow"> {{ 'Fixed deposits' | translate }} </p>
+        <h2> {{ 'Fixed deposits' | translate }} </h2>
+        <p class="glass-card__sub"> {{ 'Choose a currency and rate option for a new deposit, or open one you have already booked.' | translate }} </p>
       </div>
-      <nav class="fd-home-card__paths" aria-label="Fixed deposit shortcuts">
-        <a class="glass-btn glass-btn--ghost" routerLink="/savings">Savings accounts</a>
-        <a class="glass-btn" routerLink="/fd" fragment="products">Browse products</a>
-        <a class="glass-btn glass-btn--ghost" routerLink="/fd/accounts">My deposits</a>
-        <a class="glass-btn glass-btn--ghost" routerLink="/fd/accounts/lookup">Open existing deposit</a>
+      <nav class="fd-home-card__paths" [attr.aria-label]="'Fixed deposit shortcuts' | translate">
+        <a class="glass-btn glass-btn--ghost" routerLink="/savings"> {{ 'Savings accounts' | translate }} </a>
+        <a class="glass-btn" routerLink="/fd" fragment="products"> {{ 'Browse products' | translate }} </a>
+        <a class="glass-btn glass-btn--ghost" routerLink="/fd/accounts"> {{ 'My deposits' | translate }} </a>
+        <a class="glass-btn glass-btn--ghost" routerLink="/fd/accounts/lookup"> {{ 'Open existing deposit' | translate }} </a>
       </nav>
     </header>
 
     <section id="products" class="fd-products" aria-labelledby="products-heading">
       <div class="fd-section-heading">
         <div>
-          <p class="fd-eyebrow">Eligible offers</p>
-          <h3 id="products-heading">Browse products</h3>
+          <p class="fd-eyebrow"> {{ 'Eligible offers' | translate }} </p>
+          <h3 id="products-heading"> {{ 'Browse products' | translate }} </h3>
         </div>
-        <button type="button" class="glass-link fd-retry" *ngIf="errorMessage" (click)="loadProducts()" [disabled]="loading">
-          {{ loading ? 'Retrying…' : 'Retry' }}
-        </button>
+        <button type="button" class="glass-link fd-retry" *ngIf="errorMessage" (click)="loadProducts()" [disabled]="loading"> {{ (loading ? 'Retrying…' : 'Retry') | translate }} </button>
       </div>
 
-      <p class="fd-state" *ngIf="loading" role="status">Loading eligible products…</p>
-      <div class="glass-error" *ngIf="errorMessage" role="alert">{{ errorMessage }}</div>
-      <p class="fd-state" *ngIf="!loading && !errorMessage && products.length === 0">
-        No eligible FD offers are available for your account right now.
-      </p>
+      <p class="fd-state" *ngIf="loading" role="status"> {{ 'Loading eligible products…' | translate }} </p>
+      <div class="glass-error" *ngIf="errorMessage" role="alert"> {{ (errorMessage) | translate }} </div>
+      <p class="fd-state" *ngIf="!loading && !errorMessage && products.length === 0"> {{ 'No eligible FD offers are available for your account right now.' | translate }} </p>
 
       <div class="fd-product-grid" *ngIf="!loading && !errorMessage && products.length > 0">
         <article class="fd-product-card" *ngFor="let product of products">
@@ -45,28 +41,26 @@
           <section class="fd-product-card__terms" *ngFor="let currency of product.currency_offers">
             <div class="fd-product-card__currency-heading">
               <div>
-                <h5>{{ currency.currency_code }} deposit</h5>
-                <p>Deposit {{ currency.minimum_amount | number:'1.2-2' }}–{{ currency.maximum_amount | number:'1.2-2' }} {{ currency.currency_code }}</p>
+                <h5> {{ '{0} deposit' | translate: [(currency.currency_code)] }} </h5>
+                <p> {{ 'Deposit {0}–{1} {2}' | translate: [(currency.minimum_amount | number:'1.2-2'), (currency.maximum_amount | number:'1.2-2'), (currency.currency_code)] }} </p>
               </div>
               <span class="fd-product-card__currency">{{ currency.currency_code }}</span>
             </div>
             <div class="fd-rate-option-grid">
               <article class="fd-rate-option" *ngFor="let tier of currency.rate_tiers">
                 <div class="fd-rate-option__term">
-                  <span>Term</span>
-                  <strong>{{ tier.maximum_tenure_months }} months</strong>
+                  <span> {{ 'Term' | translate }} </span>
+                  <strong> {{ '{0} months' | translate: [(tier.maximum_tenure_months)] }} </strong>
                 </div>
                 <div class="fd-rate-option__rate">
-                  <span>Annual rate</span>
+                  <span> {{ 'Annual rate' | translate }} </span>
                   <strong>{{ tier.annual_rate * 100 | number:'1.2-2' }}%</strong>
                 </div>
-                <p>{{ formatFrequency(tier.compounding_frequency) }} compounding · paid {{ formatFrequency(tier.payout_frequency) | lowercase }}</p>
+                <p> {{ '{0} compounding · paid {1}' | translate: [(formatFrequency(tier.compounding_frequency) | translate), (formatFrequency(tier.payout_frequency) | translate)] }} </p>
                 <button type="button" class="glass-btn glass-btn--full"
                         [disabled]="loading || selectingOptionKey !== null"
-                        [attr.aria-label]="'Choose ' + tier.maximum_tenure_months + ' month ' + currency.currency_code + ' option'"
-                        (click)="chooseRateTier(product, currency, tier)">
-                  {{ selectingOptionKey === optionKey(product, currency, tier) ? 'Opening…' : 'Choose this option' }}
-                </button>
+                        [attr.aria-label]="'Choose {0} month {1} option' | translate: [tier.maximum_tenure_months, currency.currency_code]"
+                        (click)="chooseRateTier(product, currency, tier)"> {{ (selectingOptionKey === optionKey(product, currency, tier) ? 'Opening…' : 'Choose this option') | translate }} </button>
               </article>
             </div>
           </section>
