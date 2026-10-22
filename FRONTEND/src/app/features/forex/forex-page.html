@@ -1,5 +1,6 @@
 <app-workspace-shell>
   <main class="glass-card glass-card--wide workflow-card">
+    <app-customer-product-warning (blockedChange)="productAccessBlocked = $event" />
     <p class="workflow-eyebrow">MoneyPal forex</p>
     <h2>{{ mode === 'catalog' ? 'Forex services' : mode === 'product' ? offer?.productName : mode === 'requests' ? 'My forex requests' : 'Forex request' }}</h2>
     <p class="glass-card__sub">Indicative requests only. No live quote, currency trade, or funds transfer is performed.</p>
@@ -21,7 +22,7 @@
         <label>Destination currency <select formControlName="destinationCurrencyCode"><option *ngFor="let currency of product.currencies" [value]="currency.code" [disabled]="currency.code === product.baseCurrencyCode">{{ currency.code }}</option></select></label>
         <label>Funding amount <input type="number" step="0.01" min="0.01" formControlName="amount"></label>
         <div class="workflow-tile"><strong>Indicative configured markup</strong><p>{{ markup == null ? 'Enter an amount within a supported band' : (markup * 100 | number:'1.2-2') + '%' }}</p><p>No live reference rate is supplied, so a destination amount cannot be quoted. No fee is charged for recording this request.</p></div>
-        <button class="glass-btn" type="submit" [disabled]="busy">{{ busy ? 'Submitting…' : 'Record request' }}</button>
+        <button class="glass-btn" type="submit" [disabled]="productAccessBlocked || busy">{{ busy ? 'Submitting…' : 'Record request' }}</button>
       </form>
     </section>
     <section *ngIf="mode === 'requests' && !loading">

@@ -52,13 +52,7 @@ public class FdCalculatorController {
     }
 
     private int periods(String frequency) {
-        if (frequency == null) return 4;
-        return switch (frequency.toUpperCase()) {
-            case "MONTHLY" -> 12;
-            case "YEARLY" -> 1;
-            case "QUARTERLY" -> 4;
-            default -> 4;
-        };
+        return 12 / FdCompounding.months(frequency);
     }
 
     public enum CustomerCategory { STANDARD, SENIOR_CITIZEN, EMPLOYEE }

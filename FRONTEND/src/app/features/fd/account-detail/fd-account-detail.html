@@ -1,5 +1,6 @@
 <app-workspace-shell>
   <main class="glass-card glass-card--wide fd-account-card">
+    <app-customer-product-warning (blockedChange)="productAccessBlocked = $event" />
     <a routerLink="/fd" class="glass-link fd-back-link"> {{ '← FD home' | translate }} </a>
     <p class="fd-eyebrow"> {{ 'Your deposit' | translate }} </p>
     <p class="glass-error" *ngIf="errorMessage" role="alert"> {{ (errorMessage) | translate }} </p>
@@ -31,7 +32,7 @@
           </div>
         </div>
         <div class="fd-action-grid" *ngIf="actions.length > 0; else noActions">
-          <button type="button" class="glass-btn" *ngIf="actions.includes('FUND')" (click)="fund()" [disabled]="!!busyAction"> {{ (busyAction === 'FUND' ? 'Recording…' : 'Fund exact principal') | translate }} </button>
+          <button type="button" class="glass-btn" *ngIf="actions.includes('FUND')" (click)="fund()" [disabled]="productAccessBlocked || !!busyAction"> {{ (busyAction === 'FUND' ? 'Recording…' : 'Fund exact principal') | translate }} </button>
           <button type="button" class="glass-btn" *ngIf="actions.includes('CLOSE') && canSettleAtMaturity" (click)="close()" [disabled]="!!busyAction"> {{ (busyAction === 'CLOSE' ? 'Closing…' : 'Close at maturity') | translate }} </button>
           <button type="button" class="glass-btn glass-btn--ghost" *ngIf="actions.includes('REQUEST_PREMATURE')" (click)="requestPrematureClosure()" [disabled]="!!busyAction"> {{ (busyAction === 'REQUEST_PREMATURE' ? 'Requesting…' : 'Request premature closure') | translate }} </button>
         </div>
@@ -48,7 +49,7 @@
           <p *ngIf="confirmation === 'APPROVE_PREMATURE'"> {{ 'This accepts the penalty and net amount shown above and closes the deposit early.' | translate }} </p>
           <div class="fd-confirmation-actions">
             <button type="button" class="glass-btn glass-btn--ghost" (click)="cancelConfirmation()" [disabled]="!!busyAction"> {{ 'Cancel' | translate }} </button>
-            <button type="button" class="glass-btn" (click)="confirmPendingAction()" [disabled]="!!busyAction"> {{ 'Confirm action' | translate }} </button>
+            <button type="button" class="glass-btn" (click)="confirmPendingAction()" [disabled]="!!busyAction || (pendingConfirmation === 'FUND' && productAccessBlocked)"> {{ 'Confirm action' | translate }} </button>
           </div>
         </div>
       </section>

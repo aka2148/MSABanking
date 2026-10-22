@@ -53,8 +53,8 @@ class LoanForexIntegrationTest {
 
     @Test void loanReviewDisbursementAndForexRequestsRespectOwnershipAndRetries() throws Exception {
         long customer=91231,other=91232,admin=91233;
-        jdbc.update("INSERT INTO fd_user_ref(fur_user_id,fur_user_uuid,fur_customer_number,fur_full_name,fur_user_status) VALUES(?,?,?,?, 'ACTIVE')",customer,UUID.randomUUID().toString(),"TEST-CUSTOMER","Test Customer");
-        jdbc.update("INSERT INTO fd_user_ref(fur_user_id,fur_user_uuid,fur_customer_number,fur_full_name,fur_user_status) VALUES(?,?,?,?, 'ACTIVE')",other,UUID.randomUUID().toString(),"TEST-OTHER","Other Customer");
+        jdbc.update("INSERT INTO fd_user_ref(fur_user_id,fur_user_uuid,fur_customer_number,fur_full_name,fur_user_status,fur_kyc_status) VALUES(?,?,?,?, 'ACTIVE','VERIFIED')",customer,UUID.randomUUID().toString(),"TEST-CUSTOMER","Test Customer");
+        jdbc.update("INSERT INTO fd_user_ref(fur_user_id,fur_user_uuid,fur_customer_number,fur_full_name,fur_user_status,fur_kyc_status) VALUES(?,?,?,?, 'ACTIVE','VERIFIED')",other,UUID.randomUUID().toString(),"TEST-OTHER","Other Customer");
         jdbc.update("INSERT INTO fd_currency_ref(fcr_currency_id,fcr_iso_code,fcr_decimal_places) VALUES(1,'INR',2),(2,'USD',2)");
         long destination=openSavings(customer,"INR");
         long otherAccount=openSavings(other,"INR");
@@ -101,6 +101,37 @@ class LoanForexIntegrationTest {
         mvc.perform(post("/api/v1/forex-requests").header("Authorization",applicant).header("Idempotency-Key","forex-1").contentType(MediaType.APPLICATION_JSON).content(forex))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.id").value(forexId));
         mvc.perform(get("/api/v1/forex-requests/{id}",forexId).header("Authorization",stranger)).andExpect(status().isNotFound());
+    }
+
+    @Test void snapshotsGateAllCustomerWritesAndIgnoreOlderVersions() throws Exception {
+        long customer=98231;
+        String actor=token(customer,"ROLE_CUSTOMER");
+        String[] paths={"/api/v1/fixed-deposits", "/api/v1/fixed-deposits/999/fund", "/api/v1/loans", "/api/v1/forex-requests"};
+        String[] bodies={
+            "{\"productId\":1,\"savingsAccountId\":1,\"principal\":1000,\"currencyCode\":\"INR\",\"tenureMonths\":12}",
+            "{}",
+            "{\"productId\":1,\"amount\":1000,\"currencyCode\":\"INR\",\"tenureMonths\":12,\"purpose\":\"Education\",\"destinationSavingsAccountId\":1}",
+            "{\"productId\":1,\"amount\":1000,\"fundingCurrencyCode\":\"INR\",\"destinationCurrencyCode\":\"USD\"}"};
+        var consumer=new ReferenceSnapshotConsumer(jdbc,json);
+        var ack=org.mockito.Mockito.mock(org.springframework.kafka.support.Acknowledgment.class);
+        var user=new java.util.HashMap<String,Object>();
+        user.put("userId",customer); user.put("userUuid",UUID.randomUUID().toString()); user.put("status","ACTIVE");
+        long version=0;
+        for (String kyc : new String[]{null,"PENDING","REJECTED","VERIFIED"}) {
+            if (kyc!=null) {
+                user.put("kycStatus",kyc); user.put("riskCategory","VERIFIED".equals(kyc)?"HIGH":"LOW");
+                consumer.userSnapshot(json.writeValueAsString(java.util.Map.of("sourceVersion",++version,"user",user)),ack);
+            }
+            for (int i=0;i<paths.length;i++) mvc.perform(post(paths[i]).header("Authorization",actor).header("Idempotency-Key","blocked-"+version+"-"+i).contentType(MediaType.APPLICATION_JSON).content(bodies[i]))
+                    .andExpect(status().isForbidden());
+            mvc.perform(get("/api/v1/loans").header("Authorization",actor)).andExpect(status().isOk());
+        }
+        user.put("riskCategory","LOW");
+        consumer.userSnapshot(json.writeValueAsString(java.util.Map.of("sourceVersion",++version,"user",user)),ack);
+        user.put("kycStatus","REJECTED");
+        consumer.userSnapshot(json.writeValueAsString(java.util.Map.of("sourceVersion",version-1,"user",user)),ack);
+        assertEquals("VERIFIED",jdbc.queryForObject("SELECT fur_kyc_status FROM fd_user_ref WHERE fur_user_id=?",String.class,customer));
+        CustomerProductAccess.requireVerified(jdbc,customer);
     }
 
     private long openSavings(long user,String currency) {

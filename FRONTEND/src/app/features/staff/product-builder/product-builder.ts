@@ -48,7 +48,6 @@ export class ProductBuilder implements OnInit {
   metadata: ProductBuilderMetadata | null = null;
   products: ProductConfigurationSummary[] = [];
   categoryId: number | null = null;
-  productCode = '';
   productName = '';
   description = '';
   effectiveFrom = '';
@@ -68,8 +67,9 @@ export class ProductBuilder implements OnInit {
   previewResult: PricingPreview | null = null;
   validationErrors: string[] = [];
   createdProduct: ProductConfigurationSummary | null = null;
-  newCategoryCode = '';
   newCategoryName = '';
+  catalogLoading = true;
+  catalogError = false;
   loading = true;
   saving = false;
   previewing = false;
@@ -94,14 +94,25 @@ export class ProductBuilder implements OnInit {
   }
   get catalogPageCount(): number { return Math.max(1, Math.ceil(this.products.length / this.catalogPageSize)); }
 
+  identityErrors: Record<string,string> = {};
+  validatingIdentity = false;
+  identityEdited(field: string): void { delete this.identityErrors[field]; }
+  factOption(rule: EligibilityDraft): FactOption | undefined { return this.metadata?.facts.find(fact => fact.code === rule.fact); }
+
+  ruleName(rule: EligibilityDraft): string { return `${rule.fact} ${rule.operator} ${rule.operator === 'IN' ? rule.valueSet : rule.operator === 'BETWEEN_INCLUSIVE' ? `${rule.valueFrom} - ${rule.valueTo}` : rule.valueFrom}`.trim().slice(0, 150); }
+  private selectPrimaryHolder(): void { this.metadata?.roles.filter(role => role.code === 'PRIMARY_HOLDER').forEach(role => this.roleSelections[role.id] = true); }
+
   ngOnInit(): void { this.load(); }
 
   load(): void {
     this.loading = true;
+    this.catalogLoading = true;
+    this.catalogError = false;
     this.errorMessage = '';
     this.service.metadata(this.categoryId ?? undefined).subscribe({
       next: (metadata) => {
         this.metadata = metadata;
+        this.selectPrimaryHolder();
         if (this.categoryId == null) {
           this.categoryId = metadata.categories.find((category) => category.family === 'LOAN')?.id
             ?? metadata.categories[0]?.id ?? null;
@@ -117,8 +128,8 @@ export class ProductBuilder implements OnInit {
       },
     });
     this.service.list().subscribe({
-      next: (products) => { this.products = products; },
-      error: (error: HttpErrorResponse) => { this.errorMessage = this.errorText(error, 'Could not load products.'); },
+      next: (products) => { this.products = products; this.catalogPage = Math.min(this.catalogPage, this.catalogPageCount - 1); this.catalogLoading = false; },
+      error: (error: HttpErrorResponse) => { this.catalogLoading = false; this.catalogError = true; this.errorMessage = this.errorText(error, 'Could not load products.'); },
     });
   }
 
@@ -130,6 +141,7 @@ export class ProductBuilder implements OnInit {
       next: (metadata) => {
         if (this.categoryId !== requestedCategoryId || this.selectedTemplateKey) return;
         this.metadata = metadata;
+        this.selectPrimaryHolder();
         this.initializeAttributes();
         this.initializeFamilyDefaults();
       },
@@ -163,6 +175,7 @@ export class ProductBuilder implements OnInit {
           return;
         }
         this.metadata = metadata;
+        this.selectPrimaryHolder();
         this.initializeAttributes();
         this.initializeFamilyDefaults();
         this.applyTemplate(template);
@@ -173,7 +186,7 @@ export class ProductBuilder implements OnInit {
 
   private applyTemplate(template: ProductTemplate): void {
     this.clearMessages();
-    this.productCode = this.availableProductCode(template.productCode);
+    this.identityErrors = {};
     this.productName = template.name;
     this.description = template.description;
     this.effectiveFrom = '';
@@ -192,20 +205,13 @@ export class ProductBuilder implements OnInit {
     }] : [];
     this.charges = [];
     this.roleSelections = {};
+    this.selectPrimaryHolder();
     this.previewFacts['AMOUNT'] = String(Math.max(template.currencies[0].minimumAmount, 1));
     this.previewFacts['TENURE_MONTHS'] = String(template.pricing[0].from);
     this.previewFacts['BALANCE_AMOUNT'] = String(Math.max(Number(template.attributes['MINIMUM_BALANCE'] ?? 0), template.pricing[0].from));
     this.previewFacts['TRANSFER_AMOUNT'] = String(template.pricing[0].from);
     if (template.eligibility) this.previewFacts[template.eligibility.fact] = template.eligibility.valueFrom;
     this.syncForexPreviewCurrencies();
-  }
-
-  private availableProductCode(base: string): string {
-    const codes = new Set(this.products.map((product) => product.productCode.toUpperCase()));
-    if (!codes.has(base)) return base;
-    let suffix = 2;
-    while (codes.has(`${base}_${suffix}`)) suffix++;
-    return `${base}_${suffix}`;
   }
 
   currencySelected(code: string): boolean { return this.currencyDrafts.some((draft) => draft.currencyCode === code); }
@@ -260,6 +266,7 @@ export class ProductBuilder implements OnInit {
     if (!fact) return;
     rule.dataType = fact.dataType;
     rule.operator = fact.operators[0];
+    rule.valueFrom = ''; rule.valueTo = ''; rule.valueSet = '';
   }
 
   addCharge(): void {
@@ -271,11 +278,10 @@ export class ProductBuilder implements OnInit {
   }
 
   createSubcategory(): void {
-    if (this.categoryId == null || !this.newCategoryCode.trim() || !this.newCategoryName.trim()) return;
-    this.service.createSubcategory(this.categoryId, this.newCategoryCode, this.newCategoryName).subscribe({
+    if (this.categoryId == null || !this.newCategoryName.trim()) return;
+    this.service.createSubcategory(this.categoryId, this.newCategoryName).subscribe({
       next: () => {
         this.successMessage = 'Product subcategory created. It inherits the selected family attributes.';
-        this.newCategoryCode = '';
         this.newCategoryName = '';
         this.load();
       },
@@ -299,6 +305,7 @@ export class ProductBuilder implements OnInit {
   }
 
   nextProductStep(form: NgForm): void {
+    if (this.validatingIdentity) return;
     const names = Object.keys(form.controls);
     const belongs = (name: string): boolean => {
       if (this.productStep === 1) return name === 'categoryId';
@@ -316,7 +323,21 @@ export class ProductBuilder implements OnInit {
       return;
     }
     this.clearMessages();
-    this.productStep = this.productStep === 2 && !this.attributes.length ? 4 : Math.min(8, this.productStep + 1);
+    if (this.productStep === 2) {
+      const identity = { productName: this.productName, description: this.description, effectiveFrom: this.effectiveFrom || null, effectiveTo: this.effectiveTo || null };
+      this.validatingIdentity = true;
+      this.service.validateIdentity(identity).subscribe({
+        next: errors => {
+          this.validatingIdentity = false;
+          if (identity.productName !== this.productName || identity.description !== this.description || identity.effectiveFrom !== (this.effectiveFrom || null) || identity.effectiveTo !== (this.effectiveTo || null)) return;
+          this.identityErrors = errors;
+          if (!Object.keys(errors).length) this.productStep = this.attributes.length ? 3 : 4;
+        },
+        error: (error: HttpErrorResponse) => { this.validatingIdentity = false; this.errorMessage = this.errorText(error, 'Could not validate this configuration.'); },
+      });
+      return;
+    }
+    this.productStep = Math.min(8, this.productStep + 1);
   }
 
   previousProductStep(form: NgForm): void {
@@ -422,13 +443,14 @@ export class ProductBuilder implements OnInit {
   }
 
   private buildRequest(form: NgForm): ProductConfigurationRequest | null {
+    this.selectPrimaryHolder();
     if (form.invalid || this.categoryId == null || this.currencyDrafts.length === 0 || this.pricingDrafts.length === 0) {
       form.control.markAllAsTouched();
       this.errorMessage = 'Complete the required product, currency and pricing fields.';
       return null;
     }
     return {
-      productCode: this.productCode.trim().toUpperCase(), productName: this.productName.trim(),
+      productCode: '', productName: this.productName.trim(),
       categoryId: this.categoryId, description: this.description.trim(),
       effectiveFrom: this.effectiveFrom || null, effectiveTo: this.effectiveTo || null,
       baseCurrencyCode: this.baseCurrencyCode,
@@ -436,7 +458,7 @@ export class ProductBuilder implements OnInit {
         currencyCode: draft.currencyCode, minimumAmount: draft.minimumAmount!, maximumAmount: draft.maximumAmount!,
       })),
       attributes: this.attributes.map((attribute) => ({ definitionId: attribute.id, value: this.attributeValues[attribute.id] ?? '' })),
-      eligibilityRules: this.eligibilityRules,
+      eligibilityRules: this.eligibilityRules.map(rule => ({ ...rule, name: this.ruleName(rule) })),
       pricingBands: this.pricingDrafts.map((band) => ({
         currencyCode: band.currencyCode, fact: this.pricingFact(), valueFrom: band.valueFrom!, valueTo: band.valueTo!,
         rate: Number((band.ratePercent! / 100).toFixed(8)), outcomeType: this.outcomeType(),

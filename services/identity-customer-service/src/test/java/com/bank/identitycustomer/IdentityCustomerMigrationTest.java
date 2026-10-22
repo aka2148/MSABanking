@@ -138,6 +138,11 @@ class IdentityCustomerMigrationTest {
                         .header("Authorization","Bearer "+admin).contentType("application/json")
                         .content("{\"status\":\"VERIFIED\",\"riskCategory\":\"MEDIUM\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.kycStatus").value("VERIFIED"));
+        var snapshot=com.fasterxml.jackson.databind.json.JsonMapper.builder().build().readTree(jdbc.queryForObject(
+                "SELECT payload FROM outbox_event WHERE event_key=(SELECT usr_user_uuid FROM users WHERE usr_user_id=?) ORDER BY source_version DESC LIMIT 1",String.class,userId));
+        assertEquals("VERIFIED",snapshot.path("user").path("kycStatus").asText());
+        assertEquals("MEDIUM",snapshot.path("user").path("riskCategory").asText());
+        assertEquals(3,snapshot.path("sourceVersion").asInt());
     }
 
     private String bankOfficerToken() throws Exception {

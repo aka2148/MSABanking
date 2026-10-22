@@ -21,7 +21,7 @@
           <button type="button" class="glass-link fd-text-button" (click)="load()" [disabled]="loading"> {{ 'Refresh' | translate }} </button>
         </div>
         <p class="fd-admin-info"> {{ 'To create a product, open' | translate }} <a routerLink="/staff/product-builder"> {{ 'Product configuration' | translate }} </a> {{ '. This page only manages existing fixed-deposit offers.' | translate }} </p>
-        <p class="fd-admin-info fd-admin-empty" *ngIf="listedOffers.length === 0"> {{ 'No fixed-deposit offers are configured yet.' | translate }} </p>
+        <p class="fd-admin-info fd-admin-empty" *ngIf="!errorMessage && listedOffers.length === 0"> {{ 'No fixed-deposit offers are configured yet.' | translate }} </p>
         <p class="fd-admin-note" *ngIf="listedOffers.length > 0"> {{ '{0} product(s) · page {1} of {2}' | translate: [(listedOffers.length), (offerPage + 1), (offerPageCount)] }} </p>
         <div class="fd-admin-product-list" *ngIf="listedOffers.length > 0">
           <article class="fd-admin-product-row" *ngFor="let offer of visibleOffers">
@@ -49,7 +49,7 @@
                 </label>
                 <label class="glass-field fd-admin-description">
                   <span class="glass-field__label"> {{ 'Description' | translate }} </span>
-                  <textarea [name]="'product-description-' + offer.fd_product_id" [(ngModel)]="draft.description"
+                  <textarea [name]="'product-description-' + offer.fd_product_id" [(ngModel)]="draft.description" [placeholder]="'Describe the product, up to 1000 characters' | translate"
                             maxlength="1000" rows="2"></textarea>
                 </label>
                 <button type="button" class="glass-btn glass-btn--ghost"

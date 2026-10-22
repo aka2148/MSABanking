@@ -1,5 +1,6 @@
 <app-workspace-shell>
   <main class="glass-card glass-card--wide workflow-card">
+    <app-customer-product-warning (blockedChange)="productAccessBlocked = $event" />
     <p class="workflow-eyebrow">MoneyPal lending</p>
     <h2>{{ mode === 'catalog' ? 'Loan products' : mode === 'product' ? offer?.productName : mode === 'applications' ? 'My loan applications' : 'Loan application' }}</h2>
     <p class="glass-card__sub">Applications are reviewed by an administrator. Submitting an application does not move money.</p>
@@ -37,7 +38,7 @@
           </select>
         </label>
         <p class="workflow-wide">This account receives the approved amount only after an admin approves and disburses the loan. Its selection is fixed after submission. Document upload is not available in this lab.</p>
-        <button class="glass-btn" type="submit" [disabled]="busy">{{ busy ? 'Submitting…' : 'Submit for review' }}</button>
+        <button class="glass-btn" type="submit" [disabled]="productAccessBlocked || busy">{{ busy ? 'Submitting…' : 'Submit for review' }}</button>
       </form>
     </section>
 

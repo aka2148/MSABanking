@@ -55,8 +55,8 @@ class FdAccountMigrationTest {
 
     @Test
     void appliesAllFdMigrationsAndCreatesWorkflowSchema() {
-        assertEquals(8, jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1", Integer.class));
-        assertEquals(8, jdbc.queryForObject("SELECT MAX(version) FROM flyway_schema_history WHERE success=1", Integer.class));
+        assertEquals(9, jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1", Integer.class));
+        assertEquals(9, jdbc.queryForObject("SELECT MAX(version) FROM flyway_schema_history WHERE success=1", Integer.class));
 
         assertTrue(table("fd_accounts"));
         assertTrue(table("savings_accounts"));
@@ -210,8 +210,26 @@ class FdAccountMigrationTest {
         assertTrue(jdbc.queryForObject("SELECT COUNT(*) FROM fd_transactions WHERE ft_account_id=? AND ft_txn_type_id=(SELECT tt_txn_type_id FROM transaction_types WHERE tt_txn_type_code='FD_PENALTY')", Integer.class, secondFdId) > 0);
     }
 
+    @Test
+    void persistedAccrualUsesEachStoredCompoundingBasis() {
+        jdbc.update("INSERT INTO fd_currency_ref(fcr_currency_id,fcr_iso_code,fcr_currency_name,fcr_decimal_places) VALUES(980,'GBP','Pound',2)");
+        jdbc.update("INSERT INTO fd_user_ref(fur_user_id,fur_user_uuid,fur_user_status) VALUES(980,?,'ACTIVE')",UUID.randomUUID().toString());
+        jdbc.update("INSERT INTO fd_product_ref(fpr_product_id,fpr_product_code,fpr_product_name,fpr_status) VALUES(980,'FD-COMPOUNDING','Compounding Test','ACTIVE')");
+        var batch=new FdBatchService(jdbc,new com.fasterxml.jackson.databind.ObjectMapper(),null);
+        LocalDate start=LocalDate.of(2025,1,31),end=start.plusYears(1);
+        for(String basis:new String[]{"MONTHLY","QUARTERLY","YEARLY"}) {
+            jdbc.update("INSERT INTO fd_accounts(fa_account_number,fa_primary_holder_id,fa_product_id,fa_principal_amount,fa_currency_id,fa_tenure_months,fa_interest_rate,fa_compounding_frequency,fa_payout_frequency,fa_open_date,fa_maturity_date,fa_status) VALUES(?,980,980,10000,980,12,0.06,?,'AT_MATURITY',?,?,'ACTIVE')","COMPOUND-"+basis,basis,java.sql.Timestamp.valueOf(start.atStartOfDay()),java.sql.Date.valueOf(end));
+            long id=jdbc.queryForObject("SELECT fa_account_id FROM fd_accounts WHERE fa_account_number=?",Long.class,"COMPOUND-"+basis);
+            batch.accrue(end);
+            BigDecimal expected=FdCompounding.maturity(new BigDecimal("10000"),new BigDecimal("0.06"),start,end,2,basis);
+            assertEquals(0,expected.compareTo(jdbc.queryForObject("SELECT fa_maturity_amount FROM fd_accounts WHERE fa_account_id=?",BigDecimal.class,id)));
+            assertEquals(0,batch.accrue(end).accrualRowsCreated());
+            jdbc.update("UPDATE fd_accounts SET fa_status='CLOSED' WHERE fa_account_id=?",id);
+        }
+    }
+
     private void seedDemoData() {
-        jdbc.update("INSERT INTO fd_user_ref(fur_user_id,fur_user_uuid,fur_full_name,fur_user_status) VALUES(701,?,'Demo Customer','ACTIVE'),(702,?,'Demo Admin','ACTIVE')", UUID.randomUUID().toString(), UUID.randomUUID().toString());
+        jdbc.update("INSERT INTO fd_user_ref(fur_user_id,fur_user_uuid,fur_full_name,fur_user_status,fur_kyc_status) VALUES(701,?,'Demo Customer','ACTIVE','VERIFIED'),(702,?,'Demo Admin','ACTIVE','VERIFIED')", UUID.randomUUID().toString(), UUID.randomUUID().toString());
         jdbc.update("INSERT INTO fd_currency_ref(fcr_currency_id,fcr_iso_code,fcr_currency_name,fcr_decimal_places) VALUES(1,'USD','US Dollar',2)");
         jdbc.update("INSERT INTO fd_product_ref(fpr_product_id,fpr_product_code,fpr_product_name,fpr_status) VALUES(11,'FD-DEMO','Demo Fixed Deposit','ACTIVE')");
         jdbc.update("INSERT INTO fd_product_currency_ref(product_id,currency_id,minimum_amount,maximum_amount,is_base_currency,source_version,premature_penalty_points) VALUES(11,1,10,100000,1,1,1.0000)");

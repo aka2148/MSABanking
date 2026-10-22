@@ -1,5 +1,6 @@
 <app-workspace-shell>
   <main class="glass-card glass-card--wide fd-booking-card">
+    <app-customer-product-warning (blockedChange)="productAccessBlocked = $event" />
     <a routerLink="/fd" class="glass-link fd-back-link"> {{ '← Back to products' | translate }} </a>
     <p class="fd-eyebrow"> {{ 'Guided booking' | translate }} </p>
     <h2> {{ 'Book a fixed deposit' | translate }} </h2>
@@ -87,7 +88,7 @@
         <button type="button" class="glass-btn glass-btn--ghost" *ngIf="step > 1" (click)="previousStep()" [disabled]="submitting"> {{ 'Back' | translate }} </button>
         <span *ngIf="step === 1"></span>
         <button type="button" class="glass-btn" *ngIf="step < 3" (click)="nextStep()" [disabled]="submitting"> {{ 'Continue' | translate }} </button>
-        <button type="button" class="glass-btn" *ngIf="step === 3" (click)="submitBooking()" [disabled]="submitting || submittedAccount"> {{ (submitting ? 'Submitting…' : 'Confirm booking') | translate }} </button>
+        <button type="button" class="glass-btn" *ngIf="step === 3" (click)="submitBooking()" [disabled]="productAccessBlocked || submitting || submittedAccount"> {{ (submitting ? 'Submitting…' : 'Confirm booking') | translate }} </button>
       </div>
     </ng-container>
   </main>

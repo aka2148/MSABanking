@@ -1,3 +1,4 @@
+import { CustomerProductWarning } from '../../shared/components/customer-product-warning';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
@@ -8,9 +9,10 @@ import { CustomerOffer, ForexRequest, LoanForexService } from '../../core/servic
 import { WorkspaceShell } from '../../shared/components/workspace-shell/workspace-shell';
 
 @Component({ selector: 'app-forex-page', standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, WorkspaceShell],
+  imports: [CustomerProductWarning, CommonModule, ReactiveFormsModule, RouterLink, WorkspaceShell],
   templateUrl: './forex-page.html', styleUrl: '../loans/loan-page.scss' })
 export class ForexPage implements OnInit {
+  productAccessBlocked = true;
   mode: 'catalog' | 'product' | 'requests' | 'detail';
   loading = true; busy = false; error = '';
   offers: CustomerOffer[] = []; offer: CustomerOffer | null = null;
@@ -39,7 +41,7 @@ export class ForexPage implements OnInit {
     return this.offer?.pricingBands.find(b => b.currencyCode === value.destinationCurrencyCode && value.amount >= b.valueFrom && value.amount <= b.valueTo)?.rate ?? null;
   }
   submit(): void {
-    if (this.busy || !this.offer) return;
+    if (this.productAccessBlocked || this.busy || !this.offer) return;
     const value = this.form.getRawValue();
     const base = this.offer.currencies.find(c => c.code === this.offer?.baseCurrencyCode);
     if (this.form.invalid || !base || value.amount < base.minimumAmount || value.amount > base.maximumAmount || this.markup == null) {

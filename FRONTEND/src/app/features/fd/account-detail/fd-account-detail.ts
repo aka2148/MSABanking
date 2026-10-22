@@ -1,3 +1,4 @@
+import { CustomerProductWarning } from '../../../shared/components/customer-product-warning';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -26,11 +27,12 @@ type Result =
 @Component({
   selector: 'app-fd-account-detail',
   standalone: true,
-  imports: [TranslatePipe, CommonModule, RouterLink, WorkspaceShell],
+  imports: [CustomerProductWarning, TranslatePipe, CommonModule, RouterLink, WorkspaceShell],
   templateUrl: './fd-account-detail.html',
   styleUrl: './fd-account-detail.scss',
 })
 export class FdAccountDetail implements OnInit {
+  productAccessBlocked = true;
   private static readonly ACTIONS: Record<FdStatus, readonly AccountAction[]> = {
     PENDING: ['FUND'],
     ACTIVE: ['REQUEST_PREMATURE'],
@@ -171,6 +173,7 @@ export class FdAccountDetail implements OnInit {
   }
 
   fund(): void {
+    if (this.productAccessBlocked) return;
     if (!this.requireConfirmation('FUND')) return;
     this.executeFunding();
   }
@@ -307,6 +310,7 @@ export class FdAccountDetail implements OnInit {
   }
 
   private executeFunding(): void {
+    if (this.productAccessBlocked) return;
     if (!this.account || !this.isAllowed('FUND')) return;
     const request = { amount: this.account.principal_amount, currency_code: this.account.currency_code, savings_account_id: this.account.funding_savings_account_id ?? undefined };
     this.execute('FUND', () => this.fdService.fund(this.accountId, request), (value) => {

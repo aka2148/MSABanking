@@ -65,7 +65,7 @@ public class AuthController {
         jdbc.update("INSERT INTO customer_details(cud_customer_id,cud_full_name) VALUES(?,?)", customerId, request.fullName);
         jdbc.update("INSERT INTO customer_emails(cem_customer_id,cem_email_address,cem_contact_type,cem_is_primary_signup,cem_is_primary) VALUES(?,?,'PRIMARY',1,1)", customerId, request.email);
         if (request.phone != null && !request.phone.isBlank()) jdbc.update("INSERT INTO customer_phone_numbers(cph_customer_id,cph_phone_number,cph_contact_type,cph_is_primary_signup,cph_is_primary) VALUES(?,?,'PRIMARY',1,1)", customerId, request.phone);
-        writeUserSnapshot(userId);
+        UserSnapshots.writeUserSnapshot(jdbc, userId);
         return response(request.username, request.email, List.of("ROLE_CUSTOMER"));
     }
 
@@ -174,17 +174,6 @@ public class AuthController {
         if(passwords.matches(request.newPassword,(String)row.get("ucr_password_hash")) || jdbc.queryForList("SELECT uph_password_hash FROM user_password_history WHERE uph_user_id=? ORDER BY uph_changed_at DESC LIMIT 5",String.class,row.get("ucr_user_id")).stream().anyMatch(old->passwords.matches(request.newPassword,old))) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Choose a password you have not used before");
         jdbc.update("INSERT INTO user_password_history(uph_user_id,uph_password_hash) VALUES(?,?)",row.get("ucr_user_id"),row.get("ucr_password_hash"));
         jdbc.update("UPDATE user_credentials SET ucr_password_hash=?,ucr_password_changed_at=UTC_TIMESTAMP(6),ucr_must_change_password=0,ucr_token_version=ucr_token_version+1 WHERE ucr_user_id=?",passwords.encode(request.newPassword),row.get("ucr_user_id"));
-    }
-
-    private void writeUserSnapshot(long userId) {
-        jdbc.update("UPDATE users SET usr_event_version=usr_event_version+1 WHERE usr_user_id=?", userId);
-        Map<String,Object> row=jdbc.queryForMap("SELECT u.usr_user_uuid,u.usr_status,u.usr_event_version,c.cus_customer_number,d.cud_full_name,cred.ucr_username FROM users u JOIN customers c ON c.cus_user_id=u.usr_user_id JOIN customer_details d ON d.cud_customer_id=c.cus_customer_id JOIN user_credentials cred ON cred.ucr_user_id=u.usr_user_id WHERE u.usr_user_id=?", userId);
-        try {
-            Map<String,Object> user=Map.of("userId",userId,"userUuid",row.get("usr_user_uuid"),"username",row.get("ucr_username"),"customerNumber",row.get("cus_customer_number"),"fullName",row.get("cud_full_name"),"status",row.get("usr_status"));
-            Map<String,Object> event=Map.of("eventId",UUID.randomUUID().toString(),"eventType","USER_SNAPSHOT","schemaVersion",1,"occurredAt",java.time.Instant.now().toString(),"aggregateId",row.get("usr_user_uuid"),"sourceVersion",row.get("usr_event_version"),"user",user);
-            String payload=new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(event);
-            jdbc.update("INSERT INTO outbox_event(event_key,event_type,topic,source_version,payload) VALUES(?,?,?,?,CAST(? AS JSON))",row.get("usr_user_uuid"),"USER_SNAPSHOT","user.snapshot",row.get("usr_event_version"),payload);
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) { throw new IllegalStateException("Unable to serialize user snapshot",e); }
     }
 
     private boolean consumeTotpStep(long userId,long step){try{jdbc.update("INSERT INTO mfa_used_totp_steps(mut_user_id,mut_time_step) VALUES(?,?)",userId,step);return true;}catch(DuplicateKeyException ex){return false;}}

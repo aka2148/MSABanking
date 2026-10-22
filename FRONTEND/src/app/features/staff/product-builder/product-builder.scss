@@ -31,7 +31,7 @@
 .builder-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
 .builder-wide { grid-column: 1 / -1; }
 .builder-wide textarea { box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid rgba(255,255,255,.25); border-radius: var(--radius-sm); background: rgba(255,255,255,.1); color: white; font: var(--fs-base) var(--font-body); }
-.variant-row { display: grid; grid-template-columns: 1fr 1fr auto; align-items: end; gap: 14px; margin-top: 10px; }
+.variant-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 14px; margin-top: 10px; }
 .variant-row .glass-btn { margin-bottom: 16px; }
 .builder-hint, .builder-state { color: rgba(255,255,255,.68); font-size: var(--fs-xs); line-height: 1.5; }
 .currency-selector { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
@@ -79,4 +79,30 @@
   .builder-wide, .variant-row .glass-btn { grid-column: auto; }
   .builder-actions .glass-btn { width: 100%; }
   .catalog-pagination .glass-btn { flex: 1; }
+}
+
+.catalog-row > div:first-child { min-width: 0; overflow-wrap: anywhere; }
+.catalog-actions { flex-shrink: 0; }
+
+.builder-catalogue { padding: 0; border: 1px solid var(--ws-line); border-radius: var(--radius-md); overflow: hidden; }
+.builder-chunk-summary { display: flex; align-items: center; gap: .75rem; padding: 1.25rem; cursor: pointer; list-style: none; font: 600 var(--fs-base) var(--font-body); background: var(--ws-surface-raised); }
+.builder-chunk-summary::-webkit-details-marker { display: none; }
+.builder-chunk-summary::before { content: ''; border: .25rem solid transparent; border-left-color: var(--ws-text); transform-origin: .25rem center; }
+.builder-catalogue[open] > .builder-chunk-summary { border-bottom: 1px solid var(--ws-line); }
+.builder-catalogue[open] > .builder-chunk-summary::before { transform: rotate(90deg); }
+.builder-catalogue > :not(summary) { margin-left: 1.25rem; margin-right: 1.25rem; }
+.builder-catalogue > .builder-section__heading { margin-top: 1.25rem; }
+.builder-catalogue > :last-child { margin-bottom: 1.25rem; }
+.catalog-row { padding: 1.25rem; gap: 1.25rem; border: 1px solid var(--ws-line); border-radius: var(--radius-md); }
+.catalog-row strong { font-size: var(--fs-base); line-height: 1.5; }
+.catalog-row > div:first-child { gap: .5rem; }
+.catalog-row > div:first-child span { line-height: 1.5; }
+.catalog-actions { gap: .75rem; align-items: center; }
+.catalog-actions .glass-btn { margin: 0; }
+.catalog-pagination { padding-top: 1.25rem; margin-top: 1.25rem; border-top: 1px solid var(--ws-line); gap: .75rem; }
+@media (max-width: 560px) {
+  .catalog-row { align-items: stretch; }
+  .catalog-actions { justify-content: space-between; }
+  .builder-catalogue > :not(summary) { margin-left: .75rem; margin-right: .75rem; }
+  .builder-chunk-summary, .catalog-row { padding: 1rem; }
 }

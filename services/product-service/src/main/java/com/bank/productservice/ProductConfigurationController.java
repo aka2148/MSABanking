@@ -52,7 +52,7 @@ public class ProductConfigurationController {
                 (r, n) -> new CurrencyOption(r.getInt(1), r.getString(2), r.getString(3), r.getString(4), r.getInt(5)));
         List<RoleOption> roles = jdbc.query("SELECT rot_role_type_id,rot_role_code,rot_description FROM role_type ORDER BY rot_role_type_id",
                 (r, n) -> new RoleOption(r.getInt(1), r.getString(2), r.getString(3)));
-        List<FactOption> facts = FACTS.entrySet().stream().sorted(Map.Entry.comparingByKey()).map(e -> new FactOption(e.getKey(), e.getValue().type(), operators(e.getValue().type()), e.getValue().executable(), e.getValue().dependency())).toList();
+        List<FactOption> facts = FACTS.entrySet().stream().sorted(Map.Entry.comparingByKey()).map(e -> new FactOption(e.getKey(), e.getValue().type(), operators(e.getValue().type()), choices(e.getKey()), e.getValue().executable(), e.getValue().dependency())).toList();
         return new BuilderMetadata(categoryOptions, currencies, attributes, roles, facts, OPERATORS.stream().sorted().toList(),
                 List.of("INTEREST_RATE", "CREDIT_INTEREST_RATE", "MARKUP_RATE"),
                 List.of("CASA_DAILY_BALANCE", "FD_QUARTERLY", "FOREX_REFERENCE_MARKUP", "LOAN_REDUCING_BALANCE"));
@@ -64,6 +64,16 @@ public class ProductConfigurationController {
                 (r, n) -> new Category(r.getInt(1), r.getString(2), r.getString(3), r.getObject(4) == null ? null : ((Number) r.getObject(4)).intValue()));
         return jdbc.query("SELECT p.pro_product_id,p.pro_product_code,p.pro_product_name,p.pro_category_id,p.pro_status,p.pro_base_currency_code,(SELECT COUNT(*) FROM product_configuration_revision r WHERE r.pcr_product_id=p.pro_product_id) revision,(SELECT GROUP_CONCAT(c.cur_iso_code ORDER BY c.cur_iso_code) FROM product_currency_config x JOIN currency c ON c.cur_currency_id=x.pcc_currency_id WHERE x.pcc_product_id=p.pro_product_id) currencies FROM product p ORDER BY p.pro_product_id DESC",
                 (r, n) -> summary(r.getInt(1), r.getString(2), r.getString(3), r.getInt(4), r.getString(5), r.getString(6), r.getInt(7), r.getString(8), categories));
+    }
+
+    @PostMapping("/validate-identity")
+    public Map<String,String> validateIdentity(@RequestBody IdentityRequest request) {
+        Map<String,String> errors = new LinkedHashMap<>();
+        if (!ProductTextRules.validName(request.productName(),255)) errors.put("productName","Enter a valid product name (3-255 characters including a letter).");
+        if (!ProductTextRules.validDescription(request.description())) errors.put("description","Enter 10-1000 characters including a letter, without markup or control characters.");
+        if (request.effectiveFrom()!=null && request.effectiveTo()!=null && request.effectiveFrom().isAfter(request.effectiveTo())) errors.put("effectiveFrom","Effective-from date must not be after the effective-to date.");
+        if (request.effectiveTo()!=null && request.effectiveTo().isBefore(LocalDate.now())) errors.put("effectiveTo","Effective-to date must not be in the past.");
+        return errors;
     }
 
     @PostMapping("/validate")
@@ -123,11 +133,11 @@ public class ProductConfigurationController {
     private List<String> validationErrors(ConfigurationRequest r, boolean checkCode) {
         List<String> errors = new ArrayList<>();
         if (r == null) return List.of("Product configuration is required");
+        if (r.productCode()!=null && !r.productCode().isBlank() && !ProductTextRules.validCode(r.productCode())) errors.add("Use a code of 3-32 uppercase letters, digits or underscores, starting with a letter.");
+        errors.addAll(validateIdentity(new IdentityRequest(r.productName(),r.description(),r.effectiveFrom(),r.effectiveTo())).values());
         String family = safeFamily(r.categoryId());
         if (!FAMILIES.contains(family)) errors.add("Category must inherit from Loan, CASA, Fixed Deposit or Forex");
-        if (checkCode && jdbc.queryForObject("SELECT COUNT(*) FROM product WHERE UPPER(pro_product_code)=UPPER(?)", Integer.class, norm(r.productCode())) > 0) errors.add("Product code is already in use");
-        if (r.effectiveFrom() != null && r.effectiveTo() != null && r.effectiveTo().isBefore(r.effectiveFrom())) errors.add("Effective-to date must not precede effective-from date");
-        if (r.effectiveTo() != null && r.effectiveTo().isBefore(LocalDate.now())) errors.add("Effective-to date must not be in the past");
+        if (checkCode && r.productCode()!=null && !r.productCode().isBlank() && jdbc.queryForObject("SELECT COUNT(*) FROM product WHERE UPPER(pro_product_code)=UPPER(?)", Integer.class, norm(r.productCode())) > 0) errors.add("Product code is already in use");
         Set<String> selected = new HashSet<>();
         if (r.currencies() == null || r.currencies().isEmpty()) errors.add("Select at least one supported currency");
         else for (CurrencyConfig c : r.currencies()) {
@@ -175,7 +185,12 @@ public class ProductConfigurationController {
             if (fact == null) errors.add("Unrecognized eligibility fact: " + rule.fact());
             else if (!fact.executable()) errors.add("Unsupported eligibility fact " + rule.fact() + ": " + fact.dependency());
             else if (!fact.type().equals(norm(rule.dataType()))) errors.add("Eligibility fact data type does not match " + rule.fact());
-            if (!OPERATORS.contains(norm(rule.operator()))) errors.add("Unsupported eligibility operator: " + rule.operator());
+            if (fact != null && !operators(fact.type()).contains(norm(rule.operator()))) errors.add("Unsupported eligibility operator: " + rule.operator());
+            List<String> allowed = choices(norm(rule.fact()));
+            if (!allowed.isEmpty()) {
+                List<String> values = "IN".equals(norm(rule.operator())) ? split(rule.valueSet()) : List.of(Objects.toString(rule.valueFrom(),""));
+                if (values.isEmpty() || values.stream().anyMatch(value -> allowed.stream().noneMatch(choice -> choice.equalsIgnoreCase(value.trim())))) errors.add("Choose a valid value for the selected eligibility fact.");
+            }
             if (!Set.of("AND", "OR").contains(norm(orDefault(rule.combineLogic(), "AND")))) errors.add("Rule combination must be AND or OR");
         }
     }
@@ -217,6 +232,9 @@ public class ProductConfigurationController {
     }
 
     private void validateRoles(ConfigurationRequest r,List<String> errors){
+        Integer primary = jdbc.query("SELECT rot_role_type_id FROM role_type WHERE rot_role_code='PRIMARY_HOLDER'", rs -> rs.next() ? rs.getInt(1) : null);
+        if (r.roleConstraints() == null || r.roleConstraints().stream().noneMatch(role -> Objects.equals(primary, role.roleTypeId()) && role.mandatory() && role.minimumCount() != null && role.minimumCount() >= 1))
+            errors.add("A mandatory PRIMARY_HOLDER with minimum count of at least one is required");
         if(r.roleConstraints()==null)return;Set<Integer> seen=new HashSet<>();
         for(RoleConstraint role:r.roleConstraints()){
             if(!seen.add(role.roleTypeId()))errors.add("Role constraint appears more than once");
@@ -233,8 +251,18 @@ public class ProductConfigurationController {
         BigDecimal amount=decimalFact(facts,"AMOUNT");Map<String,BigDecimal> values=new LinkedHashMap<>();values.put("eligible",BigDecimal.ONE);values.put("rateDecimalFraction",band.rate());
         if("LOAN".equals(family)){int months=integerFact(facts,"TENURE_MONTHS");BigDecimal mr=band.rate().divide(BigDecimal.valueOf(12),MathContext.DECIMAL128);BigDecimal f=BigDecimal.ONE.add(mr).pow(months,MathContext.DECIMAL128);BigDecimal emi=mr.signum()==0?amount.divide(BigDecimal.valueOf(months),MathContext.DECIMAL128):amount.multiply(mr).multiply(f).divide(f.subtract(BigDecimal.ONE),MathContext.DECIMAL128);values.put("monthlyInstallment",emi.setScale(scale,RoundingMode.HALF_UP));values.put("totalRepayment",emi.multiply(BigDecimal.valueOf(months)).setScale(scale,RoundingMode.HALF_UP));}
         else if("CASA".equals(family)){values.put("thirtyDayCreditInterest",amount.multiply(band.rate()).multiply(BigDecimal.valueOf(30)).divide(BigDecimal.valueOf(365),12,RoundingMode.HALF_UP).setScale(scale,RoundingMode.HALF_UP));}
-        else if("FIXED_DEPOSIT".equals(family)){int months=integerFact(facts,"TENURE_MONTHS");BigDecimal interest=amount.multiply(band.rate()).multiply(BigDecimal.valueOf(months)).divide(BigDecimal.valueOf(12),12,RoundingMode.HALF_UP).setScale(scale,RoundingMode.HALF_UP);values.put("interest",interest);values.put("maturityAmount",amount.add(interest).setScale(scale,RoundingMode.HALF_UP));}
-        values.put("charges",calculateCharges(r,amount,code,scale));return new PricingPreview("SUPPORTED",family,code,code,null,p.method(),values,List.of());
+        else if("FIXED_DEPOSIT".equals(family)){
+            int months=integerFact(facts,"TENURE_MONTHS");String basisName=norm(attributeValue(r,"COMPOUNDING_BASIS"));
+            int period=switch(basisName){case "MONTHLY"->1;case "YEARLY"->12;default->3;};
+            LocalDate start=LocalDate.now(),end=start.plusMonths(months);BigDecimal balance=amount,pending=BigDecimal.ZERO.setScale(8,RoundingMode.HALF_UP);
+            LocalDate next=start.plusMonths(period);int boundary=period;
+            for(LocalDate day=start.plusDays(1);!day.isAfter(end);day=day.plusDays(1)){
+                pending=pending.add(balance.multiply(band.rate()).divide(BigDecimal.valueOf(365),12,RoundingMode.HALF_UP).setScale(8,RoundingMode.HALF_UP));
+                if(day.equals(next)||day.equals(end)){balance=balance.add(pending.setScale(scale,RoundingMode.HALF_UP));pending=BigDecimal.ZERO.setScale(8,RoundingMode.HALF_UP);boundary+=period;next=start.plusMonths(boundary);}
+            }
+            values.put("interest",balance.subtract(amount).setScale(scale,RoundingMode.HALF_UP));values.put("maturityAmount",balance.setScale(scale,RoundingMode.HALF_UP));
+        }
+        values.put("charges",calculateCharges(r,amount,code,scale));return new PricingPreview("SUPPORTED",family,code,code,null,"FIXED_DEPOSIT".equals(family)?"FD_"+norm(orDefault(attributeValue(r,"COMPOUNDING_BASIS"),"QUARTERLY")):p.method(),values,List.of());
     }
 
     private PricingPreview forexPreview(ConfigurationRequest r,Map<String,String> facts){
@@ -251,10 +279,36 @@ public class ProductConfigurationController {
     private BigDecimal calculateCharges(ConfigurationRequest r,BigDecimal amount,String code,int scale){BigDecimal total=BigDecimal.ZERO;if(r.charges()!=null)for(Charge c:r.charges()){ChargeSlab slab=c.slabs().stream().filter(s->code.equals(norm(s.currencyCode()))&&amount.compareTo(s.valueFrom())>=0&&amount.compareTo(s.valueTo())<=0).findFirst().orElse(null);if(slab!=null){BigDecimal v="DECIMAL_FRACTION".equals(norm(slab.unit()))?amount.multiply(slab.value()):slab.value();if(slab.floor()!=null&&v.compareTo(slab.floor())<0)v=slab.floor();if(slab.cap()!=null&&v.compareTo(slab.cap())>0)v=slab.cap();total=total.add(v);}}return total.setScale(scale,RoundingMode.HALF_UP);}
 
     private Integer insertProduct(ConfigurationRequest r) {
-        String code = norm(r.productCode());
-        jdbc.update("INSERT INTO product(pro_product_code,pro_product_name,pro_category_id,pro_base_currency_code,pro_status,pro_effective_from,pro_effective_to,pro_description,pro_created_by) VALUES(?,?,?,?,?,?,?,?,?)",
-                code, r.productName().trim(), r.categoryId(), norm(r.baseCurrencyCode()), "DRAFT", date(r.effectiveFrom()), date(r.effectiveTo()), r.description(), "PRODUCT_BUILDER");
-        return jdbc.queryForObject("SELECT LAST_INSERT_ID()", Integer.class);
+        boolean generated = r.productCode()==null || r.productCode().isBlank();
+        String category = jdbc.queryForObject("SELECT pc_category_code FROM product_category WHERE pc_category_id=? FOR UPDATE",String.class,r.categoryId());
+        String prefix = ProductTextRules.codePrefix(category,"PRODUCT",27);
+        for (int attempt=0; attempt<5; attempt++) {
+            String code = generated ? nextProductCode(prefix) : r.productCode();
+            try {
+                jdbc.update("INSERT INTO product(pro_product_code,pro_product_name,pro_category_id,pro_base_currency_code,pro_status,pro_effective_from,pro_effective_to,pro_description,pro_created_by) VALUES(?,?,?,?,?,?,?,?,?)",
+                        code, ProductTextRules.name(r.productName()), r.categoryId(), norm(r.baseCurrencyCode()), "DRAFT", date(r.effectiveFrom()), date(r.effectiveTo()), r.description()==null?null:r.description().trim(), "PRODUCT_BUILDER");
+                return jdbc.queryForObject("SELECT LAST_INSERT_ID()",Integer.class);
+            } catch (org.springframework.dao.DuplicateKeyException duplicate) {
+                if (!generated) throw bad("Product code is already in use.");
+            }
+        }
+        throw bad("Could not assign a product code. Please retry.");
+    }
+
+    private String nextProductCode(String prefix) {
+        String start=prefix+"_";
+        List<String> codes=jdbc.queryForList("SELECT pro_product_code FROM product WHERE LEFT(pro_product_code,?)=? FOR UPDATE",String.class,start.length(),start);
+        long highest=0;
+        for (String code:codes) {
+            String suffix=code.substring(start.length());
+            if (suffix.matches("[0-9]+")) {
+                try { highest=Math.max(highest,Long.parseLong(suffix)); }
+                catch (NumberFormatException ignored) { throw bad("Product code sequence is exhausted."); }
+            }
+        }
+        String suffix=String.format(Locale.ROOT,"%04d",highest+1);
+        if (start.length()+suffix.length()>32 || highest==Long.MAX_VALUE) throw bad("Product code sequence is exhausted.");
+        return start+suffix;
     }
 
     private void saveConfiguration(int productId, ConfigurationRequest r) {
@@ -363,19 +417,21 @@ public class ProductConfigurationController {
     private String requiredCode(Map<String,String> facts,String key) { String v=facts.get(key); if(v==null||v.isBlank())throw bad("Missing fact: "+key); return norm(v); }
     private String date(LocalDate date) { return date==null?null:date.toString(); }
     private List<String> split(String raw) { return raw==null||raw.isBlank()?List.of():Arrays.stream(raw.split(",")).map(String::trim).filter(s->!s.isEmpty()).toList(); }
-    private List<String> operators(String type) { return "NUMBER".equals(type)?List.of("EQ","NE","GT","GTE","LT","LTE","BETWEEN_INCLUSIVE","IN"):List.of("EQ","NE","IN"); }
+    private List<String> operators(String type) { if ("BOOLEAN".equals(type)) return List.of("EQ","NE"); return "NUMBER".equals(type)?List.of("EQ","NE","GT","GTE","LT","LTE","BETWEEN_INCLUSIVE","IN"):List.of("EQ","NE","IN"); }
+    private List<String> choices(String fact) { return switch(fact) { case "KYC_STATUS" -> List.of("PENDING","VERIFIED","REJECTED"); case "RISK_CATEGORY" -> List.of("LOW","MEDIUM","HIGH"); case "VERIFIED_IDENTITY" -> List.of("true","false"); default -> List.of(); }; }
     private String norm(String value) { return value==null?"":value.trim().toUpperCase(Locale.ROOT); }
     private String orDefault(String value,String fallback) { return value==null||value.isBlank()?fallback:value; }
     private ResponseStatusException bad(String message) { return new ResponseStatusException(HttpStatus.BAD_REQUEST,message); }
 
+    public record IdentityRequest(String productName,String description,LocalDate effectiveFrom,LocalDate effectiveTo) {}
     public record Category(int id,String code,String name,Integer parentId) {}
     public record CategoryOption(int id,String code,String name,Integer parentId,String family) {}
     public record CurrencyOption(int id,String code,String name,String symbol,int decimalPlaces) {}
     public record AttributeOption(int id,int categoryId,String key,String dataType,String displayName,boolean required,List<String> choices,String unit,String defaultValue,BigDecimal minimumValue,BigDecimal maximumValue,int displayOrder,String behaviorKey,boolean inherited) {}
     public record RoleOption(int id,String code,String description) {}
-    public record FactOption(String code,String dataType,List<String> operators,boolean executable,String dependency) {}
+    public record FactOption(String code,String dataType,List<String> operators,List<String> choices,boolean executable,String dependency) {}
     public record BuilderMetadata(List<CategoryOption> categories,List<CurrencyOption> currencies,List<AttributeOption> attributes,List<RoleOption> roles,List<FactOption> facts,List<String> operators,List<String> outcomeTypes,List<String> calculationMethods) {}
-    public record ConfigurationRequest(@NotBlank @Size(max=32) String productCode,@NotBlank @Size(max=255) String productName,@NotNull @Min(1) Integer categoryId,@Size(max=1000) String description,LocalDate effectiveFrom,LocalDate effectiveTo,@NotBlank @Size(max=3) String baseCurrencyCode,@NotEmpty @Valid List<CurrencyConfig> currencies,@Valid List<AttributeValue> attributes,@Valid List<EligibilityRule> eligibilityRules,@NotEmpty @Valid List<PricingBand> pricingBands,@Valid List<Charge> charges,@Valid List<RoleConstraint> roleConstraints) {}
+    public record ConfigurationRequest(@Size(max=32) String productCode,@NotBlank @Size(max=255) String productName,@NotNull @Min(1) Integer categoryId,@Size(max=1000) String description,LocalDate effectiveFrom,LocalDate effectiveTo,@NotBlank @Size(max=3) String baseCurrencyCode,@NotEmpty @Valid List<CurrencyConfig> currencies,@Valid List<AttributeValue> attributes,@Valid List<EligibilityRule> eligibilityRules,@NotEmpty @Valid List<PricingBand> pricingBands,@Valid List<Charge> charges,@Valid List<RoleConstraint> roleConstraints) {}
     public record CurrencyConfig(@NotBlank @Size(max=3) String currencyCode,@NotNull @DecimalMin("0.00") BigDecimal minimumAmount,@NotNull @DecimalMin("0.01") BigDecimal maximumAmount) {}
     public record AttributeValue(@NotNull @Min(1) Integer definitionId,String value) {}
     public record EligibilityRule(@NotBlank @Size(max=150) String name,@NotBlank String fact,@NotBlank String dataType,@NotBlank String operator,String valueFrom,String valueTo,String valueSet,String combineLogic) {}

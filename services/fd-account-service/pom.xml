@@ -23,6 +23,6 @@
   </dependencies>
   <build><resources>
     <resource><directory>src/main/resources</directory></resource>
-    <resource><directory>${project.basedir}/../../BACKEND/src/main/resources/db/service-migration/fd</directory><targetPath>db/service-migration/fd</targetPath><includes><include>V1__initial_schema.sql</include><include>V2__product_terms_reference.sql</include><include>V3__fd_lifecycle_precision_and_penalty.sql</include><include>V4__user_reference_username.sql</include><include>V5__remove_remote_approver_foreign_key.sql</include><include>V6__fd_demo_clock.sql</include><include>V7__loan_forex_requests.sql</include><include>V8__request_product_names.sql</include></includes></resource>
+    <resource><directory>${project.basedir}/../../BACKEND/src/main/resources/db/service-migration/fd</directory><targetPath>db/service-migration/fd</targetPath><includes><include>V1__initial_schema.sql</include><include>V2__product_terms_reference.sql</include><include>V3__fd_lifecycle_precision_and_penalty.sql</include><include>V4__user_reference_username.sql</include><include>V5__remove_remote_approver_foreign_key.sql</include><include>V6__fd_demo_clock.sql</include><include>V7__loan_forex_requests.sql</include><include>V8__request_product_names.sql</include><include>V9__customer_product_access.sql</include></includes></resource>
   </resources><plugins><plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin></plugins></build>
 </project>

@@ -26,6 +26,7 @@ public class FdOfferController {
 
     @PostMapping @ResponseStatus(HttpStatus.CREATED) @Transactional
     public OfferResponse create(@Valid @RequestBody OfferRequest request){
+        ProductTextRules.requireIdentity(request.productName,request.description);
         validateBands(request);
         if(jdbc.queryForList("SELECT pro_product_id FROM product WHERE UPPER(pro_product_code)=UPPER(?)",Long.class,request.productCode.trim()).size()>0)throw new ResponseStatusException(HttpStatus.CONFLICT,"Product code already exists: "+request.productCode.trim().toUpperCase(Locale.ROOT));
         requireCategory(request.categoryId);
@@ -33,9 +34,9 @@ public class FdOfferController {
         final String base=(request.baseCurrencyCode==null?request.currencies.get(0).currencyCode:request.baseCurrencyCode).toUpperCase(Locale.ROOT);
         if(request.currencies.stream().noneMatch(c->c.currencyCode.equalsIgnoreCase(base)))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Base currency must be in the configured currency schedules");
         if(jdbc.queryForList("SELECT cur_currency_id FROM currency WHERE UPPER(cur_iso_code)=UPPER(?) AND cur_is_active=1",Long.class,base).isEmpty())throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Base currency is not configured and active");
-        jdbc.update("INSERT INTO product(pro_product_code,pro_product_name,pro_category_id,pro_base_currency_code,pro_status,pro_description,pro_created_by) VALUES(?,?,?,?,?,?,?)",request.productCode.trim().toUpperCase(Locale.ROOT),request.productName.trim(),request.categoryId,base,"DRAFT",request.description,"API");
+        jdbc.update("INSERT INTO product(pro_product_code,pro_product_name,pro_category_id,pro_base_currency_code,pro_status,pro_description,pro_created_by) VALUES(?,?,?,?,?,?,?)",request.productCode.trim().toUpperCase(Locale.ROOT),ProductTextRules.name(request.productName),request.categoryId,base,"DRAFT",request.description==null?null:request.description.trim(),"API");
         long productId=jdbc.queryForObject("SELECT LAST_INSERT_ID()",Long.class);
-        jdbc.update("INSERT INTO product_translation(pt_product_id,pt_locale_tag,pt_product_name,pt_description) VALUES(?,?,?,?)",productId,"en",request.productName.trim(),request.description);
+        jdbc.update("INSERT INTO product_translation(pt_product_id,pt_locale_tag,pt_product_name,pt_description) VALUES(?,?,?,?)",productId,"en",ProductTextRules.name(request.productName),request.description==null?null:request.description.trim());
         long ruleType=jdbc.queryForObject("SELECT rut_rule_type_id FROM rule_type WHERE rut_rule_type_code='FD_TENURE_RATE'",Long.class);
         int priority=1;
         for(CurrencySchedule schedule:request.currencies){
@@ -66,8 +67,10 @@ public class FdOfferController {
     @PutMapping("/{productId}") @Transactional
     public OfferResponse update(@PathVariable long productId,@Valid @RequestBody ProductUpdateRequest request){
         OfferResponse existing=response(productId);
-        jdbc.update("UPDATE product SET pro_product_name=?,pro_description=?,pro_event_version=pro_event_version+1,pro_updated_by='API',pro_updated_date=UTC_TIMESTAMP(6) WHERE pro_product_id=?",request.productName().trim(),request.description(),productId);
-        jdbc.update("INSERT INTO product_translation(pt_product_id,pt_locale_tag,pt_product_name,pt_description) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE pt_product_name=VALUES(pt_product_name),pt_description=VALUES(pt_description),pt_updated_date=UTC_TIMESTAMP(6)",productId,"en",request.productName().trim(),request.description());
+        if (!ProductTextRules.validName(request.productName(),255)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Enter a valid product name (3-255 characters including a letter).");
+        if (!ProductTextRules.validDescription(request.description())) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Enter 10-1000 characters including a letter, without markup or control characters.");
+        jdbc.update("UPDATE product SET pro_product_name=?,pro_description=?,pro_event_version=pro_event_version+1,pro_updated_by='API',pro_updated_date=UTC_TIMESTAMP(6) WHERE pro_product_id=?",ProductTextRules.name(request.productName()),request.description() == null ? null : request.description().trim(),productId);
+        jdbc.update("INSERT INTO product_translation(pt_product_id,pt_locale_tag,pt_product_name,pt_description) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE pt_product_name=VALUES(pt_product_name),pt_description=VALUES(pt_description),pt_updated_date=UTC_TIMESTAMP(6)",productId,"en",ProductTextRules.name(request.productName()),request.description() == null ? null : request.description().trim());
         writeOutbox(productId);
         return response(existing.fdProductId());
     }

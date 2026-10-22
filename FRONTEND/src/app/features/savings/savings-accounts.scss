@@ -1,6 +1,6 @@
 .savings-page__header, .savings-page__section-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 1.5rem; }
 .savings-page__header { padding-bottom: 1.75rem; border-bottom: 1px solid var(--ws-line); }
-.savings-page__header .glass-btn { flex: 0 0 auto; }
+.savings-page__header .glass-btn { flex: 0 0 auto; width: auto; margin: 0; align-self: center; }
 .savings-page__form, .savings-page__list { padding-top: 1.75rem; }
 .savings-page__form { max-width: 760px; }
 .savings-page__list { margin-top: 2rem; border-top: 1px solid var(--ws-line); }

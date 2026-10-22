@@ -35,21 +35,23 @@ public class ProductCatalogController {
 
     @PostMapping("/api/v1/products") @ResponseStatus(HttpStatus.CREATED) @PreAuthorize("hasAnyRole('BANK_OFFICER','ADMIN')") @Transactional
     public ProductView create(@Valid @RequestBody ProductRequest request){
+        ProductTextRules.requireIdentity(request.productName,request.description);
         String code=request.productCode.trim().toUpperCase(Locale.ROOT);
         if(jdbc.queryForList("SELECT pro_product_id FROM product WHERE pro_product_code=?",Long.class,code).size()>0) throw new ResponseStatusException(HttpStatus.CONFLICT,"Product code already exists");
         requireCategory(request.categoryId);
         if(request.baseCurrencyCode!=null) requireCurrency(request.baseCurrencyCode,true);
-        jdbc.update("INSERT INTO product(pro_product_code,pro_product_name,pro_category_id,pro_base_currency_code,pro_status,pro_effective_from,pro_effective_to,pro_description,pro_created_by) VALUES(?,?,?,?,?,?,?,?,?)",code,request.productName.trim(),request.categoryId,request.baseCurrencyCode,"DRAFT",request.effectiveFrom,request.effectiveTo,request.description,"API");
+        jdbc.update("INSERT INTO product(pro_product_code,pro_product_name,pro_category_id,pro_base_currency_code,pro_status,pro_effective_from,pro_effective_to,pro_description,pro_created_by) VALUES(?,?,?,?,?,?,?,?,?)",code,ProductTextRules.name(request.productName),request.categoryId,request.baseCurrencyCode,"DRAFT",request.effectiveFrom,request.effectiveTo,request.description==null?null:request.description.trim(),"API");
         long id=jdbc.queryForObject("SELECT LAST_INSERT_ID()",Long.class);
-        saveTranslation(id,request.locale,request.productName,request.description);
+        saveTranslation(id,request.locale,ProductTextRules.name(request.productName),request.description==null?null:request.description.trim());
         return product(id,request.locale==null?"en":request.locale);
     }
 
     @PutMapping("/api/v1/products/{id}") @PreAuthorize("hasAnyRole('BANK_OFFICER','ADMIN')") @Transactional
     public ProductView update(@PathVariable long id,@Valid @RequestBody ProductRequest request){
+        ProductTextRules.requireIdentity(request.productName,request.description);
         product(id,"en"); requireCategory(request.categoryId); if(request.baseCurrencyCode!=null)requireCurrency(request.baseCurrencyCode,true);
-        jdbc.update("UPDATE product SET pro_product_name=?,pro_category_id=?,pro_base_currency_code=?,pro_effective_from=?,pro_effective_to=?,pro_description=?,pro_updated_by='API',pro_updated_date=UTC_TIMESTAMP(6) WHERE pro_product_id=?",request.productName.trim(),request.categoryId,request.baseCurrencyCode,request.effectiveFrom,request.effectiveTo,request.description,id);
-        saveTranslation(id,request.locale,request.productName,request.description);
+        jdbc.update("UPDATE product SET pro_product_name=?,pro_category_id=?,pro_base_currency_code=?,pro_effective_from=?,pro_effective_to=?,pro_description=?,pro_updated_by='API',pro_updated_date=UTC_TIMESTAMP(6) WHERE pro_product_id=?",ProductTextRules.name(request.productName),request.categoryId,request.baseCurrencyCode,request.effectiveFrom,request.effectiveTo,request.description==null?null:request.description.trim(),id);
+        saveTranslation(id,request.locale,ProductTextRules.name(request.productName),request.description==null?null:request.description.trim());
         return product(id,request.locale==null?"en":request.locale);
     }
 

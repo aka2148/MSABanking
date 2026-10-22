@@ -20,6 +20,10 @@ export class AuthService {
 
   readonly session$ = this.sessionSubject.asObservable();
 
+  customerProfile(): Observable<{ kycStatus: string | null; riskCategory: string | null }> {
+    return this.http.get<{ kycStatus: string | null; riskCategory: string | null }>(apiUrl(this.apiBaseUrl, '/api/v1/auth/me'));
+  }
+
   constructor(private http: HttpClient, @Inject(API_BASE_URL) private readonly apiBaseUrl: string) {}
 
   login(identifier: string, password: string): Observable<LoginResponse> {

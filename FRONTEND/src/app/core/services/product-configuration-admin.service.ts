@@ -43,6 +43,7 @@ export interface FactOption {
   code: string;
   dataType: string;
   operators: string[];
+  choices: string[];
   executable: boolean;
   dependency: string | null;
 }
@@ -129,6 +130,10 @@ export class ProductConfigurationAdminService {
     return this.http.get<ProductConfigurationSummary[]>(this.path('/api/v1/product-configurations'));
   }
 
+  validateIdentity(request: { productName: string; description: string; effectiveFrom: string | null; effectiveTo: string | null }): Observable<Record<string,string>> {
+    return this.http.post<Record<string,string>>(this.path('/api/v1/product-configurations/validate-identity'), request);
+  }
+
   validate(request: ProductConfigurationRequest): Observable<ValidationResult> {
     return this.http.post<ValidationResult>(this.path('/api/v1/product-configurations/validate'), request);
   }
@@ -150,10 +155,9 @@ export class ProductConfigurationAdminService {
     );
   }
 
-  createSubcategory(parentCategoryId: number, categoryCode: string, categoryName: string): Observable<unknown> {
+  createSubcategory(parentCategoryId: number, categoryName: string): Observable<unknown> {
     return this.http.post(this.path('/api/v1/product-categories'), {
       parentCategoryId,
-      categoryCode: categoryCode.trim().toUpperCase(),
       categoryName: categoryName.trim(),
     });
   }

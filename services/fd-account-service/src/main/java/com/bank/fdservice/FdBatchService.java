@@ -86,7 +86,7 @@ public class FdBatchService {
         for(LocalDate d=last.plusDays(1);!d.isAfter(end);d=d.plusDays(1)){
             BigDecimal daily=balance.multiply(rate).divide(BigDecimal.valueOf(365),12,RoundingMode.HALF_UP).setScale(8,RoundingMode.HALF_UP);
             cumulative=cumulative.add(daily);pending=pending.add(daily);BigDecimal capitalized=BigDecimal.ZERO.setScale(8,RoundingMode.HALF_UP);
-            if(capitalizationDate(start,d)||d.equals(maturity)){
+            if(FdCompounding.capitalizationDate(start,d,(String)fd.get("compounding"))||d.equals(maturity)){
                 capitalized=pending.setScale(scale,RoundingMode.HALF_UP).setScale(8,RoundingMode.HALF_UP);balance=balance.add(capitalized);pending=BigDecimal.ZERO.setScale(8,RoundingMode.HALF_UP);
             }
             jdbc.update("INSERT INTO fd_interest_accrual(fia_account_id,fia_accrual_date,fia_accrued_amount,fia_cumulative_accrued,fia_currency_id,fia_compounding_balance,fia_capitalized_amount) VALUES(?,?,?,?,?,?,?)",id,java.sql.Timestamp.valueOf(d.atStartOfDay()),daily,cumulative,currency,balance,capitalized);created++;
@@ -96,9 +96,8 @@ public class FdBatchService {
         return created;
     }
 
-    private Map<String,Object> lockAccount(long id){return jdbc.query("SELECT fa_primary_holder_id,fa_principal_amount,fa_currency_id,fa_status,fa_funding_savings_account_id,fa_open_date,fa_maturity_date,fa_interest_rate FROM fd_accounts WHERE fa_account_id=? FOR UPDATE",r->r.next()?Map.of("owner",r.getLong(1),"principal",r.getBigDecimal(2),"currency",r.getLong(3),"status",r.getString(4),"savings",r.getLong(5),"opened",r.getTimestamp(6),"maturity",r.getDate(7),"rate",r.getBigDecimal(8)):null,id);}
+    private Map<String,Object> lockAccount(long id){return jdbc.query("SELECT fa_primary_holder_id,fa_principal_amount,fa_currency_id,fa_status,fa_funding_savings_account_id,fa_open_date,fa_maturity_date,fa_interest_rate,fa_compounding_frequency FROM fd_accounts WHERE fa_account_id=? FOR UPDATE",r->r.next()?Map.of("owner",r.getLong(1),"principal",r.getBigDecimal(2),"currency",r.getLong(3),"status",r.getString(4),"savings",r.getLong(5),"opened",r.getTimestamp(6),"maturity",r.getDate(7),"rate",r.getBigDecimal(8),"compounding",FdCompounding.basis(r.getString(9))):null,id);}
     private BigDecimal lastCompoundingBalance(long id,BigDecimal principal){return jdbc.query("SELECT fia_compounding_balance FROM fd_interest_accrual WHERE fia_account_id=? ORDER BY fia_accrual_date DESC,fia_accrual_id DESC LIMIT 1",r->r.next()&&r.getBigDecimal(1)!=null?r.getBigDecimal(1):principal,id);}
-    private boolean capitalizationDate(LocalDate start,LocalDate d){long months=ChronoUnit.MONTHS.between(start,d);for(long quarter=3;quarter<=months+3;quarter+=3)if(start.plusMonths(quarter).equals(d))return true;return false;}
     private long typeId(String code){return jdbc.queryForObject("SELECT tt_txn_type_id FROM transaction_types WHERE tt_txn_type_code=?",Long.class,code);}
     private boolean exists(String sql,Object arg){return Boolean.TRUE.equals(jdbc.query(sql,(org.springframework.jdbc.core.ResultSetExtractor<Boolean>)r->r.next(),arg));}
     private LocalDate localDate(Object value){if(value instanceof java.sql.Timestamp timestamp)return timestamp.toLocalDateTime().toLocalDate();if(value instanceof java.time.LocalDateTime dateTime)return dateTime.toLocalDate();if(value instanceof java.sql.Date date)return date.toLocalDate();if(value instanceof LocalDate date)return date;throw new IllegalStateException("Unexpected MySQL date value: "+(value==null?"null":value.getClass().getName()));}

@@ -32,7 +32,7 @@ public class EligibleFdOfferController {
                         "LEFT JOIN product_translation t ON t.pt_product_id=p.pro_product_id AND t.pt_locale_tag=? " +
                         "LEFT JOIN product_translation en ON en.pt_product_id=p.pro_product_id AND en.pt_locale_tag='en' " +
                         "JOIN product_category pc ON pc.pc_category_id=p.pro_category_id " +
-                        "WHERE p.pro_status='ACTIVE' AND p.pro_category_id IN (" + categoryPlaceholders + ") ORDER BY p.pro_product_id",
+                        "WHERE p.pro_status='ACTIVE' AND (p.pro_effective_from IS NULL OR p.pro_effective_from<=CURRENT_DATE()) AND (p.pro_effective_to IS NULL OR p.pro_effective_to>=CURRENT_DATE()) AND p.pro_category_id IN (" + categoryPlaceholders + ") ORDER BY p.pro_product_id",
                 (productRows, rowNumber) -> {
                     long productId = productRows.getLong(1);
                     List<CurrencyOffer> currencies = jdbc.query("SELECT c.cur_iso_code,c.cur_decimal_places,pc.pcc_minimum_amount,pc.pcc_maximum_amount " +

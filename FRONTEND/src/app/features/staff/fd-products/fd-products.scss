@@ -58,7 +58,7 @@
 }
 .fd-admin-note { text-align: right; }
 .fd-admin-info { margin: 12px 0; }
-.fd-text-button { border: 0; background: transparent; cursor: pointer; }
+.fd-text-button { width: auto; flex: 0 0 auto; margin: 0; align-self: center; border: 0; background: transparent; cursor: pointer; }
 .fd-text-button:disabled { opacity: .55; cursor: not-allowed; }
 
 .fd-admin-success { padding: 11px 13px; border: 1px solid rgba(31,138,112,.45); border-radius: var(--radius-sm); background: rgba(31,138,112,.14); color: #D5FFF0; }
@@ -93,3 +93,6 @@
   .fd-offer-pagination { justify-content: stretch; }
   .fd-offer-pagination .glass-btn { flex: 1; }
 }
+
+.fd-admin-product-row > div:first-child { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 720px) { .fd-admin-section-heading { flex-direction: row; align-items: center; } }

@@ -56,6 +56,7 @@ public class LoanForexController {
             @RequestHeader("Idempotency-Key") @NotBlank @Size(max=255) String key,
             @Valid @RequestBody LoanRequest request) {
         long customer = userId(actor);
+        CustomerProductAccess.requireVerified(jdbc,customer);
         Map<String,Object> replay = jdbc.query("SELECT a.la_id,a.la_product_id,a.la_requested_amount,c.fcr_iso_code,a.la_tenure_months,a.la_purpose,a.la_destination_savings_id FROM loan_applications a JOIN fd_currency_ref c ON c.fcr_currency_id=a.la_currency_id WHERE a.la_customer_id=? AND a.la_idempotency_key=?",
                 rs -> rs.next() ? Map.<String,Object>of("id",rs.getLong(1),"product",rs.getLong(2),"amount",rs.getBigDecimal(3),"currency",rs.getString(4),"tenure",rs.getInt(5),"purpose",rs.getString(6),"destination",rs.getLong(7)) : null,customer,key);
         if (replay != null) {
@@ -156,6 +157,7 @@ public class LoanForexController {
     public Map<String,Object> forexRequest(Authentication actor,HttpServletRequest http,
             @RequestHeader("Idempotency-Key") @NotBlank @Size(max=255) String key,@Valid @RequestBody ForexRequest request) {
         long customer=userId(actor);
+        CustomerProductAccess.requireVerified(jdbc,customer);
         Long replay=jdbc.query("SELECT fr_id FROM forex_requests WHERE fr_customer_id=? AND fr_idempotency_key=?",rs->rs.next()?rs.getLong(1):null,customer,key);
         if (replay!=null) {
             Map<String,Object> existing=forexOne(actor,replay);

@@ -50,14 +50,11 @@
           </select>
         </label>
         <div class="variant-row">
-          <label class="glass-field"><span class="glass-field__label"> {{ 'New variant code' | translate }} </span>
-            <input name="newCategoryCode" [(ngModel)]="newCategoryCode" [placeholder]="'e.g. HOME_LOAN' | translate" maxlength="32" />
-          </label>
           <label class="glass-field"><span class="glass-field__label"> {{ 'Variant name' | translate }} </span>
             <input name="newCategoryName" [(ngModel)]="newCategoryName" [placeholder]="'e.g. Home Loan' | translate" maxlength="128" />
           </label>
           <button type="button" class="glass-btn glass-btn--ghost" (click)="createSubcategory()"
-                  [disabled]="!newCategoryCode.trim() || !newCategoryName.trim()"> {{ 'Add inherited variant' | translate }} </button>
+                  [disabled]="!newCategoryName.trim()"> {{ 'Add inherited variant' | translate }} </button>
         </div>
         <p class="builder-hint"> {{ 'New subcategories explicitly inherit fields from their parent family. Their own attribute definitions can be added through the existing attribute-definition API.' | translate }} </p>
       </section>
@@ -66,21 +63,24 @@
         <div class="builder-section__heading"><div><span>2</span><div><p class="builder-eyebrow"> {{ 'Identity' | translate }} </p><h3> {{ 'Describe the product' | translate }} </h3></div></div></div>
         <div class="builder-grid">
           <label class="glass-field"><span class="glass-field__label"> {{ 'Product code' | translate }} </span>
-            <input name="productCode" [(ngModel)]="productCode" required maxlength="32" [placeholder]="'e.g. FLEXI_LOAN_01' | translate" #codeField="ngModel" />
-            <span class="glass-field__error" *ngIf="codeField.invalid && codeField.touched"> {{ 'Enter a product code of up to 32 characters.' | translate }} </span>
+            <input readonly [value]="'Assigned automatically when saved' | translate" />
           </label>
           <label class="glass-field"><span class="glass-field__label"> {{ 'Product name' | translate }} </span>
-            <input name="productName" [(ngModel)]="productName" required maxlength="255" [placeholder]="'Customer-facing name' | translate" #nameField="ngModel" />
+            <input name="productName" [(ngModel)]="productName" (ngModelChange)="identityEdited('productName')" required maxlength="255" [placeholder]="'Customer-facing name' | translate" #nameField="ngModel" />
             <span class="glass-field__error" *ngIf="nameField.invalid && nameField.touched"> {{ 'Enter a product name of up to 255 characters.' | translate }} </span>
+            <span class="glass-field__error" *ngIf="identityErrors['productName']">{{ identityErrors['productName'] | translate }}</span>
           </label>
           <label class="glass-field"><span class="glass-field__label"> {{ 'Effective from' | translate }} </span>
-            <input type="date" name="effectiveFrom" [(ngModel)]="effectiveFrom" />
+            <input type="date" name="effectiveFrom" [(ngModel)]="effectiveFrom" [max]="effectiveTo || null" (ngModelChange)="identityEdited('effectiveFrom')" />
+            <span class="glass-field__error" *ngIf="identityErrors['effectiveFrom']">{{ identityErrors['effectiveFrom'] | translate }}</span>
           </label>
           <label class="glass-field"><span class="glass-field__label"> {{ 'Effective to' | translate }} </span>
-            <input type="date" name="effectiveTo" [(ngModel)]="effectiveTo" />
+            <input type="date" name="effectiveTo" [(ngModel)]="effectiveTo" [min]="effectiveFrom || null" (ngModelChange)="identityEdited('effectiveTo')" />
+            <span class="glass-field__error" *ngIf="identityErrors['effectiveTo']">{{ identityErrors['effectiveTo'] | translate }}</span>
           </label>
           <label class="glass-field builder-wide"><span class="glass-field__label"> {{ 'Description' | translate }} </span>
-            <textarea name="description" [(ngModel)]="description" maxlength="1000" rows="2"></textarea>
+            <textarea name="description" [(ngModel)]="description" (ngModelChange)="identityEdited('description')" [placeholder]="'Describe the product, up to 1000 characters' | translate" maxlength="1000" rows="2"></textarea>
+            <span class="glass-field__error" *ngIf="identityErrors['description']">{{ identityErrors['description'] | translate }}</span>
           </label>
         </div>
       </section>
@@ -134,7 +134,7 @@
             </label>
             <label class="glass-field"><span class="glass-field__label"> {{ 'Maximum amount' | translate }} </span>
               <input type="number" name="currency-{{ index }}-maximum" [(ngModel)]="draft.maximumAmount"
-                     min="0.001" [step]="currencyStep(draft.currencyCode)" required />
+                     [min]="currencyStep(draft.currencyCode)" [step]="currencyStep(draft.currencyCode)" required />
             </label>
           </div>
         </div>
@@ -149,13 +149,13 @@
         <div class="role-selector" *ngIf="metadata.roles.length">
           <span class="glass-field__label"> {{ 'Applicable account roles' | translate }} </span>
           <label *ngFor="let role of metadata.roles">
-            <input type="checkbox" name="role-{{ role.id }}" [(ngModel)]="roleSelections[role.id]" />
+            <input type="checkbox" name="role-{{ role.id }}" [(ngModel)]="roleSelections[role.id]" [disabled]="role.code === 'PRIMARY_HOLDER'" />
             {{ role.code }} <small>{{ role.description }}</small>
           </label>
         </div>
         <div class="editor-row eligibility-row" *ngFor="let rule of eligibilityRules; let index = index">
           <label class="glass-field"><span class="glass-field__label"> {{ 'Rule name' | translate }} </span>
-            <input name="eligibility-{{ index }}-name" [(ngModel)]="rule.name" required />
+            <input name="eligibility-{{ index }}-name" [ngModel]="ruleName(rule)" readonly required />
           </label>
           <label class="glass-field"><span class="glass-field__label"> {{ 'Fact' | translate }} </span>
             <select name="eligibility-{{ index }}-fact" [(ngModel)]="rule.fact" (ngModelChange)="eligibilityFactChanged(rule)" required>
@@ -164,14 +164,18 @@
           </label>
           <label class="glass-field"><span class="glass-field__label"> {{ 'Operator' | translate }} </span>
             <select name="eligibility-{{ index }}-operator" [(ngModel)]="rule.operator" required>
-              <option *ngFor="let operator of metadata.operators" [value]="operator">{{ operator }}</option>
+              <option *ngFor="let operator of factOption(rule)?.operators" [value]="operator">{{ operator }}</option>
             </select>
           </label>
-          <label class="glass-field"><span class="glass-field__label"> {{ 'Value from / expected' | translate }} </span>
-            <input name="eligibility-{{ index }}-from" [(ngModel)]="rule.valueFrom" />
+          <label class="glass-field" *ngIf="rule.operator !== 'IN'"><span class="glass-field__label"> {{ 'Value from / expected' | translate }} </span>
+            <select *ngIf="factOption(rule)?.choices?.length" name="eligibility-{{ index }}-from" [(ngModel)]="rule.valueFrom" required>
+              <option value="" disabled>{{ 'Select value' | translate }}</option>
+              <option *ngFor="let value of factOption(rule)?.choices" [value]="value">{{ value }}</option>
+            </select>
+            <input *ngIf="!factOption(rule)?.choices?.length" [type]="rule.dataType === 'NUMBER' ? 'number' : 'text'" name="eligibility-{{ index }}-from" [(ngModel)]="rule.valueFrom" />
           </label>
           <label class="glass-field" *ngIf="rule.operator === 'BETWEEN_INCLUSIVE'"><span class="glass-field__label"> {{ 'Value to' | translate }} </span>
-            <input name="eligibility-{{ index }}-to" [(ngModel)]="rule.valueTo" />
+            <input type="number" name="eligibility-{{ index }}-to" [(ngModel)]="rule.valueTo" />
           </label>
           <label class="glass-field" *ngIf="rule.operator === 'IN'"><span class="glass-field__label"> {{ 'Comma-separated values' | translate }} </span>
             <input name="eligibility-{{ index }}-set" [(ngModel)]="rule.valueSet" />
@@ -296,14 +300,15 @@
       <nav class="builder-step-actions" [attr.aria-label]="'Product configuration steps' | translate">
         <button type="button" class="glass-btn glass-btn--ghost" *ngIf="productStep > 1" (click)="previousProductStep(builderForm)"> {{ 'Back' | translate }} </button>
         <span> {{ 'Step {0} of {1}' | translate: [(productStep), (productSteps.length)] }} </span>
-        <button type="button" class="glass-btn" *ngIf="productStep < productSteps.length" (click)="nextProductStep(builderForm)"> {{ 'Continue' | translate }} </button>
+        <button type="button" class="glass-btn" *ngIf="productStep < productSteps.length" (click)="nextProductStep(builderForm)" [disabled]="validatingIdentity"> {{ 'Continue' | translate }} </button>
       </nav>
     </form>
 
-    <details class="builder-section" *ngIf="!loading"><summary class="builder-chunk-summary"> {{ 'Catalogue · Configured products' | translate }} </summary>
+    <details class="builder-section builder-catalogue" *ngIf="!loading"><summary class="builder-chunk-summary"> {{ 'Catalogue · Configured products' | translate }} </summary>
       <div class="builder-section__heading"><div><span>✓</span><div><p class="builder-eyebrow"> {{ 'Catalogue' | translate }} </p><h3> {{ 'Configured products' | translate }} </h3></div></div></div>
-      <p class="builder-hint" *ngIf="products.length === 0"> {{ 'No catalogue products are configured yet.' | translate }} </p>
+      <p class="builder-hint" *ngIf="!catalogLoading && !catalogError && products.length === 0"> {{ 'No catalogue products are configured yet.' | translate }} </p>
       <p class="builder-hint" *ngIf="products.length"> {{ '{0} product(s) · page {1} of {2}' | translate: [(products.length), (catalogPage + 1), (catalogPageCount)] }} </p>
+      <p *ngIf="catalogLoading" role="status">{{ 'Loading products...' | translate }}</p>
       <article class="catalog-row" *ngFor="let product of visibleProducts">
         <div><strong>{{ product.productName }}</strong><span> {{ '{0} · {1} · {2} · base {3}' | translate: [(product.productCode), (product.family), (product.currencyCodes.join(' / ')), (product.baseCurrencyCode)] }} </span></div>
         <div class="catalog-actions"><span class="status-chip" [attr.data-status]="product.status">{{ product.status }}</span>

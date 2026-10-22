@@ -1,3 +1,4 @@
+import { CustomerProductWarning } from '../../../shared/components/customer-product-warning';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -28,11 +29,12 @@ import { GlassSelect, GlassSelectOption } from '../../../shared/components/glass
 @Component({
   selector: 'app-fd-booking',
   standalone: true,
-  imports: [TranslatePipe, CommonModule, ReactiveFormsModule, RouterLink, WorkspaceShell, GlassSelect],
+  imports: [CustomerProductWarning, TranslatePipe, CommonModule, ReactiveFormsModule, RouterLink, WorkspaceShell, GlassSelect],
   templateUrl: './fd-booking.html',
   styleUrl: './fd-booking.scss',
 })
 export class FdBooking implements OnInit {
+  productAccessBlocked = true;
   step = 1;
   loading = true;
   submitting = false;
@@ -127,6 +129,7 @@ export class FdBooking implements OnInit {
   }
 
   submitBooking(): void {
+    if (this.productAccessBlocked) return;
     if (this.submitting || this.submittedAccount || !this.selectedProduct
         || !this.selectedCurrencyOffer || !this.selectedRateTier) return;
     if (this.bookingForm.invalid) {

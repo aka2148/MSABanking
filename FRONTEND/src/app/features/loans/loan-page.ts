@@ -1,3 +1,4 @@
+import { CustomerProductWarning } from '../../shared/components/customer-product-warning';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
@@ -10,10 +11,11 @@ import { WorkspaceShell } from '../../shared/components/workspace-shell/workspac
 
 @Component({
   selector: 'app-loan-page', standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, WorkspaceShell],
+  imports: [CustomerProductWarning, CommonModule, ReactiveFormsModule, RouterLink, WorkspaceShell],
   templateUrl: './loan-page.html', styleUrl: './loan-page.scss',
 })
 export class LoanPage implements OnInit {
+  productAccessBlocked = true;
   mode: 'catalog' | 'product' | 'applications' | 'detail';
   loading = true; busy = false; error = ''; success = '';
   offers: CustomerOffer[] = []; offer: CustomerOffer | null = null;
@@ -59,7 +61,7 @@ export class LoanPage implements OnInit {
     return this.offer?.pricingBands.find(b => b.currencyCode === code && months >= b.valueFrom && months <= b.valueTo)?.rate ?? null;
   }
   submit(): void {
-    if (this.busy || !this.offer) return;
+    if (this.productAccessBlocked || this.busy || !this.offer) return;
     const value = this.form.getRawValue();
     const limit = this.currencyLimits(value.currencyCode);
     const account = this.savings.find(a => a.account_id === value.destinationSavingsAccountId);

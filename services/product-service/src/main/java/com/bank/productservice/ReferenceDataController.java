@@ -32,9 +32,35 @@ public class ReferenceDataController {
     @GetMapping("/api/v1/product-categories") public List<Category> categories(){return jdbc.query("SELECT pc_category_id,pc_category_code,pc_category_name,pc_parent_category_id FROM product_category ORDER BY pc_category_name",(r,n)->new Category(r.getLong(1),r.getString(2),r.getString(3),(Long)r.getObject(4)));}
     @GetMapping("/api/v1/product-categories/{id}") public Category category(@PathVariable long id){return oneCategory(id);}
     @PostMapping("/api/v1/product-categories") @ResponseStatus(HttpStatus.CREATED) @PreAuthorize("hasAnyRole('BANK_OFFICER','ADMIN')")
-    public Category createCategory(@Valid @RequestBody CategoryRequest request){if(request.parentCategoryId!=null)oneCategory(request.parentCategoryId);jdbc.update("INSERT INTO product_category(pc_category_code,pc_category_name,pc_parent_category_id,pc_created_by) VALUES(?,?,?,?)",request.categoryCode.toUpperCase(Locale.ROOT),request.categoryName,request.parentCategoryId,"API");Long id=jdbc.queryForObject("SELECT LAST_INSERT_ID()",Long.class);return oneCategory(id);}
+    @org.springframework.transaction.annotation.Transactional
+    public Category createCategory(@Valid @RequestBody CategoryRequest request){
+        if (!ProductTextRules.validName(request.categoryName,128)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Enter a valid variant name (3-128 characters including a letter).");
+        boolean generated=request.categoryCode==null || request.categoryCode.isBlank();
+        if (!generated && !ProductTextRules.validCode(request.categoryCode)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Use a code of 3-32 uppercase letters, digits or underscores, starting with a letter.");
+        if(request.parentCategoryId!=null)oneCategory(request.parentCategoryId);
+        String base=ProductTextRules.codePrefix(request.categoryName,"VARIANT",32);
+        for(int attempt=0;attempt<5;attempt++) {
+            String code=generated?availableVariantCode(base):request.categoryCode;
+            try {
+                jdbc.update("INSERT INTO product_category(pc_category_code,pc_category_name,pc_parent_category_id,pc_created_by) VALUES(?,?,?,?)",code,ProductTextRules.name(request.categoryName),request.parentCategoryId,"API");
+                return oneCategory(jdbc.queryForObject("SELECT LAST_INSERT_ID()",Long.class));
+            } catch(org.springframework.dao.DuplicateKeyException duplicate) {
+                if (!generated) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Variant code is already in use.");
+            }
+        }
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Could not assign a variant code. Please retry.");
+    }
+    private String availableVariantCode(String base) {
+        List<String> codes=jdbc.queryForList("SELECT pc_category_code FROM product_category FOR UPDATE",String.class);
+        String candidate=base;
+        for(int suffix=2;codes.contains(candidate);suffix++) {
+            String tail="_"+suffix;
+            candidate=base.substring(0,Math.min(base.length(),32-tail.length()))+tail;
+        }
+        return candidate;
+    }
     @PutMapping("/api/v1/product-categories/{id}") @PreAuthorize("hasAnyRole('BANK_OFFICER','ADMIN')")
-    public Category updateCategory(@PathVariable long id,@Valid @RequestBody CategoryRequest request){oneCategory(id);if(request.parentCategoryId!=null){if(request.parentCategoryId==id)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Category cannot be its own parent");oneCategory(request.parentCategoryId);}jdbc.update("UPDATE product_category SET pc_category_code=?,pc_category_name=?,pc_parent_category_id=?,pc_updated_by='API',pc_updated_date=UTC_TIMESTAMP(6) WHERE pc_category_id=?",request.categoryCode.toUpperCase(Locale.ROOT),request.categoryName,request.parentCategoryId,id);return oneCategory(id);}
+    public Category updateCategory(@PathVariable long id,@Valid @RequestBody CategoryRequest request){oneCategory(id);if(!ProductTextRules.validName(request.categoryName,128))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Enter a valid variant name (3-128 characters including a letter).");String code=request.categoryCode==null||request.categoryCode.isBlank()?oneCategory(id).categoryCode():request.categoryCode;if(request.categoryCode!=null&&!request.categoryCode.isBlank()&&!ProductTextRules.validCode(code))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Use a valid variant code.");if(request.parentCategoryId!=null){if(request.parentCategoryId==id)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Category cannot be its own parent");oneCategory(request.parentCategoryId);}jdbc.update("UPDATE product_category SET pc_category_code=?,pc_category_name=?,pc_parent_category_id=?,pc_updated_by='API',pc_updated_date=UTC_TIMESTAMP(6) WHERE pc_category_id=?",code,ProductTextRules.name(request.categoryName),request.parentCategoryId,id);return oneCategory(id);}
     @DeleteMapping("/api/v1/product-categories/{id}") @PreAuthorize("hasRole('ADMIN')") @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteCategory(@PathVariable long id){oneCategory(id);try{jdbc.update("DELETE FROM product_category WHERE pc_category_id=?",id);}catch(org.springframework.dao.DataIntegrityViolationException ex){throw new ResponseStatusException(HttpStatus.CONFLICT,"Category is referenced by products or child categories");}}
 
@@ -45,5 +71,5 @@ public class ReferenceDataController {
     public record Currency(Long currencyId,String isoCode,String isoNumericCode,String currencyName,String currencySymbol,Integer decimalPlaces,boolean active){}
     public record CurrencyRequest(@NotBlank String isoCode,String isoNumericCode,@NotBlank String currencyName,String currencySymbol,@NotNull @Min(0) @Max(8) Integer decimalPlaces,Boolean active){}
     public record Category(Long categoryId,String categoryCode,String categoryName,Long parentCategoryId){}
-    public record CategoryRequest(@NotBlank String categoryCode,@NotBlank String categoryName,Long parentCategoryId){}
+    public record CategoryRequest(@jakarta.validation.constraints.Size(max=32) String categoryCode,@NotBlank String categoryName,Long parentCategoryId){}
 }

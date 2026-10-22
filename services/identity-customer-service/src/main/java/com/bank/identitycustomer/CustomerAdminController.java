@@ -67,6 +67,7 @@ public class CustomerAdminController {
         long id=jdbc.queryForObject("SELECT LAST_INSERT_ID()",Long.class);
         String name=present(request.fullName)?request.fullName.trim():username(request.userId);
         jdbc.update("INSERT INTO customer_details(cud_customer_id,cud_full_name) VALUES(?,?)",id,name);
+        UserSnapshots.writeUserSnapshot(jdbc, request.userId);
         return findCustomer(id);
     }
 
@@ -81,14 +82,17 @@ public class CustomerAdminController {
             if(detailIds.isEmpty()) jdbc.update("INSERT INTO customer_details(cud_customer_id,cud_full_name) VALUES(?,?)",customerId,request.fullName);
             else jdbc.update("UPDATE customer_details SET cud_full_name=? WHERE cud_detail_id=?",request.fullName,detailIds.get(0));
         }
+        UserSnapshots.writeUserSnapshot(jdbc, jdbc.queryForObject("SELECT cus_user_id FROM customers WHERE cus_customer_id=?", Long.class, customerId));
         return findCustomer(customerId);
     }
 
     @PatchMapping("/{customerId}/status")
+    @Transactional
     public CustomerResponse updateStatus(@PathVariable long customerId,@RequestBody Map<String,String> body) {
         String status=body.get("status"),risk=body.get("riskCategory");
         if(status!=null) jdbc.update("UPDATE customers SET cus_kyc_status=? WHERE cus_customer_id=?",status,customerId);
         if(risk!=null) jdbc.update("UPDATE customers SET cus_risk_category=? WHERE cus_customer_id=?",risk,customerId);
+        UserSnapshots.writeUserSnapshot(jdbc, jdbc.queryForObject("SELECT cus_user_id FROM customers WHERE cus_customer_id=?", Long.class, customerId));
         return findCustomer(customerId);
     }
 
