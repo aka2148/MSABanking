@@ -1,6 +1,9 @@
 package com.bank.productservice;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
@@ -71,8 +74,12 @@ public class ProductConfigurationController {
         Map<String,String> errors = new LinkedHashMap<>();
         if (!ProductTextRules.validName(request.productName(),255)) errors.put("productName","Enter a valid product name (3-255 characters including a letter).");
         if (!ProductTextRules.validDescription(request.description())) errors.put("description","Enter 10-1000 characters including a letter, without markup or control characters.");
-        if (request.effectiveFrom()!=null && request.effectiveTo()!=null && request.effectiveFrom().isAfter(request.effectiveTo())) errors.put("effectiveFrom","Effective-from date must not be after the effective-to date.");
-        if (request.effectiveTo()!=null && request.effectiveTo().isBefore(LocalDate.now())) errors.put("effectiveTo","Effective-to date must not be in the past.");
+        LocalDate today = LocalDate.now(java.time.ZoneOffset.UTC);
+        if (request.effectiveFrom()==null) errors.put("effectiveFrom","Effective-from date is required.");
+        else if (request.effectiveFrom().isBefore(today)) errors.put("effectiveFrom","Effective-from date must not be in the past.");
+        if (request.effectiveTo()==null) errors.put("effectiveTo","Effective-to date is required.");
+        else if (request.effectiveTo().isBefore(today)) errors.put("effectiveTo","Effective-to date must not be in the past.");
+        if (request.effectiveFrom()!=null && request.effectiveTo()!=null && request.effectiveFrom().isAfter(request.effectiveTo())) errors.put("effectiveTo","Effective-to date must be on or after effective-from date.");
         return errors;
     }
 
@@ -95,7 +102,7 @@ public class ProductConfigurationController {
         boolean andMatch = rules.stream().filter(r -> !"OR".equals(norm(orDefault(r.combineLogic(), "AND")))).allMatch(r -> matches(r, facts.get(norm(r.fact()))));
         List<EligibilityRule> orRules = rules.stream().filter(r -> "OR".equals(norm(r.combineLogic()))).toList();
         if (!andMatch || (!orRules.isEmpty() && orRules.stream().noneMatch(r -> matches(r, facts.get(norm(r.fact()))))))
-            return new PricingPreview("SUPPORTED", family, config.baseCurrencyCode(), config.baseCurrencyCode(), null, null, Map.of("eligible", BigDecimal.ZERO), List.of("Sample facts do not satisfy eligibility rules"));
+            return new PricingPreview("SUPPORTED", family, config.baseCurrencyCode(), config.baseCurrencyCode(), null, null, Map.of("eligible", BigDecimal.ZERO), List.of("The sample facts entered in this preview do not satisfy the configured eligibility rules. This does not indicate whether any real customer qualifies."));
         return previewPricing(config, facts, family);
     }
 
@@ -111,6 +118,34 @@ public class ProductConfigurationController {
         return findSummary(productId);
     }
 
+    @PutMapping("/{productId}")
+    @Transactional
+    public ConfigurationSummary updateDraft(@PathVariable int productId, @Valid @RequestBody ConfigurationRequest request) {
+        Map<String,Object> existing = jdbc.query("SELECT pro_product_code,pro_status FROM product WHERE pro_product_id=?", r -> {
+            if (!r.next()) return null;
+            return Map.of("code", r.getString(1), "status", r.getString(2));
+        }, productId);
+        if (existing == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Product was not found.");
+        if (!"DRAFT".equalsIgnoreCase(Objects.toString(existing.get("status"))))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only a draft product can be edited.");
+        ConfigurationRequest normalized = new ConfigurationRequest(Objects.toString(existing.get("code")), request.productName(), request.categoryId(), request.description(), request.effectiveFrom(), request.effectiveTo(), request.baseCurrencyCode(), request.currencies(), request.attributes(), request.eligibilityRules(), request.pricingBands(), request.charges(), request.roleConstraints());
+        List<String> errors = validationErrors(normalized, false);
+        if (!errors.isEmpty()) throw bad(String.join("; ", errors));
+        jdbc.update("UPDATE product SET pro_product_name=?,pro_category_id=?,pro_base_currency_code=?,pro_effective_from=?,pro_effective_to=?,pro_description=?,pro_updated_by='PRODUCT_BUILDER',pro_updated_date=UTC_TIMESTAMP(6) WHERE pro_product_id=?",
+                ProductTextRules.name(normalized.productName()), normalized.categoryId(), norm(normalized.baseCurrencyCode()), date(normalized.effectiveFrom()), date(normalized.effectiveTo()), normalized.description()==null?null:normalized.description().trim(), productId);
+        jdbc.update("DELETE FROM product_role_config WHERE prc_product_id=?", productId);
+        jdbc.update("DELETE FROM product_attribute_values WHERE pav_product_id=?", productId);
+        jdbc.update("DELETE FROM rule_condition WHERE rc_rule_id IN (SELECT pr_rule_id FROM product_rule WHERE pr_product_id=?)", productId);
+        jdbc.update("DELETE FROM rule_outcome WHERE ro_rule_id IN (SELECT pr_rule_id FROM product_rule WHERE pr_product_id=?)", productId);
+        jdbc.update("DELETE FROM product_rule WHERE pr_product_id=?", productId);
+        jdbc.update("DELETE FROM charge_slab WHERE cs_charge_id IN (SELECT cc_charge_id FROM charge_config WHERE cc_product_id=?)", productId);
+        jdbc.update("DELETE FROM charge_config WHERE cc_product_id=?", productId);
+        jdbc.update("DELETE FROM product_currency_config WHERE pcc_product_id=?", productId);
+        saveConfiguration(productId, normalized);
+        saveRevision(productId, "DRAFT", normalized);
+        return findSummary(productId);
+    }
+
     @PostMapping("/{productId}/activate")
     @Transactional
     public ConfigurationSummary activate(@PathVariable int productId) {
@@ -121,6 +156,7 @@ public class ProductConfigurationController {
             ConfigurationRequest request = json.readValue(snapshot, ConfigurationRequest.class);
             List<String> errors = validationErrors(request, false);
             if (!errors.isEmpty()) throw bad(String.join("; ", errors));
+            if ("FIXED_DEPOSIT".equals(safeFamily(request.categoryId()))) ensureNoDuplicateActiveFd(productId, snapshot);
         } catch (java.io.IOException e) { throw new IllegalStateException("Could not read product configuration revision", e); }
         if (!"ACTIVE".equalsIgnoreCase(current.status())) {
             jdbc.update("UPDATE product SET pro_status='ACTIVE',pro_event_version=pro_event_version+1,pro_updated_by='PRODUCT_SERVICE',pro_updated_date=UTC_TIMESTAMP(6) WHERE pro_product_id=?", productId);
@@ -128,6 +164,41 @@ public class ProductConfigurationController {
             writeOutbox(productId);
         }
         return findSummary(productId);
+    }
+
+    private void ensureNoDuplicateActiveFd(int productId, String snapshot) {
+        JsonNode candidate = comparableConfiguration(snapshot);
+        List<Map<String,Object>> active = jdbc.queryForList("SELECT p.pro_product_id,r.pcr_snapshot_json FROM product p JOIN product_configuration_revision r ON r.pcr_product_id=p.pro_product_id WHERE p.pro_status='ACTIVE' AND p.pro_product_id<>? AND r.pcr_status='ACTIVE' AND r.pcr_revision_no=(SELECT MAX(r2.pcr_revision_no) FROM product_configuration_revision r2 WHERE r2.pcr_product_id=p.pro_product_id)", productId);
+        for (Map<String,Object> row : active) {
+            String existingSnapshot = Objects.toString(row.get("pcr_snapshot_json"), "");
+            try {
+                ConfigurationRequest existing = json.readValue(existingSnapshot, ConfigurationRequest.class);
+                if ("FIXED_DEPOSIT".equals(safeFamily(existing.categoryId())) && candidate.equals(comparableConfiguration(existingSnapshot)))
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "An identical fixed-deposit configuration is already active (product " + row.get("pro_product_id") + "). Change its terms or deactivate it before activating this draft.");
+            } catch (java.io.IOException e) { throw new IllegalStateException("Could not compare active fixed-deposit configuration", e); }
+        }
+    }
+
+    private JsonNode comparableConfiguration(String snapshot) {
+        try {
+            ObjectNode node = (ObjectNode) json.readTree(snapshot);
+            node.remove(List.of("productCode", "productName", "description"));
+            sortConfigurationArrays(node);
+            return node;
+        } catch (java.io.IOException e) { throw new IllegalStateException("Could not compare product configuration", e); }
+    }
+
+    private void sortConfigurationArrays(JsonNode node) {
+        if (node.isObject()) {
+            node.fields().forEachRemaining(field -> sortConfigurationArrays(field.getValue()));
+        } else if (node.isArray()) {
+            ArrayNode array = (ArrayNode) node;
+            List<JsonNode> values = new ArrayList<>();
+            array.forEach(value -> { sortConfigurationArrays(value); values.add(value); });
+            values.sort(Comparator.comparing(JsonNode::toString));
+            array.removeAll();
+            values.forEach(array::add);
+        }
     }
 
     private List<String> validationErrors(ConfigurationRequest r, boolean checkCode) {

@@ -87,8 +87,10 @@ app-workspace-shell .glass-shell__content { align-items: flex-start; }
 .workspace .glass-field__error { color: #ffbdbd; margin-top: .35rem; font-size: .8rem; }
 .workspace .glass-error { padding: .9rem 1rem; border-radius: 9px; background: #4d2531; color: #ffe4e4; border: 1px solid #b75a66; }
 .workspace :is(.fd-success, .fd-admin-success, .customer-admin__success) { color: #c8f7df; }
-.workspace .glass-select__menu { background: #183451; border-color: var(--ws-line); }
-.workspace .glass-select__option--selected { color: #ffe0a2; }
+.workspace .glass-select__menu { background: #121117; border-color: rgba(199,154,62,.48); padding: 10px; }
+.workspace .glass-select__option { min-height: 54px; margin-block: 5px; padding: 16px 18px; color: #f3e7cb; }
+.workspace .glass-select__option:hover { background: rgba(199,154,62,.14); color: #f3e7cb; }
+.workspace .glass-select__option--selected { background: #554629; color: #f3e7cb; }
 
 .workspace :is(.fd-product-card, .fd-rate-option, .deposit-row, .customer-row, .fd-currency-editor, .fd-premature-row) {
   background: var(--ws-surface-raised);

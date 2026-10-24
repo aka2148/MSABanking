@@ -1,9 +1,9 @@
 <div class="glass-select" [class.glass-select--open]="isOpen">
   <button type="button" class="glass-select__trigger" (click)="toggle()">
-    <span [class.glass-select__placeholder]="!selectedValue">{{ translateOptions || !selectedValue ? (selectedLabel | translate) : selectedLabel }}</span>
     <svg class="glass-select__chevron" viewBox="0 0 20 20" fill="none">
       <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
     </svg>
+    <span [class.glass-select__placeholder]="!selectedValue">{{ translateOptions || !selectedValue ? (selectedLabel | translate) : selectedLabel }}</span>
   </button>
 
   <div class="glass-select__menu" *ngIf="isOpen">

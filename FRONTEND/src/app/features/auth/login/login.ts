@@ -55,10 +55,15 @@ submit(): void {
     },
     error: (err) => {
       this.loading = false;
-      this.errorMessage =
-        err.error?.message ??
-        err.error?.error ??
-        'Invalid username or password.';
+      if (err.status === 401) {
+        this.errorMessage = 'Invalid username or password.';
+      } else if (err.status === 0) {
+        this.errorMessage = 'Cannot reach the sign-in service. Check that the local banking services are running, then try again.';
+      } else if (err.status >= 500) {
+        this.errorMessage = 'The sign-in service is temporarily unavailable. Please try again shortly.';
+      } else {
+        this.errorMessage = err.error?.message ?? err.error?.error ?? 'Could not sign in. Please try again.';
+      }
     },
   });
 }

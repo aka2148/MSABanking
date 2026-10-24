@@ -1,7 +1,7 @@
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
@@ -17,7 +17,7 @@ import {
   ProductFamily,
 } from '../../../core/services/product-configuration-admin.service';
 import { WorkspaceShell } from '../../../shared/components/workspace-shell/workspace-shell';
-import { PRODUCT_TEMPLATES, ProductTemplate } from './product-templates';
+import { FD_CURRENCY_DEFAULTS, PRODUCT_TEMPLATES, ProductTemplate } from './product-templates';
 
 interface CurrencyDraft { currencyCode: string; minimumAmount: number | null; maximumAmount: number | null; }
 interface PricingDraft { currencyCode: string; valueFrom: number | null; valueTo: number | null; ratePercent: number | null; }
@@ -38,7 +38,9 @@ interface ChargeDraft {
   templateUrl: './product-builder.html',
   styleUrl: './product-builder.scss',
 })
-export class ProductBuilder implements OnInit {
+export class ProductBuilder implements OnInit, OnDestroy {
+  private readonly draftStorageKey = 'product-builder-draft-v1';
+  private restoringDraft = false;
   readonly productSteps = ['Product family', 'Identity', 'Terms', 'Money', 'Eligibility', 'Pricing', 'Review', 'Publish'];
   readonly templates = PRODUCT_TEMPLATES;
   selectedTemplateKey: string | null = null;
@@ -63,6 +65,7 @@ export class ProductBuilder implements OnInit {
     AMOUNT: '100000', TENURE_MONTHS: '12', BALANCE_AMOUNT: '50000', TRANSFER_AMOUNT: '100000',
     REFERENCE_RATE: '83.25', CURRENCY: 'INR', FUNDING_CURRENCY: 'INR', DESTINATION_CURRENCY: 'USD',
     REFERENCE_RATE_DIRECTION: 'FUNDING_PER_DESTINATION', FOREX_AMOUNT_MODE: 'CONVERSION_PRINCIPAL',
+    KYC_STATUS: 'VERIFIED', RISK_CATEGORY: 'LOW', VERIFIED_IDENTITY: 'true',
   };
   previewResult: PricingPreview | null = null;
   validationErrors: string[] = [];
@@ -83,7 +86,15 @@ export class ProductBuilder implements OnInit {
     return this.metadata?.categories.find((category) => category.id === this.categoryId);
   }
 
+  get today(): string {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  }
+
   get family(): ProductFamily { return this.selectedCategory?.family ?? 'UNKNOWN'; }
+  get familyLabel(): string {
+    return ({ FIXED_DEPOSIT: 'Fixed deposit', LOAN: 'Loan', CASA: 'Savings and current accounts', FOREX: 'Foreign exchange' } as Record<string, string>)[this.family] ?? this.family;
+  }
   get selectedTemplate(): ProductTemplate | undefined { return this.templates.find((template) => template.key === this.selectedTemplateKey); }
   get attributes(): AttributeOption[] { return this.metadata?.attributes ?? []; }
   get currencies(): CurrencyOption[] { return this.metadata?.currencies ?? []; }
@@ -102,7 +113,39 @@ export class ProductBuilder implements OnInit {
   ruleName(rule: EligibilityDraft): string { return `${rule.fact} ${rule.operator} ${rule.operator === 'IN' ? rule.valueSet : rule.operator === 'BETWEEN_INCLUSIVE' ? `${rule.valueFrom} - ${rule.valueTo}` : rule.valueFrom}`.trim().slice(0, 150); }
   private selectPrimaryHolder(): void { this.metadata?.roles.filter(role => role.code === 'PRIMARY_HOLDER').forEach(role => this.roleSelections[role.id] = true); }
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void { this.restoreDraft(); this.load(); }
+
+  ngOnDestroy(): void { this.persistDraft(); }
+
+  private restoreDraft(): void {
+    try {
+      const raw = sessionStorage.getItem(this.draftStorageKey);
+      if (!raw) return;
+      const draft = JSON.parse(raw) as Record<string, unknown>;
+      const fields = ['selectedTemplateKey', 'productStep', 'categoryId', 'productName', 'description', 'effectiveFrom',
+        'effectiveTo', 'baseCurrencyCode', 'currencyDrafts', 'pricingDrafts', 'attributeValues', 'eligibilityRules',
+        'charges', 'roleSelections', 'previewFacts', 'createdProduct'];
+      this.restoringDraft = true;
+      for (const key of fields) if (key in draft) (this as unknown as Record<string, unknown>)[key] = draft[key];
+      this.productStep = Math.min(this.productSteps.length, Math.max(1, Number(this.productStep) || 1));
+    } catch {
+      try { sessionStorage.removeItem(this.draftStorageKey); } catch { /* Browser storage can be disabled. */ }
+    } finally {
+      this.restoringDraft = false;
+    }
+  }
+
+  persistDraft(): void {
+    if (this.restoringDraft || this.loading || !this.metadata) return;
+    try {
+      const { selectedTemplateKey, productStep, categoryId, productName, description, effectiveFrom, effectiveTo,
+        baseCurrencyCode, currencyDrafts, pricingDrafts, attributeValues, eligibilityRules, charges, roleSelections,
+        previewFacts, createdProduct } = this;
+      sessionStorage.setItem(this.draftStorageKey, JSON.stringify({ selectedTemplateKey, productStep, categoryId,
+        productName, description, effectiveFrom, effectiveTo, baseCurrencyCode, currencyDrafts, pricingDrafts,
+        attributeValues, eligibilityRules, charges, roleSelections, previewFacts, createdProduct }));
+    } catch { /* The builder remains usable when browser storage is unavailable. */ }
+  }
 
   load(): void {
     this.loading = true;
@@ -121,6 +164,7 @@ export class ProductBuilder implements OnInit {
           this.initializeAttributes();
         }
         this.loading = false;
+        this.persistDraft();
       },
       error: (error: HttpErrorResponse) => {
         this.errorMessage = this.errorText(error, 'Could not load product-builder metadata.');
@@ -144,6 +188,7 @@ export class ProductBuilder implements OnInit {
         this.selectPrimaryHolder();
         this.initializeAttributes();
         this.initializeFamilyDefaults();
+        this.persistDraft();
       },
       error: (error: HttpErrorResponse) => { this.errorMessage = this.errorText(error, 'Could not load category fields.'); },
     });
@@ -179,6 +224,7 @@ export class ProductBuilder implements OnInit {
         this.initializeAttributes();
         this.initializeFamilyDefaults();
         this.applyTemplate(template);
+        this.persistDraft();
       },
       error: (error: HttpErrorResponse) => { this.errorMessage = this.errorText(error, 'Could not load template fields.'); },
     });
@@ -228,6 +274,12 @@ export class ProductBuilder implements OnInit {
       if (!(this.family === 'FOREX' && currency.code === this.baseCurrencyCode)) this.addPricingBand(currency.code);
     }
     this.syncForexPreviewCurrencies();
+    this.persistDraft();
+  }
+
+  pricingCurrencyChanged(band: PricingDraft, currencyCode: string): void {
+    band.currencyCode = currencyCode;
+    this.persistDraft();
   }
 
   baseCurrencyChanged(): void {
@@ -241,13 +293,13 @@ export class ProductBuilder implements OnInit {
 
   addPricingBand(currencyCode?: string): void {
     const applicable = currencyCode ?? this.previewCurrencyCodes()[0] ?? this.baseCurrencyCode;
-    const previous = [...this.pricingDrafts].reverse().find((band) => band.currencyCode === applicable);
     this.pricingDrafts.push({
       currencyCode: applicable,
-      valueFrom: previous?.valueTo == null ? null : previous.valueTo + 1,
-      valueTo: previous?.valueTo == null ? null : previous.valueTo + 12,
+      valueFrom: null,
+      valueTo: null,
       ratePercent: null,
     });
+    this.persistDraft();
   }
 
   removePricingBand(index: number): void { if (this.pricingDrafts.length > 1) this.pricingDrafts.splice(index, 1); }
@@ -324,6 +376,11 @@ export class ProductBuilder implements OnInit {
     }
     this.clearMessages();
     if (this.productStep === 2) {
+      if (!this.validateIdentityDates()) {
+        form.controls['effectiveFrom']?.markAsTouched();
+        form.controls['effectiveTo']?.markAsTouched();
+        return;
+      }
       const identity = { productName: this.productName, description: this.description, effectiveFrom: this.effectiveFrom || null, effectiveTo: this.effectiveTo || null };
       this.validatingIdentity = true;
       this.service.validateIdentity(identity).subscribe({
@@ -331,18 +388,23 @@ export class ProductBuilder implements OnInit {
           this.validatingIdentity = false;
           if (identity.productName !== this.productName || identity.description !== this.description || identity.effectiveFrom !== (this.effectiveFrom || null) || identity.effectiveTo !== (this.effectiveTo || null)) return;
           this.identityErrors = errors;
-          if (!Object.keys(errors).length) this.productStep = this.attributes.length ? 3 : 4;
+          if (!Object.keys(errors).length) {
+            this.productStep = this.attributes.length ? 3 : 4;
+            this.persistDraft();
+          }
         },
         error: (error: HttpErrorResponse) => { this.validatingIdentity = false; this.errorMessage = this.errorText(error, 'Could not validate this configuration.'); },
       });
       return;
     }
     this.productStep = Math.min(8, this.productStep + 1);
+    this.persistDraft();
   }
 
   previousProductStep(form: NgForm): void {
     this.clearMessages();
     this.productStep = this.productStep === 4 && !this.attributes.length ? 2 : Math.max(1, this.productStep - 1);
+    this.persistDraft();
   }
 
   saveDraft(form: NgForm): void {
@@ -357,13 +419,17 @@ export class ProductBuilder implements OnInit {
       next: (validation) => {
         this.validationErrors = validation.errors;
         if (!validation.valid) { this.saving = false; return; }
-        this.service.create(request).subscribe({
+        const saveRequest = this.createdProduct?.status === 'DRAFT'
+          ? this.service.updateDraft(this.createdProduct.productId, request)
+          : this.service.create(request);
+        saveRequest.subscribe({
           next: (product) => {
             this.createdProduct = product;
             this.products = [product, ...this.products.filter((item) => item.productId !== product.productId)];
             this.catalogPage = 0;
             this.successMessage = 'Complete configuration saved transactionally as a draft.';
             this.saving = false;
+            this.persistDraft();
           },
           error: (error: HttpErrorResponse) => {
             this.errorMessage = this.errorText(error, 'Could not save this product configuration.');
@@ -406,6 +472,21 @@ export class ProductBuilder implements OnInit {
     });
   }
 
+  validateCurrent(form: NgForm): void {
+    this.clearMessages();
+    const request = this.buildRequest(form);
+    if (!request) return;
+    this.saving = true;
+    this.service.validate(request).subscribe({
+      next: (result) => {
+        this.saving = false;
+        this.validationErrors = result.errors;
+        if (result.valid) this.successMessage = 'Configuration is valid.';
+      },
+      error: (error: HttpErrorResponse) => { this.saving = false; this.errorMessage = this.errorText(error, 'Could not validate the current configuration.'); },
+    });
+  }
+
   currencyStep(code: string): string {
     const decimals = this.currencies.find((currency) => currency.code === code)?.decimalPlaces ?? 2;
     return (1 / Math.pow(10, decimals)).toFixed(decimals);
@@ -421,13 +502,17 @@ export class ProductBuilder implements OnInit {
   }
 
   private initializeAttributes(): void {
-    this.attributeValues = Object.fromEntries(this.attributes.map((attribute) => [attribute.id, attribute.defaultValue ?? '']));
+    this.attributeValues = Object.fromEntries(this.attributes.map((attribute) => [attribute.id,
+      this.attributeValues[attribute.id] ?? attribute.defaultValue ?? '']));
   }
 
   private initializeFamilyDefaults(): void {
     const codes = this.family === 'FOREX' ? ['INR', 'USD', 'KWD'] : ['INR'];
     this.currencyDrafts = codes.filter((code) => this.currencies.some((currency) => currency.code === code))
-      .map((currencyCode) => ({ currencyCode, minimumAmount: null, maximumAmount: null }));
+      .map((currencyCode) => {
+        const amount = this.family === 'FIXED_DEPOSIT' ? FD_CURRENCY_DEFAULTS.find((item) => item.code === currencyCode) : undefined;
+        return { currencyCode, minimumAmount: amount?.minimumAmount ?? null, maximumAmount: amount?.maximumAmount ?? null };
+      });
     if (this.currencyDrafts.length === 0 && this.currencies[0]) {
       this.currencyDrafts = [{ currencyCode: this.currencies[0].code, minimumAmount: null, maximumAmount: null }];
     }
@@ -443,6 +528,12 @@ export class ProductBuilder implements OnInit {
   }
 
   private buildRequest(form: NgForm): ProductConfigurationRequest | null {
+    if (!this.validateIdentityDates()) { this.productStep = 2; return null; }
+    if (this.pricingDrafts.some((band) => band.ratePercent == null || !Number.isFinite(Number(band.ratePercent)))) {
+      this.productStep = 6;
+      this.errorMessage = 'Enter an annual rate for every pricing band before saving or previewing.';
+      return null;
+    }
     this.selectPrimaryHolder();
     if (form.invalid || this.categoryId == null || this.currencyDrafts.length === 0 || this.pricingDrafts.length === 0) {
       form.control.markAllAsTouched();
@@ -478,6 +569,20 @@ export class ProductBuilder implements OnInit {
         roleTypeId: Number(id), mandatory: true, minimumCount: 1, maximumCount: 1,
       })),
     };
+  }
+
+  private validateIdentityDates(): boolean {
+    this.identityErrors = { ...this.identityErrors };
+    delete this.identityErrors['effectiveFrom'];
+    delete this.identityErrors['effectiveTo'];
+    if (!this.effectiveFrom) this.identityErrors['effectiveFrom'] = 'Effective-from date is required.';
+    else if (this.effectiveFrom < this.today) this.identityErrors['effectiveFrom'] = 'Effective-from date must not be in the past.';
+    if (!this.effectiveTo) this.identityErrors['effectiveTo'] = 'Effective-to date is required.';
+    else if (this.effectiveTo < this.today) this.identityErrors['effectiveTo'] = 'Effective-to date must not be in the past.';
+    else if (this.effectiveFrom && this.effectiveTo < this.effectiveFrom) this.identityErrors['effectiveTo'] = 'Effective-to date must be on or after effective-from date.';
+    const valid = !this.identityErrors['effectiveFrom'] && !this.identityErrors['effectiveTo'];
+    if (!valid) this.errorMessage = this.identityErrors['effectiveFrom'] || this.identityErrors['effectiveTo'];
+    return valid;
   }
 
   private syncForexPreviewCurrencies(): void {

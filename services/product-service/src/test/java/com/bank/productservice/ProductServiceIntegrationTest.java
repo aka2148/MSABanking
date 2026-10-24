@@ -81,13 +81,13 @@ class ProductServiceIntegrationTest {
         assertTrue(categoryId>0&&compoundingId>0&&payoutId>0);
         String code="FD_BUILDER_"+java.util.UUID.randomUUID().toString().substring(0,8).toUpperCase();
         String body="""
-                {"productCode":"%s","productName":"Sample Builder Deposit","categoryId":%d,
+                {"productCode":"%s","productName":"Sample Builder Deposit","effectiveFrom":"%s","effectiveTo":"%s","categoryId":%d,
                  "description":"Sample terms","baseCurrencyCode":"INR",
                  "currencies":[{"currencyCode":"INR","minimumAmount":1000,"maximumAmount":1000000}],
                  "attributes":[{"definitionId":%d,"value":"QUARTERLY"},{"definitionId":%d,"value":"AT_MATURITY"}],
                  "eligibilityRules":[],"pricingBands":[{"currencyCode":"INR","fact":"TENURE_MONTHS","valueFrom":1,"valueTo":12,"rate":0.06,"outcomeType":"INTEREST_RATE","rateUnit":"DECIMAL_FRACTION","calculationMethod":"FD_QUARTERLY"}],
                  "charges":[],"roleConstraints":[{"roleTypeId":%d,"mandatory":true,"minimumCount":1,"maximumCount":1}]}
-                """.formatted(code,categoryId,compoundingId,payoutId,jdbc.queryForObject("SELECT rot_role_type_id FROM role_type WHERE rot_role_code='PRIMARY_HOLDER'",Long.class));
+                """.formatted(code,java.time.LocalDate.now(java.time.ZoneOffset.UTC).plusDays(1),java.time.LocalDate.now(java.time.ZoneOffset.UTC).plusDays(30),categoryId,compoundingId,payoutId,jdbc.queryForObject("SELECT rot_role_type_id FROM role_type WHERE rot_role_code='PRIMARY_HOLDER'",Long.class));
         for (String field : new String[]{"productCode", "productName", "description", "effectiveFrom", "roleConstraints"}) {
             var invalid = (com.fasterxml.jackson.databind.node.ObjectNode)mapper.readTree(body);
             switch (field) {
@@ -108,6 +108,17 @@ class ProductServiceIntegrationTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.valid").value(true));
         for (int sequence=1;sequence<=2;sequence++) mvc.perform(post("/api/v1/product-configurations").header("Authorization","Bearer "+staff).contentType("application/json").content(generated.toString()))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.productCode").value("FIXED_DEPOSIT_"+String.format("%04d",sequence)));
+        var duplicateDraftIds=jdbc.queryForList("SELECT pro_product_id FROM product WHERE pro_product_name='Sample Builder Deposit' ORDER BY pro_product_id DESC LIMIT 2",Long.class);
+        mvc.perform(post("/api/v1/product-configurations/"+duplicateDraftIds.get(1)+"/activate").header("Authorization","Bearer "+staff))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ACTIVE"));
+        mvc.perform(post("/api/v1/product-configurations/"+duplicateDraftIds.get(0)+"/activate").header("Authorization","Bearer "+staff))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("identical fixed-deposit configuration")));
+        jdbc.update("UPDATE product SET pro_status='INACTIVE' WHERE pro_product_id=?",duplicateDraftIds.get(1));
+        var revisedDraft=(com.fasterxml.jackson.databind.node.ObjectNode)generated.deepCopy();
+        revisedDraft.put("productName","Revised Builder Deposit");
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/v1/product-configurations/"+duplicateDraftIds.get(0))
+                        .header("Authorization","Bearer "+staff).contentType("application/json").content(revisedDraft.toString()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.productName").value("Revised Builder Deposit")).andExpect(jsonPath("$.revision").value(2));
         for (String fact : new String[]{"KYC_STATUS","RISK_CATEGORY","VERIFIED_IDENTITY"}) {
             var invalidRule=generated.deepCopy();
             var rule=invalidRule.putArray("eligibilityRules").addObject();
@@ -142,7 +153,7 @@ class ProductServiceIntegrationTest {
         mvc.perform(post("/api/v1/fd-products/"+id+"/activate").header("Authorization","Bearer "+staff))
                 .andExpect(status().isConflict());
         mvc.perform(get("/api/product").param("lang","fr"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$[0].productName").value("Demo Fixed Deposit"));
+                .andExpect(status().isOk()).andExpect(jsonPath("$[?(@.productName == 'Demo Fixed Deposit')]").isNotEmpty());
         String offerPath="$[?(@.product_id == "+id+")]";
         mvc.perform(get("/api/v1/fd-products/eligible")).andExpect(status().isOk()).andExpect(jsonPath(offerPath).isNotEmpty());
         jdbc.update("UPDATE product SET pro_effective_from=DATE_ADD(CURRENT_DATE(),INTERVAL 1 DAY) WHERE pro_product_id=?",id);
@@ -178,7 +189,11 @@ class ProductServiceIntegrationTest {
         mvc.perform(post("/api/v1/product-configurations/validate-identity").header("Authorization",staff).contentType("application/json").content("{\"productName\":\"Future product\",\"effectiveFrom\":\""+future+"\",\"effectiveTo\":\""+future+"\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$").isEmpty());
         mvc.perform(post("/api/v1/product-configurations/validate-identity").header("Authorization",staff).contentType("application/json").content("{\"productName\":\"123\",\"description\":\"short\",\"effectiveFrom\":\""+future+"\",\"effectiveTo\":\"2000-01-01\"}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.productName").isNotEmpty()).andExpect(jsonPath("$.description").isNotEmpty()).andExpect(jsonPath("$.effectiveFrom").isNotEmpty()).andExpect(jsonPath("$.effectiveTo").isNotEmpty());
+                .andExpect(status().isOk()).andExpect(jsonPath("$.productName").isNotEmpty()).andExpect(jsonPath("$.description").isNotEmpty()).andExpect(jsonPath("$.effectiveTo").isNotEmpty());
+        mvc.perform(post("/api/v1/product-configurations/validate-identity").header("Authorization",staff).contentType("application/json").content("{\"productName\":\"Future product\",\"effectiveTo\":\""+future+"\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.effectiveFrom").value("Effective-from date is required."));
+        mvc.perform(post("/api/v1/product-configurations/validate-identity").header("Authorization",staff).contentType("application/json").content("{\"productName\":\"Future product\",\"effectiveFrom\":\"2000-01-01\",\"effectiveTo\":\""+future+"\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.effectiveFrom").value("Effective-from date must not be in the past."));
     }
 
     @Test void productWritesRequireStaffRole()throws Exception{

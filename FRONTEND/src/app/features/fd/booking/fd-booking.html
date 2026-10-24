@@ -31,7 +31,7 @@
           <span class="fd-currency">{{ selectedCurrencyOffer?.currency_code }}</span>
         </div>
         <dl class="fd-option-summary" *ngIf="selectedCurrencyOffer as currency">
-          <div><dt> {{ 'Selected term' | translate }} </dt><dd> {{ '{0} months' | translate: [(selectedRateTier?.maximum_tenure_months)] }} </dd></div>
+          <div><dt> {{ 'Selected term' | translate }} </dt><dd> {{ '{0} months' | translate: [(bookingForm.controls.tenureMonths.value || '—')] }} </dd></div>
           <div><dt> {{ 'Annual rate' | translate }} </dt><dd>{{ selectedRateTier ? (selectedRateTier.annual_rate * 100 | number:'1.2-2') + '%' : '—' }}</dd></div>
           <div><dt> {{ 'Deposit range' | translate }} </dt><dd>{{ currency.minimum_amount | number:'1.2-2' }}–{{ currency.maximum_amount | number:'1.2-2' }} {{ currency.currency_code }}</dd></div>
           <div><dt> {{ 'Interest' | translate }} </dt><dd> {{ '{0} compounding · paid {1}' | translate: [(formatFrequency(selectedRateTier?.compounding_frequency) | translate), (formatFrequency(selectedRateTier?.payout_frequency) | translate)] }} </dd></div>
@@ -60,7 +60,7 @@
             <span class="glass-field__error" *ngIf="fieldError('tenureMonths')"> {{ (fieldError('tenureMonths')) | translate }} </span>
           </label>
         </div>
-        <p class="fd-range-note" *ngIf="selectedCurrencyOffer as currency"> {{ 'You selected {0} with a {1} annual rate band. This rate band is labelled {2} months; the selected booking term uses that exact duration.' | translate: [(currency.currency_code), (selectedRateTier ? (selectedRateTier.annual_rate * 100 | number:'1.2-2') + '%' : 'tiered rate'), (selectedRateTier?.maximum_tenure_months)] }} </p>
+        <p class="fd-range-note" *ngIf="selectedCurrencyOffer as currency"> {{ 'You selected {0} with a {1} annual rate. This band applies from {2} to {3} months; choose any whole-month term in that range.' | translate: [(currency.currency_code), (selectedRateTier ? (selectedRateTier.annual_rate * 100 | number:'1.2-2') + '%' : 'tiered rate'), (selectedRateTier?.minimum_tenure_months), (selectedRateTier?.maximum_tenure_months)] }} </p>
       </form>
 
       <section *ngIf="step === 3" class="fd-step-panel">

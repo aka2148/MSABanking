@@ -44,10 +44,20 @@ public class DemoAdminBootstrap implements ApplicationRunner {
                 "SELECT ucr_user_id FROM user_credentials WHERE ucr_username=?",
                 (rs, row) -> rs.getLong(1), username.trim());
         if (!existingUsers.isEmpty()) {
+            long userId = existingUsers.get(0);
             List<String> existingRoles = jdbc.queryForList(
                     "SELECT r.rol_role_code FROM roles r JOIN user_roles ur ON ur.ur_role_id=r.rol_role_id WHERE ur.ur_user_id=?",
-                    String.class, existingUsers.get(0));
-            if (existingRoles.contains(ADMIN_ROLE)) return;
+                    String.class, userId);
+            if (existingRoles.contains(ADMIN_ROLE)) {
+                String existingHash = jdbc.queryForObject(
+                        "SELECT ucr_password_hash FROM user_credentials WHERE ucr_user_id=?",
+                        String.class, userId);
+                if (!passwords.matches(password, existingHash)) {
+                    jdbc.update("UPDATE user_credentials SET ucr_password_hash=?, ucr_password_changed_at=UTC_TIMESTAMP(6) WHERE ucr_user_id=?",
+                            passwords.encode(password), userId);
+                }
+                return;
+            }
             throw new IllegalStateException("Configured demo admin username already belongs to a non-admin account.");
         }
 

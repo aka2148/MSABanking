@@ -220,16 +220,18 @@ export class FdBooking implements OnInit {
     });
     this.selectedCurrencyOffer = currency;
     this.selectedRateTier = tier;
-    this.tenureOptions = [];
-    this.tenureOptions.push({
-      label: `${tier.maximum_tenure_months} months`,
-      value: String(tier.maximum_tenure_months),
-    });
+    this.tenureOptions = Array.from(
+      { length: tier.maximum_tenure_months - tier.minimum_tenure_months + 1 },
+      (_, index) => {
+        const months = tier.minimum_tenure_months + index;
+        return { label: `${months} months`, value: String(months) };
+      },
+    );
     this.bookingForm.controls.principalAmount.setValidators([
       this.requiredValue(), this.amountBounds(currency.minimum_amount, currency.maximum_amount),
     ]);
     this.bookingForm.controls.tenureMonths.setValidators([
-      this.requiredValue(), this.tenureBounds(tier.maximum_tenure_months, tier.maximum_tenure_months),
+      this.requiredValue(), this.tenureBounds(tier.minimum_tenure_months, tier.maximum_tenure_months),
     ]);
     this.bookingForm.updateValueAndValidity();
   }

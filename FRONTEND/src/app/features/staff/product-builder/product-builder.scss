@@ -43,7 +43,8 @@
 .currency-card > strong { display: block; margin-bottom: 8px; color: var(--gold-100); font-family: var(--font-mono); }
 .editor-row { display: grid; align-items: start; gap: 10px; }
 .pricing-row { grid-template-columns: 1fr 1fr 1fr 1fr auto; }
-.eligibility-row { grid-template-columns: 1.3fr 1fr 1fr 1fr auto; }
+.eligibility-row { grid-template-columns: minmax(170px, 1.05fr) minmax(180px, 1fr) minmax(145px, .8fr) minmax(200px, 1.15fr) auto; gap: 16px; padding: 20px; }
+.eligibility-row .remove-button { margin-top: 28px; }
 .charge-row { grid-template-columns: repeat(4, 1fr); }
 .charge-row .remove-button { justify-self: start; }
 .remove-button { margin-top: 27px; padding: 8px 10px; border: 1px solid rgba(255,255,255,.28); border-radius: var(--radius-sm); background: transparent; color: white; cursor: pointer; }
@@ -53,6 +54,7 @@
 .subheading h4 { font-size: var(--fs-base); }
 .preview-inputs { margin-bottom: 8px; }
 .preview-result strong { color: #d5fff0; }
+.preview-result > p { line-height: 1.55; }
 .preview-result span, .created-product span, .catalog-row span { color: rgba(255,255,255,.68); font: var(--fs-xs) var(--font-mono); }
 .preview-result dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 16px; }
 .preview-result dl > ng-container { display: contents; }
@@ -69,6 +71,10 @@
   .pricing-row, .eligibility-row, .charge-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .variant-row { grid-template-columns: 1fr 1fr; }
   .variant-row .glass-btn { grid-column: 1 / -1; justify-self: start; }
+}
+@media (min-width: 861px) and (max-width: 1120px) {
+  .eligibility-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .eligibility-row .remove-button { justify-self: start; margin-top: 0; }
 }
 @media (max-width: 560px) {
   .builder-stepper ol { grid-template-columns: repeat(4, minmax(0, 1fr)); }

@@ -12,7 +12,7 @@ describe('FdBooking', () => {
     expect(component.bookingError).toBe('');
   });
 
-  it('loads the selected rate band and only offers exact terms inside that band', () => {
+  it('loads every allowed month in the selected rate band', () => {
     const offer: ProductOffer = {
       product_id: 7,
       product_code: 'FD-12',
@@ -45,6 +45,6 @@ describe('FdBooking', () => {
 
     expect(component.selectedCurrencyOffer?.currency_code).toBe('INR');
     expect(component.selectedRateTier?.annual_rate).toBe(0.05);
-    expect(component.tenureOptions.map((option) => option.value)).toEqual(['12']);
+    expect(component.tenureOptions.map((option) => option.value)).toEqual(['6', '7', '8', '9', '10', '11', '12']);
   });
 });

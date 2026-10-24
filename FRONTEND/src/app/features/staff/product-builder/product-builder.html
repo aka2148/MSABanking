@@ -71,11 +71,11 @@
             <span class="glass-field__error" *ngIf="identityErrors['productName']">{{ identityErrors['productName'] | translate }}</span>
           </label>
           <label class="glass-field"><span class="glass-field__label"> {{ 'Effective from' | translate }} </span>
-            <input type="date" name="effectiveFrom" [(ngModel)]="effectiveFrom" [max]="effectiveTo || null" (ngModelChange)="identityEdited('effectiveFrom')" />
+            <input type="date" name="effectiveFrom" [(ngModel)]="effectiveFrom" [min]="today" [max]="effectiveTo || null" required (ngModelChange)="identityEdited('effectiveFrom'); persistDraft()" />
             <span class="glass-field__error" *ngIf="identityErrors['effectiveFrom']">{{ identityErrors['effectiveFrom'] | translate }}</span>
           </label>
           <label class="glass-field"><span class="glass-field__label"> {{ 'Effective to' | translate }} </span>
-            <input type="date" name="effectiveTo" [(ngModel)]="effectiveTo" [min]="effectiveFrom || null" (ngModelChange)="identityEdited('effectiveTo')" />
+            <input type="date" name="effectiveTo" [(ngModel)]="effectiveTo" [min]="effectiveFrom || today" required (ngModelChange)="identityEdited('effectiveTo'); persistDraft()" />
             <span class="glass-field__error" *ngIf="identityErrors['effectiveTo']">{{ identityErrors['effectiveTo'] | translate }}</span>
           </label>
           <label class="glass-field builder-wide"><span class="glass-field__label"> {{ 'Description' | translate }} </span>
@@ -86,7 +86,7 @@
       </section>
 
       <section class="builder-section" *ngIf="attributes.length" [hidden]="productStep !== 3">
-        <div class="builder-section__heading"><div><span>3</span><div><p class="builder-eyebrow"> {{ 'Terms' | translate }} </p><h3> {{ '{0} attributes' | translate: [(family)] }} </h3></div></div></div>
+        <div class="builder-section__heading"><div><span>3</span><div><p class="builder-eyebrow"> {{ 'Terms' | translate }} </p><h3> {{ '{0} attributes' | translate: [(familyLabel)] }} </h3></div></div></div>
         <div class="builder-grid">
           <label class="glass-field" *ngFor="let attribute of attributes">
             <span class="glass-field__label">{{ attribute.displayName || attribute.key }}
@@ -192,7 +192,7 @@
         <p class="builder-hint"> {{ 'Enter percentages for display (6.25 means 6.25%). The API stores 0.0625 with unit DECIMAL_FRACTION.' | translate }} </p>
         <div class="editor-row pricing-row" *ngFor="let band of pricingDrafts; let index = index">
           <label class="glass-field"><span class="glass-field__label"> {{ 'Currency' | translate }} </span>
-            <select name="pricing-{{ index }}-currency" [(ngModel)]="band.currencyCode" required>
+            <select name="pricing-{{ index }}-currency" [(ngModel)]="band.currencyCode" (ngModelChange)="pricingCurrencyChanged(band, $event)" required>
               <option *ngFor="let code of previewCurrencyCodes()" [value]="code">{{ code }}</option>
             </select>
           </label>
@@ -272,24 +272,30 @@
             </select>
           </label>
           <label class="glass-field" *ngFor="let rule of eligibilityRules"><span class="glass-field__label"> {{ '{0} sample' | translate: [(rule.fact)] }} </span>
-            <input name="previewFact-{{ rule.fact }}" [(ngModel)]="previewFacts[rule.fact]" />
+            <select *ngIf="factOption(rule)?.choices?.length" name="previewFact-{{ rule.fact }}" [(ngModel)]="previewFacts[rule.fact]" (ngModelChange)="persistDraft()">
+              <option value="" disabled>{{ 'Select value' | translate }}</option>
+              <option *ngFor="let choice of factOption(rule)?.choices" [value]="choice">{{ choice }}</option>
+            </select>
+            <input *ngIf="!factOption(rule)?.choices?.length" name="previewFact-{{ rule.fact }}" [(ngModel)]="previewFacts[rule.fact]" (ngModelChange)="persistDraft()" />
           </label>
         </div>
         <button type="button" class="glass-btn glass-btn--ghost" (click)="runPreview(builderForm)" [disabled]="previewing"> {{ (previewing ? 'Calculating…' : 'Run pricing preview') | translate }} </button>
         <article class="preview-result" *ngIf="previewResult as preview">
-          <div><strong>{{ preview.status }}</strong><span>{{ preview.calculationMethod || 'Eligibility dependency' }}</span></div>
+          <div><strong>{{ preview.status === 'SUPPORTED' ? 'Pricing available' : preview.status === 'INCOMPLETE' ? 'Sample facts needed' : 'Pricing unavailable' }}</strong><span>{{ preview.calculationMethod || 'Pricing calculation' }}</span></div>
+          <p class="builder-hint">This preview checks only the sample facts entered here. “Pricing available” means a pricing rule can be calculated; it does not count or confirm real eligible customers.</p>
           <p *ngIf="preview.family === 'FOREX'"> {{ '{0} funding â†’ {1} destination' | translate: [(preview.fundingCurrencyCode), (preview.destinationCurrencyCode)] }} </p>
-          <dl><ng-container *ngFor="let value of preview.values | keyvalue"><dt>{{ value.key }}</dt><dd>{{ value.value }}</dd></ng-container></dl>
-          <p *ngFor="let message of preview.messages">{{ message | translate }}</p>
+          <p *ngIf="preview.values['eligible'] !== undefined">Sample eligibility: <strong>{{ preview.values['eligible'] === 1 ? 'Sample matches the configured rules' : 'Sample does not match the configured rules' }}</strong></p>
+          <dl><ng-container *ngFor="let value of preview.values | keyvalue"><ng-container *ngIf="value.key !== 'eligible'"><dt>{{ value.key }}</dt><dd>{{ value.value }}</dd></ng-container></ng-container></dl>
+          <p *ngFor="let message of preview.messages" [hidden]="preview.status === 'SUPPORTED' && preview.values['eligible'] === 0">{{ message | translate }}</p>
         </article>
       </section>
 
       <section class="builder-section" [hidden]="productStep !== 8">
-        <div class="builder-section__heading"><div><span>8</span><div><p class="builder-eyebrow"> {{ 'Publish' | translate }} </p><h3> {{ 'Save draft and activate' | translate }} </h3></div></div></div>
+        <div class="builder-section__heading"><div><span>8</span><div><p class="builder-eyebrow"> {{ 'Publish' | translate }} </p><h3> {{ 'Save draft' | translate }} </h3></div></div></div>
         <div class="builder-actions">
-          <button type="submit" class="glass-btn" [disabled]="saving || !!createdProduct"> {{ (saving ? 'Saving…' : 'Save complete draft') | translate }} </button>
+          <button type="submit" class="glass-btn" [disabled]="saving"> {{ (saving ? 'Saving…' : (createdProduct?.status === 'DRAFT' ? 'Update saved draft' : 'Save complete draft')) | translate }} </button>
           <button type="button" class="glass-btn" *ngIf="createdProduct?.status === 'DRAFT'"
-                  [disabled]="activatingId === createdProduct?.productId" (click)="activate(createdProduct!)"> {{ (activatingId === createdProduct?.productId ? 'Activating…' : 'Validate and activate') | translate }} </button>
+                  [disabled]="saving" (click)="validateCurrent(builderForm)"> {{ (saving ? 'Validating…' : 'Validate current configuration') | translate }} </button>
         </div>
         <article class="created-product" *ngIf="createdProduct as product">
           <div><strong>{{ product.productName }}</strong><span> {{ '{0} · {1} · revision {2}' | translate: [(product.productCode), (product.family), (product.revision)] }} </span></div>

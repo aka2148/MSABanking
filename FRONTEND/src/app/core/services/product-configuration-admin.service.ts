@@ -149,6 +149,10 @@ export class ProductConfigurationAdminService {
     return this.http.post<ProductConfigurationSummary>(this.path('/api/v1/product-configurations'), request);
   }
 
+  updateDraft(productId: number, request: ProductConfigurationRequest): Observable<ProductConfigurationSummary> {
+    return this.http.put<ProductConfigurationSummary>(this.path(`/api/v1/product-configurations/${productId}`), request);
+  }
+
   activate(productId: number): Observable<ProductConfigurationSummary> {
     return this.http.post<ProductConfigurationSummary>(
       this.path(`/api/v1/product-configurations/${productId}/activate`), {},

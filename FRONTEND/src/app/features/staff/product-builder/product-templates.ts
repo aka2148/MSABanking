@@ -14,19 +14,41 @@ export interface ProductTemplate {
   limitation?: string;
 }
 
+export const FD_CURRENCY_DEFAULTS = [
+  { code: 'INR', minimumAmount: 1000, maximumAmount: 10000000 },
+  { code: 'JPY', minimumAmount: 10000, maximumAmount: 1000000000 },
+  { code: 'KWD', minimumAmount: 10, maximumAmount: 100000 },
+  { code: 'USD', minimumAmount: 100, maximumAmount: 1000000 },
+];
+
+const STANDARD_FD_PRICING = [
+  { currencyCode: 'INR', from: 1, to: 5, ratePercent: 4 },
+  { currencyCode: 'INR', from: 6, to: 11, ratePercent: 5.5 },
+  { currencyCode: 'INR', from: 12, to: 36, ratePercent: 6.5 },
+  { currencyCode: 'INR', from: 37, to: 60, ratePercent: 6.25 },
+  { currencyCode: 'JPY', from: 1, to: 5, ratePercent: 0.2 },
+  { currencyCode: 'JPY', from: 6, to: 11, ratePercent: 0.5 },
+  { currencyCode: 'JPY', from: 12, to: 36, ratePercent: 0.75 },
+  { currencyCode: 'JPY', from: 37, to: 60, ratePercent: 1 },
+  { currencyCode: 'KWD', from: 1, to: 5, ratePercent: 2.5 },
+  { currencyCode: 'KWD', from: 6, to: 11, ratePercent: 3.5 },
+  { currencyCode: 'KWD', from: 12, to: 36, ratePercent: 4 },
+  { currencyCode: 'KWD', from: 37, to: 60, ratePercent: 3.75 },
+  { currencyCode: 'USD', from: 1, to: 5, ratePercent: 3 },
+  { currencyCode: 'USD', from: 6, to: 11, ratePercent: 3.5 },
+  { currencyCode: 'USD', from: 12, to: 36, ratePercent: 4 },
+  { currencyCode: 'USD', from: 37, to: 60, ratePercent: 3.75 },
+];
+
 // Illustrative defaults for the existing Product Builder fields, not bank rates or live products.
 // Category and attribute codes are resolved against Product Service metadata at selection time.
 export const PRODUCT_TEMPLATES: readonly ProductTemplate[] = [
   {
     key: 'standard-fd', name: 'Standard Fixed Deposit', family: 'FIXED_DEPOSIT', categoryCode: 'FIXED_DEPOSIT',
-    productCode: 'FD_STANDARD', description: 'Sample rupee fixed deposit with quarterly compounding and payout at maturity.',
+    productCode: 'FD_STANDARD', description: 'Illustrative multi-currency fixed deposit with quarterly compounding and payout at maturity.',
     attributes: { COMPOUNDING_BASIS: 'QUARTERLY', PAYOUT_FREQUENCY: 'AT_MATURITY' },
-    currencies: [{ code: 'INR', minimumAmount: 1000, maximumAmount: 10000000 }],
-    pricing: [
-      { currencyCode: 'INR', from: 6, to: 11, ratePercent: 5.5 },
-      { currencyCode: 'INR', from: 12, to: 36, ratePercent: 6.5 },
-      { currencyCode: 'INR', from: 37, to: 60, ratePercent: 6.25 },
-    ],
+    currencies: FD_CURRENCY_DEFAULTS,
+    pricing: STANDARD_FD_PRICING,
   },
   {
     key: 'senior-fd', name: 'Senior Citizen Fixed Deposit', family: 'FIXED_DEPOSIT', categoryCode: 'FIXED_DEPOSIT',

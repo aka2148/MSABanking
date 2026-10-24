@@ -97,7 +97,11 @@
   }
 
   select option {
-    color: var(--ink-900);
+    color: #f3e7cb;
+    background: #17151c;
+    padding: 14px 16px;
+    line-height: 2.4;
+    font-weight: 500;
   }
 
   input[type="file"] {

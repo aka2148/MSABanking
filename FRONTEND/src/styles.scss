@@ -27,3 +27,34 @@ html[dir='rtl'] :is(input[type='email'], input[type='tel'], input[type='number']
 html[dir='rtl'] :is(.glass-field__label, .glass-select__trigger, .glass-select__option, th) { text-align: start; }
 html[dir='rtl'] :is(.fd-eyebrow, .signup-card__eyebrow) { letter-spacing: normal; }
 html[dir='rtl'] .workspace .fd-journal :is(td, th):not(:first-child) { text-align: end; }
+
+/* Keep native dropdowns consistent with the black and gold controls site-wide. */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  color-scheme: dark;
+  padding-inline-start: 2.6rem !important;
+  padding-inline-end: 0.9rem !important;
+  background-color: #17161e !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 20 20'%3E%3Cpath d='m5 7 5 5 5-5' fill='none' stroke='%23c79a3e' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: left 0.85rem center !important;
+  background-size: 1rem !important;
+}
+select:focus { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 20 20'%3E%3Cpath d='m5 12 5-5 5 5' fill='none' stroke='%23f5aa08' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important; }
+select option {
+  color: #f3e7cb !important;
+  background-color: #17151c !important;
+  padding: 14px 16px;
+  line-height: 2.4;
+  font-weight: 500;
+}
+select option:checked {
+  color: #f3e7cb !important;
+  background: #554629 linear-gradient(0deg, #554629, #554629) !important;
+}
+.workspace .role-selector { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 18px 0 22px; }
+.workspace .role-selector > .glass-field__label { flex-basis: 100%; margin-bottom: 2px; }
+.workspace .role-selector > label { display: inline-flex; align-items: center; gap: 9px; min-height: 42px; margin: 0; padding: 8px 12px; border: 1px solid var(--ws-line); border-radius: 10px; background: rgba(255,255,255,.035); color: var(--ws-text); }
+.workspace .role-selector > label input { accent-color: #e0a514; }
+.workspace .role-selector > label small { color: var(--ws-muted); }
