@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { BACKEND_API_BASE_URL } from './fd-product-admin.service';
+import { StaffPrematureQuotePage, PrematureClosureResponse } from '../models/fd.models';
 
 export interface StaffPage<T> { content: T[]; number: number; size: number; totalElements: number; }
 export interface StaffFdRow { id: number; accountNumber: string; status: string; principal: number; currency: string; rate: number | null; tenureMonths: number; openedAt: string; maturityAt: string | null; customerName: string | null; productName: string | null; }
@@ -23,6 +24,21 @@ export class StaffOperationsService {
   }
   transact(id: number, action: 'deposit' | 'withdraw', amount: number, remarks: string, idempotencyKey: string): Observable<StaffSavingsRow> {
     return this.http.post<StaffSavingsRow>(this.path(`/fd/v1/staff/savings-accounts/${id}/${action}`), { amount, remarks }, { headers: { 'Idempotency-Key': idempotencyKey } });
+  }
+  pendingPrematureClosures(page = 0, pageSize = 25): Observable<StaffPrematureQuotePage> {
+    return this.http.get<StaffPrematureQuotePage>(this.path('/api/v1/admin/fixed-deposits/premature-closures'), {
+      params: new HttpParams().set('page', page).set('pageSize', pageSize),
+    });
+  }
+  approvePrematureClosure(accountId: number, closureId: number, idempotencyKey: string): Observable<unknown> {
+    return this.http.post(this.path(`/api/v1/admin/fixed-deposits/${accountId}/premature-closure/${closureId}/approve`), {}, {
+      headers: { 'Idempotency-Key': idempotencyKey },
+    });
+  }
+  rejectPrematureClosure(accountId: number, closureId: number, reason: string, idempotencyKey: string): Observable<PrematureClosureResponse> {
+    return this.http.post<PrematureClosureResponse>(this.path(`/api/v1/admin/fixed-deposits/${accountId}/premature-closure/${closureId}/reject`), { reason }, {
+      headers: { 'Idempotency-Key': idempotencyKey },
+    });
   }
   private params(page: number, status: string, pageSize: number): HttpParams {
     let params = new HttpParams().set('page', page).set('pageSize', pageSize);

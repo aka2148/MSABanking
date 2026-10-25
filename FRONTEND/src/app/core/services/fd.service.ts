@@ -154,12 +154,6 @@ export class FdService {
     return this.http.get<PrematureClosureResponse[]>(this.path(`/fixed-deposits/${accountId}/premature-closure`));
   }
 
-  approvePrematureClosure(accountId: number, closureId: number): Observable<PrematureClosureResponse> {
-    return this.write<BackendCloseResponse>(`/admin/fixed-deposits/${accountId}/premature-closure/${closureId}/approve`).pipe(
-      switchMap(() => this.getPrematureClosures(accountId).pipe(map(rows => rows.find(row => row.closure_id === closureId)!)))
-    );
-  }
-
   listTransactions(accountId: number, query: TransactionQuery = {}): Observable<HistoryEntry[]> {
     let params = new HttpParams();
     for (const [key, value] of Object.entries(query)) {

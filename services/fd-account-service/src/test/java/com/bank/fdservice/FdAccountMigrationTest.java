@@ -24,6 +24,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest
@@ -55,8 +56,8 @@ class FdAccountMigrationTest {
 
     @Test
     void appliesAllFdMigrationsAndCreatesWorkflowSchema() {
-        assertEquals(11, jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1", Integer.class));
-        assertEquals(11, jdbc.queryForObject("SELECT MAX(CAST(version AS UNSIGNED)) FROM flyway_schema_history WHERE success=1", Integer.class));
+        assertEquals(12, jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1", Integer.class));
+        assertEquals(12, jdbc.queryForObject("SELECT MAX(CAST(version AS UNSIGNED)) FROM flyway_schema_history WHERE success=1", Integer.class));
 
         assertTrue(table("fd_accounts"));
         assertTrue(table("savings_accounts"));
@@ -200,14 +201,56 @@ class FdAccountMigrationTest {
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.status").value("PENDING"))
                 .andReturn();
         long closureId = new com.fasterxml.jackson.databind.ObjectMapper().readTree(quote.getResponse().getContentAsString()).get("closure_id").asLong();
-        BigDecimal penalty = new com.fasterxml.jackson.databind.ObjectMapper().readTree(quote.getResponse().getContentAsString()).get("penalty_amount").decimalValue();
+        var quoteJson = new com.fasterxml.jackson.databind.ObjectMapper().readTree(quote.getResponse().getContentAsString());
+        BigDecimal penalty = quoteJson.get("penalty_amount").decimalValue();
+        BigDecimal paidInterest = quoteJson.get("paid_interest").decimalValue();
+        BigDecimal netPayable = quoteJson.get("net_payable_amount").decimalValue();
         assertTrue(penalty.signum() > 0);
+        assertEquals(0, netPayable.compareTo(new BigDecimal("200.00").add(paidInterest)));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/admin/fixed-deposits/premature-closures")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.content[0].quote.closure_id").value(closureId));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/admin/fixed-deposits/{id}/premature-closure/{closureId}/approve", secondFdId, closureId)
+                        .header("Authorization", "Bearer " + token(701, "ROLE_BANK_OFFICER")).header("Idempotency-Key", "self-approve-701"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isForbidden());
+        BigDecimal savingsBeforeInjectedFailure = jdbc.queryForObject("SELECT sa_balance FROM savings_accounts WHERE sa_account_id=1", BigDecimal.class);
+        long savingsVersionBeforeInjectedFailure = jdbc.queryForObject("SELECT sa_row_version FROM savings_accounts WHERE sa_account_id=1", Long.class);
+        jdbc.update("UPDATE savings_accounts SET sa_row_version=? WHERE sa_account_id=1", Long.MAX_VALUE);
+        try {
+            assertThrows(jakarta.servlet.ServletException.class, () -> mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/admin/fixed-deposits/{id}/premature-closure/{closureId}/approve", secondFdId, closureId)
+                    .header("Authorization", "Bearer " + adminToken).header("Idempotency-Key", "approve-premature-failure")));
+        } finally {
+            jdbc.update("UPDATE savings_accounts SET sa_row_version=? WHERE sa_account_id=1", savingsVersionBeforeInjectedFailure);
+        }
+        assertEquals("PENDING", jdbc.queryForObject("SELECT fpc_status FROM fd_premature_closure WHERE fpc_closure_id=?", String.class, closureId));
+        assertEquals("ACTIVE", jdbc.queryForObject("SELECT fa_status FROM fd_accounts WHERE fa_account_id=?", String.class, secondFdId));
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM fd_journals WHERE fj_key=?", Integer.class, "INTEREST:" + secondFdId + ":PREMATURE"));
+        assertEquals(0, savingsBeforeInjectedFailure.compareTo(jdbc.queryForObject("SELECT sa_balance FROM savings_accounts WHERE sa_account_id=1", BigDecimal.class)));
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/admin/fixed-deposits/{id}/premature-closure/{closureId}/approve", secondFdId, closureId)
                         .header("Authorization", "Bearer " + adminToken).header("Idempotency-Key", "approve-premature-702-2"))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.status").value("PREMATURELY_CLOSED"));
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.status").value("PREMATURELY_CLOSED"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.settledAmount").value(netPayable.doubleValue()));
         assertEquals("APPROVED", jdbc.queryForObject("SELECT fpc_status FROM fd_premature_closure WHERE fpc_closure_id=?", String.class, closureId));
+        assertEquals(702L, jdbc.queryForObject("SELECT fpc_decision_by FROM fd_premature_closure WHERE fpc_closure_id=?", Long.class, closureId));
         assertTrue(jdbc.queryForObject("SELECT COUNT(*) FROM fd_transactions WHERE ft_account_id=? AND ft_txn_type_id=(SELECT tt_txn_type_id FROM transaction_types WHERE tt_txn_type_code='FD_PENALTY')", Integer.class, secondFdId) > 0);
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM fd_journal_lines l JOIN fd_journals j ON j.fj_id=l.jl_journal_id WHERE j.fj_key=? AND l.jl_account_code='INTEREST_EXPENSE' AND l.jl_debit=?", Integer.class, "INTEREST:" + secondFdId + ":PREMATURE", paidInterest));
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM fd_journal_lines l JOIN fd_journals j ON j.fj_id=l.jl_journal_id WHERE j.fj_key=? AND l.jl_account_code='FIXED_DEPOSIT' AND l.jl_credit=?", Integer.class, "INTEREST:" + secondFdId + ":PREMATURE", paidInterest));
+        assertEquals(2, jdbc.queryForObject("SELECT COUNT(*) FROM fd_journal_lines l JOIN fd_journals j ON j.fj_id=l.jl_journal_id WHERE j.fj_key=? AND ((l.jl_account_code='FIXED_DEPOSIT' AND l.jl_debit=?) OR (l.jl_account_code='SAVINGS' AND l.jl_credit=?))", Integer.class, "SETTLEMENT:" + secondFdId, netPayable, netPayable));
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM fd_journals WHERE fj_fd_account_id=? AND fj_operation='SETTLEMENT'", Integer.class, secondFdId));
+        BigDecimal fdLiability = jdbc.queryForObject("SELECT COALESCE(SUM(l.jl_credit-l.jl_debit),0) FROM fd_journal_lines l JOIN fd_journals j ON j.fj_id=l.jl_journal_id WHERE j.fj_fd_account_id=? AND l.jl_account_code='FIXED_DEPOSIT'", BigDecimal.class, secondFdId);
+        assertEquals(0, BigDecimal.ZERO.compareTo(fdLiability));
+        assertEquals(0, savingsBeforeInjectedFailure.add(netPayable).compareTo(jdbc.queryForObject("SELECT sa_balance FROM savings_accounts WHERE sa_account_id=1", BigDecimal.class)));
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM savings_transactions WHERE st_account_id=1 AND st_remarks=?", Integer.class, "FD settlement #" + secondFdId));
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM fd_transactions WHERE ft_account_id=? AND ft_txn_type_id=(SELECT tt_txn_type_id FROM transaction_types WHERE tt_txn_type_code='FD_CLOSURE')", Integer.class, secondFdId));
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM fd_account_events WHERE fae_account_id=? AND fae_event_type='PREMATURELY_CLOSED'", Integer.class, secondFdId));
+        BigDecimal savingsAfter = jdbc.queryForObject("SELECT sa_balance FROM savings_accounts WHERE sa_account_id=1", BigDecimal.class);
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/admin/fixed-deposits/{id}/premature-closure/{closureId}/approve", secondFdId, closureId)
+                        .header("Authorization", "Bearer " + adminToken).header("Idempotency-Key", "approve-premature-702-2"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.settledAmount").value(netPayable.doubleValue()));
+        assertEquals(0, savingsAfter.compareTo(jdbc.queryForObject("SELECT sa_balance FROM savings_accounts WHERE sa_account_id=1", BigDecimal.class)));
     }
 
     @Test

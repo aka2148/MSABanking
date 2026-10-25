@@ -17,7 +17,7 @@ import {
 import { FdService, normalizeApiError } from '../../../core/services/fd.service';
 import { WorkspaceShell } from '../../../shared/components/workspace-shell/workspace-shell';
 
-export type AccountAction = 'FUND' | 'CLOSE' | 'REQUEST_PREMATURE' | 'APPROVE_PREMATURE';
+export type AccountAction = 'FUND' | 'CLOSE' | 'REQUEST_PREMATURE';
 type Result =
   | { kind: 'funding'; value: FundingResponse }
   | { kind: 'closure'; value: ClosureResponse }
@@ -35,7 +35,7 @@ export class FdAccountDetail implements OnInit {
   private static readonly ACTIONS: Record<FdStatus, readonly AccountAction[]> = {
     PENDING: ['FUND'],
     ACTIVE: ['REQUEST_PREMATURE'],
-    MATURED: ['CLOSE', 'REQUEST_PREMATURE'],
+    MATURED: ['CLOSE'],
     CLOSED: [],
     PREMATURELY_CLOSED: [],
   };
@@ -45,7 +45,6 @@ export class FdAccountDetail implements OnInit {
   savingsError = '';
   history: HistoryEntry[] = [];
   prematureClosures: PrematureClosureResponse[] = [];
-  selectedPrematureClosure: PrematureClosureResponse | null = null;
   result: Result | null = null;
   accountId = 0;
   loading = true;
@@ -65,7 +64,7 @@ export class FdAccountDetail implements OnInit {
   }
 
   static requiresConfirmation(action: AccountAction): boolean {
-    return action === 'FUND' || action === 'CLOSE' || action === 'REQUEST_PREMATURE' || action === 'APPROVE_PREMATURE';
+    return action === 'FUND' || action === 'CLOSE' || action === 'REQUEST_PREMATURE';
   }
 
   ngOnInit(): void {
@@ -85,14 +84,6 @@ export class FdAccountDetail implements OnInit {
   get sortedHistory(): HistoryEntry[] {
     return [...this.history].sort((left, right) =>
       new Date(left.entry_date).getTime() - new Date(right.entry_date).getTime());
-  }
-
-  get canApprovePrematureClosure(): boolean {
-    return this.prematureClosures.some((closure) => closure.status === 'PENDING');
-  }
-
-  get pendingClosure(): PrematureClosureResponse | null {
-    return this.prematureClosures.find((closure) => closure.status === 'PENDING') ?? null;
   }
 
   get closureResult(): ClosureResponse | null {
@@ -117,11 +108,10 @@ export class FdAccountDetail implements OnInit {
   }
 
   beginAction(action: AccountAction): void {
-    if (!this.actions.includes(action) && action !== 'APPROVE_PREMATURE') return;
+    if (!this.actions.includes(action)) return;
     if (action === 'FUND') this.fund();
     else if (action === 'CLOSE') this.close();
-    else if (action === 'REQUEST_PREMATURE') this.requestPrematureClosure();
-    else this.approvePrematureClosure();
+    else this.requestPrematureClosure();
   }
 
   cancelConfirmation(): void {
@@ -135,7 +125,6 @@ export class FdAccountDetail implements OnInit {
     if (action === 'FUND') this.executeFunding();
     else if (action === 'CLOSE') this.executeClose();
     else if (action === 'REQUEST_PREMATURE') this.executePrematureRequest();
-    else if (action === 'APPROVE_PREMATURE') this.executePrematureApproval();
   }
 
   fund(): void {
@@ -153,20 +142,6 @@ export class FdAccountDetail implements OnInit {
   requestPrematureClosure(): void {
     if (!this.requireConfirmation('REQUEST_PREMATURE')) return;
     this.executePrematureRequest();
-  }
-
-  approvePrematureClosure(): void {
-    if (!this.pendingClosure) {
-      this.errorMessage = 'There is no pending premature-closure request to approve.';
-      return;
-    }
-    this.selectedPrematureClosure = this.pendingClosure;
-    if (!this.requireConfirmation('APPROVE_PREMATURE')) return;
-    this.executePrematureApproval();
-  }
-
-  selectPrematureClosure(closure: PrematureClosureResponse): void {
-    this.selectedPrematureClosure = closure;
   }
 
   entryLabel(entryType: string): string {
@@ -222,7 +197,6 @@ export class FdAccountDetail implements OnInit {
       FUND: 'funding',
       CLOSE: 'closure',
       REQUEST_PREMATURE: 'premature-closure request',
-      APPROVE_PREMATURE: 'early closure',
     };
     return labels[action];
   }
@@ -237,7 +211,7 @@ export class FdAccountDetail implements OnInit {
   }
 
   private requireConfirmation(action: AccountAction): boolean {
-    if (!this.isAllowed(action) && action !== 'APPROVE_PREMATURE') return false;
+    if (!this.isAllowed(action)) return false;
     if (this.pendingConfirmation === action) return true;
     this.pendingConfirmation = action;
     this.errorMessage = '';
@@ -271,15 +245,6 @@ export class FdAccountDetail implements OnInit {
     this.execute('REQUEST_PREMATURE', () => this.fdService.requestPrematureClosure(this.accountId), (value) => {
       this.result = { kind: 'premature', value };
       this.successMessage = 'Your premature-closure request was recorded.';
-    });
-  }
-
-  private executePrematureApproval(): void {
-    const closure = this.selectedPrematureClosure;
-    if (!closure) return;
-    this.execute('APPROVE_PREMATURE', () => this.fdService.approvePrematureClosure(this.accountId, closure.closure_id), (value) => {
-      this.result = { kind: 'premature', value };
-      this.successMessage = 'The early-closure offer was accepted in the demonstration. No external payment was processed.';
     });
   }
 

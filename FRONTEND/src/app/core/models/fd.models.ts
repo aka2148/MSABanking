@@ -136,14 +136,34 @@ export interface ClosureResponse {
 export interface PrematureClosureResponse {
   closure_id: number;
   account_id: number;
-  status: 'PENDING' | 'APPROVED';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED';
   requested_date: string;
   penalty_points: number;
+  annual_rate: number | null;
   penalized_rate: number;
+  paid_interest: number | null;
+  full_rate_interest: number | null;
   penalty_amount: number;
   net_payable_amount: number;
   currency_code: string;
   approved_by: number | null;
+  decision_by: number | null;
+  decision_reason: string | null;
+  request_reason: string | null;
+}
+
+export interface StaffPrematureQuote {
+  account_id: number;
+  account_number: string;
+  principal: number;
+  quote: PrematureClosureResponse;
+}
+
+export interface StaffPrematureQuotePage {
+  content: StaffPrematureQuote[];
+  page: number;
+  pageSize: number;
+  totalElements: number;
 }
 
 export interface HistoryEntry {

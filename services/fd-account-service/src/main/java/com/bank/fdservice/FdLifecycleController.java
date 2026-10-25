@@ -17,6 +17,8 @@ import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
@@ -46,34 +48,25 @@ public class FdLifecycleController {
 
     @PostMapping("/api/v1/fixed-deposits/{id}/premature-closure") @Transactional
     public PrematureQuote requestPremature(Authentication actor,@PathVariable long id,@RequestHeader("Idempotency-Key") @NotBlank @Size(max=255) String key,@Valid @RequestBody PrematureRequest request){
-        long user=userId(actor);String reason=request.reason==null?"":request.reason.trim();String hash=hash(id+"|"+reason);Long replay=claim("PREMATURE_REQUEST",user,key,hash);if(replay!=null)return quote(replay,user);
-        Map<String,Object> fd=fd(id);if(((Number)fd.get("owner")).longValue()!=user)throw notFound();if(!"ACTIVE".equals(fd.get("status")))throw conflict("Only an active FD can request premature closure");
+        long user=userId(actor);String reason=request.reason==null?"":request.reason.trim();
+        Map<String,Object> fd=fd(id);if(((Number)fd.get("owner")).longValue()!=user)throw notFound();
+        expireStaleQuotes(id);
+        String hash=hash(id+"|"+reason);Long replay=claim("PREMATURE_REQUEST",user,key,hash);if(replay!=null)return quote(replay,user);
+        if(!"ACTIVE".equals(fd.get("status")))throw conflict("Only an active FD can request premature closure");
         if(jdbc.queryForObject("SELECT COUNT(*) FROM fd_premature_closure WHERE fpc_account_id=? AND fpc_status='PENDING'",Integer.class,id)>0)throw conflict("A premature closure request is already pending");
         long currency=((Number)fd.get("currency")).longValue();
-        BigDecimal points = null;
-        String snapshotJson = (String) fd.get("termsSnapshot");
-        if (snapshotJson != null && !snapshotJson.isBlank()) {
-            try {
-                com.fasterxml.jackson.databind.JsonNode root = json.readTree(snapshotJson);
-                if (root.hasNonNull("prematurePenaltyPoints") && !root.path("prematurePenaltyPoints").asText().isBlank()) {
-                    points = new BigDecimal(root.path("prematurePenaltyPoints").asText());
-                }
-            } catch (Exception ignored) {}
-        }
-        if (points == null) {
-            Map<String,Object> terms=jdbc.query("SELECT premature_penalty_points FROM fd_product_currency_ref WHERE product_id=? AND currency_id=?",r->r.next()?Map.of("points",r.getBigDecimal(1)==null?"":r.getBigDecimal(1).toPlainString()):null,fd.get("product"),currency);
-            if(terms!=null && terms.get("points")!=null && !terms.get("points").toString().isBlank()) {
-                points = new BigDecimal(terms.get("points").toString());
-            }
-        }
-        if(points==null)throw conflict("Premature closure is not configured for this product");
-        BigDecimal rate=(BigDecimal)fd.get("rate"),principal=(BigDecimal)fd.get("principal");
-        BigDecimal penalized=rate.subtract(points.divide(new BigDecimal("100"),12,RoundingMode.HALF_UP)).max(BigDecimal.ZERO);
-        LocalDate start=((java.sql.Timestamp)fd.get("opened")).toLocalDateTime().toLocalDate();LocalDate maturity=((java.sql.Date)fd.get("maturity")).toLocalDate();LocalDate today=clock.businessDate();LocalDate end=today.isAfter(maturity)?maturity:today;if(end.isBefore(start))end=start;
-        int scale=currencyScale(currency);BigDecimal paidInterest=principal.multiply(penalized).multiply(BigDecimal.valueOf(java.time.temporal.ChronoUnit.DAYS.between(start,end))).divide(BigDecimal.valueOf(365),12,RoundingMode.HALF_UP).setScale(scale,RoundingMode.HALF_UP);
-        BigDecimal fullInterest=principal.multiply(rate).multiply(BigDecimal.valueOf(java.time.temporal.ChronoUnit.DAYS.between(start,end))).divide(BigDecimal.valueOf(365),12,RoundingMode.HALF_UP).setScale(scale,RoundingMode.HALF_UP);
-        BigDecimal penalty=fullInterest.subtract(paidInterest).max(BigDecimal.ZERO).setScale(scale,RoundingMode.HALF_UP),net=principal.add(paidInterest).setScale(scale,RoundingMode.HALF_UP);
-        jdbc.update("INSERT INTO fd_premature_closure(fpc_account_id,fpc_closure_date,fpc_penalty_pct_applied,fpc_penalty_amount,fpc_net_payable_amount,fpc_currency_id,fpc_reason,fpc_status) VALUES(?,UTC_TIMESTAMP(6),?,?,?,?,?,'PENDING')",id,points,penalty,net,currency,reason.isBlank()?null:reason.substring(0,Math.min(reason.length(),500)));
+        FrozenTerms terms=frozenTerms((String)fd.get("termsSnapshot"));
+        if(terms.annualRate()==null||terms.penaltyPoints()==null)throw conflict("Premature closure is unavailable because this FD has no complete booked rate and penalty snapshot");
+        BigDecimal principal=(BigDecimal)fd.get("principal");
+        LocalDate start=((Timestamp)fd.get("opened")).toLocalDateTime().toLocalDate();
+        LocalDate maturity=((java.sql.Date)fd.get("maturity")).toLocalDate();
+        LocalDate today=clock.businessDate();
+        if(!today.isBefore(maturity))throw conflict("This FD has reached its maturity date; use the maturity workflow");
+        int scale=currencyScale(currency);
+        PrematureClosureCalculator.Quote calculated=PrematureClosureCalculator.calculate(
+                principal,terms.annualRate(),terms.penaltyPoints(),start,today,scale);
+        jdbc.update("INSERT INTO fd_premature_closure(fpc_account_id,fpc_closure_date,fpc_penalty_pct_applied,fpc_penalty_amount,fpc_net_payable_amount,fpc_currency_id,fpc_reason,fpc_status) VALUES(?,?,?,?,?,?,?,'PENDING')",
+                id,Timestamp.from(clock.status().effectiveTime()),calculated.penaltyPoints(),calculated.penaltyAmount(),calculated.netPayable(),currency,reason.isBlank()?null:reason.substring(0,Math.min(reason.length(),500)));
         long closure=jdbc.queryForObject("SELECT LAST_INSERT_ID()",Long.class);complete("PREMATURE_REQUEST",user,key,closure);return quote(closure,user);
     }
 
@@ -81,12 +74,49 @@ public class FdLifecycleController {
     public FdCloseResponse approvePremature(Authentication actor,@PathVariable long id,@PathVariable long closureId,@RequestHeader("Idempotency-Key") @NotBlank @Size(max=255) String key){
         long approver=userId(actor);String hash=hash(id+"|"+closureId);Long replay=claim("PREMATURE_APPROVAL",approver,key,hash);if(replay!=null)return closeResponse(id,approver,false);
         Map<String,Object> fd=fd(id);if(!"ACTIVE".equals(fd.get("status")))throw conflict("Only an active FD can be prematurely closed");
-        Map<String,Object> q=jdbc.query("SELECT fpc_penalty_amount,fpc_net_payable_amount,fpc_currency_id,fpc_status FROM fd_premature_closure WHERE fpc_closure_id=? AND fpc_account_id=? FOR UPDATE",r->r.next()?Map.of("penalty",r.getBigDecimal(1),"net",r.getBigDecimal(2),"currency",r.getLong(3),"status",r.getString(4)):null,closureId,id);
+        Map<String,Object> q=jdbc.query("SELECT fpc_penalty_amount,fpc_net_payable_amount,fpc_currency_id,fpc_status,fpc_closure_date FROM fd_premature_closure WHERE fpc_closure_id=? AND fpc_account_id=? FOR UPDATE",r->{if(!r.next())return null;Map<String,Object> row=new HashMap<>();row.put("penalty",r.getBigDecimal(1));row.put("net",r.getBigDecimal(2));row.put("currency",r.getLong(3));row.put("status",r.getString(4));row.put("date",r.getTimestamp(5));return row;},closureId,id);
         if(q==null)throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Premature closure request not found");if(!"PENDING".equals(q.get("status")))throw conflict("Premature closure request is already processed");
         long owner=((Number)fd.get("owner")).longValue();if(owner==approver)throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Approver must be a different staff user");
-        jdbc.update("UPDATE fd_premature_closure SET fpc_status='APPROVED',fpc_approved_by=? WHERE fpc_closure_id=?",approver,closureId);
-        FdCloseResponse response=settle(id,owner,approver,key,"PREMATURE_APPROVAL",fd,(BigDecimal)q.get("net"),"PREMATURELY_CLOSED","PREMATURE_SETTLEMENT");
+        if(isExpired((Timestamp)q.get("date")))throw conflict("Premature closure quote expired at the end of its business day; request a fresh quote");
+        BigDecimal net=(BigDecimal)q.get("net"), principal=(BigDecimal)fd.get("principal");
+        if(net==null||principal==null||net.compareTo(principal)<0)throw conflict("Premature closure quote has no valid settlement amount");
+        BigDecimal paidInterest=net.subtract(principal).setScale(currencyScale(((Number)q.get("currency")).longValue()),RoundingMode.HALF_UP);
+        jdbc.update("UPDATE fd_premature_closure SET fpc_status='APPROVED',fpc_approved_by=?,fpc_decision_by=?,fpc_decision_at=? WHERE fpc_closure_id=?",approver,approver,Timestamp.from(clock.status().effectiveTime()),closureId);
+        recognizePrematureInterest(id,((Number)fd.get("savings")).longValue(),((Number)q.get("currency")).longValue(),paidInterest);
+        FdCloseResponse response=settle(id,owner,approver,key,"PREMATURE_APPROVAL",fd,net,"PREMATURELY_CLOSED","PREMATURE_SETTLEMENT");
         jdbc.update("UPDATE fd_premature_closure SET fpc_approved_by=? WHERE fpc_closure_id=?",approver,closureId);complete("PREMATURE_APPROVAL",approver,key,id);return response;
+    }
+
+    @PostMapping("/api/v1/admin/fixed-deposits/{id}/premature-closure/{closureId}/reject") @Transactional @PreAuthorize("hasAnyRole('BANK_OFFICER','ADMIN')")
+    public PrematureQuote rejectPremature(Authentication actor,@PathVariable long id,@PathVariable long closureId,
+            @RequestHeader("Idempotency-Key") @NotBlank @Size(max=255) String key,@Valid @RequestBody DecisionRequest request){
+        long approver=userId(actor);String reason=request.reason()==null?"":request.reason().trim();
+        String hash=hash(id+"|"+closureId+"|"+reason);Long replay=claim("PREMATURE_REJECTION",approver,key,hash);
+        if(replay!=null)return quote(replay,accountOwner(replay));
+        Map<String,Object> fd=fd(id);
+        Map<String,Object> closure=jdbc.query("SELECT fpc_status FROM fd_premature_closure WHERE fpc_closure_id=? AND fpc_account_id=? FOR UPDATE",r->r.next()?Map.of("status",r.getString(1)):null,closureId,id);
+        if(closure==null)throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Premature closure request not found");
+        if(!"PENDING".equals(closure.get("status")))throw conflict("Premature closure request is already processed");
+        long owner=((Number)fd.get("owner")).longValue();if(owner==approver)throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Decision maker must be different from the FD owner");
+        Timestamp requestedAt=jdbc.queryForObject("SELECT fpc_closure_date FROM fd_premature_closure WHERE fpc_closure_id=?",Timestamp.class,closureId);
+        if(isExpired(requestedAt))throw conflict("Premature closure quote expired at the end of its business day; request a fresh quote");
+        jdbc.update("UPDATE fd_premature_closure SET fpc_status='REJECTED',fpc_decision_by=?,fpc_decision_at=?,fpc_decision_reason=? WHERE fpc_closure_id=?",
+                approver,Timestamp.from(clock.status().effectiveTime()),reason.isBlank()?null:reason.substring(0,Math.min(reason.length(),500)),closureId);
+        event(id,"PREMATURE_CLOSURE_REJECTED",Map.of("closureId",closureId,"status","REJECTED","decisionBy",approver));
+        complete("PREMATURE_REJECTION",approver,key,closureId);
+        return quote(closureId,owner);
+    }
+
+    @GetMapping("/api/v1/admin/fixed-deposits/premature-closures") @PreAuthorize("hasAnyRole('BANK_OFFICER','ADMIN')")
+    public StaffQuotePage pendingPrematureClosures(@RequestParam(defaultValue="0") int page,
+            @RequestParam(defaultValue="25") int pageSize){
+        if(page<0||page>1_000_000||pageSize<1||pageSize>100)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Page must be between 0 and 1000000 and pageSize must be between 1 and 100");
+        expireStaleQuotes(null);
+        Integer total=jdbc.queryForObject("SELECT COUNT(*) FROM fd_premature_closure q JOIN fd_accounts a ON a.fa_account_id=q.fpc_account_id WHERE q.fpc_status='PENDING' AND a.fa_status='ACTIVE'",Integer.class);
+        List<StaffPrematureQuote> rows=jdbc.query("SELECT q.fpc_closure_id,q.fpc_account_id,a.fa_account_number,a.fa_principal_amount,a.fa_primary_holder_id FROM fd_premature_closure q JOIN fd_accounts a ON a.fa_account_id=q.fpc_account_id WHERE q.fpc_status='PENDING' AND a.fa_status='ACTIVE' ORDER BY q.fpc_closure_date,q.fpc_closure_id LIMIT ? OFFSET ?",
+                (r,n)->new StaffPrematureQuote(r.getLong(2),r.getString(3),r.getBigDecimal(4),quote(r.getLong(1),r.getLong(5))),pageSize,Math.multiplyExact(page,pageSize));
+        int count=total==null?0:total;
+        return new StaffQuotePage(rows,page,pageSize,count);
     }
 
     @GetMapping("/api/v1/fixed-deposits/{id}/transactions")
@@ -128,8 +158,9 @@ public class FdLifecycleController {
     @GetMapping("/api/v1/fixed-deposits/{id}/premature-closure")
     public List<PrematureQuote> prematureClosures(Authentication actor,@PathVariable long id){
         Map<String,Object> fd=fd(id);if(((Number)fd.get("owner")).longValue()!=userId(actor))throw notFound();
-        return jdbc.query("SELECT q.fpc_closure_id,q.fpc_penalty_pct_applied,q.fpc_penalty_amount,q.fpc_net_payable_amount,q.fpc_status,q.fpc_closure_date,q.fpc_approved_by,a.fa_interest_rate-q.fpc_penalty_pct_applied/100,c.fcr_iso_code FROM fd_premature_closure q JOIN fd_accounts a ON a.fa_account_id=q.fpc_account_id JOIN fd_currency_ref c ON c.fcr_currency_id=q.fpc_currency_id WHERE q.fpc_account_id=? ORDER BY q.fpc_closure_id DESC",
-                (r,n)->new PrematureQuote(r.getLong(1),id,r.getBigDecimal(2),r.getBigDecimal(3),r.getBigDecimal(4),r.getString(5),r.getTimestamp(6).toInstant().toString(),r.getObject(7)==null?null:((Number)r.getObject(7)).longValue(),r.getBigDecimal(8),r.getString(9)),id);
+        expireStaleQuotes(id);
+        List<Long> closureIds=jdbc.queryForList("SELECT fpc_closure_id FROM fd_premature_closure WHERE fpc_account_id=? ORDER BY fpc_closure_id DESC",Long.class,id);
+        return closureIds.stream().map(closureId->quote(closureId,((Number)fd.get("owner")).longValue())).toList();
     }
 
     private FdCloseResponse settle(long id,long user,long idempotencyActor,String key,String scope,Map<String,Object> fd,BigDecimal amount,String nextStatus,String operation){
@@ -141,12 +172,14 @@ public class FdLifecycleController {
         jdbc.update("INSERT INTO savings_transactions(st_reference_id,st_account_id,st_entry_type,st_amount,st_currency_id,st_balance_after,st_remarks,st_posted_at) VALUES(?,?,'CREDIT',?,?,?,?,UTC_TIMESTAMP(6))",UUID.randomUUID().toString(),savings,amount,currency,after,"FD settlement #"+id);
         if("PREMATURELY_CLOSED".equals(nextStatus)){
             BigDecimal penalty=jdbc.queryForObject("SELECT fpc_penalty_amount FROM fd_premature_closure WHERE fpc_account_id=? AND fpc_status='APPROVED' ORDER BY fpc_closure_id DESC LIMIT 1",BigDecimal.class,id);
-            if(penalty!=null&&penalty.signum()>0)jdbc.update("INSERT INTO fd_transactions(ft_account_id,ft_txn_type_id,ft_amount,ft_currency_id,ft_remarks,ft_created_by) VALUES(?,?,?,?,?,?)",id,typeId("FD_PENALTY"),penalty,currency,"Interest foregone under premature closure rule",Long.toString(user));
+            BigDecimal paidInterest=amount.subtract((BigDecimal)fd.get("principal")).setScale(scale,RoundingMode.HALF_UP);
+            if(paidInterest.signum()>0)jdbc.update("INSERT INTO fd_transactions(ft_account_id,ft_txn_type_id,ft_amount,ft_currency_id,ft_remarks,ft_created_by,ft_source_savings_account_id) VALUES(?,?,?,?,?,?,?)",id,typeId("FD_INTEREST"),paidInterest,currency,"Premature closure interest paid under booked terms",Long.toString(idempotencyActor),savings);
+            if(penalty!=null&&penalty.signum()>0)jdbc.update("INSERT INTO fd_transactions(ft_account_id,ft_txn_type_id,ft_amount,ft_currency_id,ft_remarks,ft_created_by,ft_source_savings_account_id) VALUES(?,?,?,?,?,?,?)",id,typeId("FD_PENALTY"),penalty,currency,"Interest foregone under booked premature closure terms",Long.toString(idempotencyActor),savings);
         }
-        jdbc.update("INSERT INTO fd_transactions(ft_account_id,ft_txn_type_id,ft_amount,ft_balance_after,ft_currency_id,ft_remarks,ft_created_by) VALUES(?,?,?,?,?,?,?)",id,typeId("FD_CLOSURE"),amount,amount,currency,"Internal FD settlement; no external payment rail was called",Long.toString(user));
+        jdbc.update("INSERT INTO fd_transactions(ft_account_id,ft_txn_type_id,ft_amount,ft_balance_after,ft_currency_id,ft_remarks,ft_created_by,ft_source_savings_account_id) VALUES(?,?,?,?,?,?,?,?)",id,typeId("FD_CLOSURE"),amount,amount,currency,"Internal FD settlement; no external payment rail was called",Long.toString(idempotencyActor),savings);
         String journalKey="SETTLEMENT:"+id;
         if(!existsJournal(journalKey)){jdbc.update("INSERT INTO fd_journals(fj_key,fj_fd_account_id,fj_savings_account_id,fj_currency_id,fj_operation,fj_posted_at,fj_total_debit,fj_total_credit,fj_savings_balance_after) VALUES(?,?,?,?,'SETTLEMENT',UTC_TIMESTAMP(6),?,?,?)",journalKey,id,savings,currency,amount,amount,after);long j=jdbc.queryForObject("SELECT LAST_INSERT_ID()",Long.class);jdbc.update("INSERT INTO fd_journal_lines(jl_journal_id,jl_sequence,jl_account_code,jl_debit,jl_credit) VALUES(?,1,'FIXED_DEPOSIT',?,0),(?,2,'SAVINGS',0,?)",j,amount,j,amount);}
-        jdbc.update("UPDATE fd_accounts SET fa_status=?,fa_updated_by=?,fa_updated_date=UTC_TIMESTAMP(6),fa_row_version=fa_row_version+1 WHERE fa_account_id=?",nextStatus,Long.toString(user),id);
+        jdbc.update("UPDATE fd_accounts SET fa_status=?,fa_updated_by=?,fa_updated_date=UTC_TIMESTAMP(6),fa_row_version=fa_row_version+1 WHERE fa_account_id=?",nextStatus,Long.toString(idempotencyActor),id);
         event(id,nextStatus,Map.of("status",nextStatus,"settlementAmount",amount,"settledAt",clock.businessDate().toString()));complete(scope,idempotencyActor,key,id);return new FdCloseResponse(id,nextStatus,amount,after);
     }
 
@@ -170,13 +203,19 @@ public class FdLifecycleController {
         if(row==null)throw notFound();
         return row;
     }
-    private PrematureQuote quote(long closure,long user){return jdbc.query("SELECT c.fpc_account_id,c.fpc_penalty_pct_applied,c.fpc_penalty_amount,c.fpc_net_payable_amount,c.fpc_status,c.fpc_closure_date,c.fpc_approved_by,a.fa_interest_rate-c.fpc_penalty_pct_applied/100,cr.fcr_iso_code FROM fd_premature_closure c JOIN fd_accounts a ON a.fa_account_id=c.fpc_account_id JOIN fd_currency_ref cr ON cr.fcr_currency_id=c.fpc_currency_id WHERE c.fpc_closure_id=? AND a.fa_primary_holder_id=?",r->{if(!r.next())throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Premature closure request not found");return new PrematureQuote(closure,r.getLong(1),r.getBigDecimal(2),r.getBigDecimal(3),r.getBigDecimal(4),r.getString(5),r.getTimestamp(6).toInstant().toString(),r.getObject(7)==null?null:((Number)r.getObject(7)).longValue(),r.getBigDecimal(8),r.getString(9));},closure,user);}
+    private PrematureQuote quote(long closure,long user){return jdbc.query("SELECT c.fpc_account_id,c.fpc_penalty_pct_applied,c.fpc_penalty_amount,c.fpc_net_payable_amount,c.fpc_status,c.fpc_closure_date,c.fpc_approved_by,c.fpc_decision_by,c.fpc_decision_reason,a.fa_principal_amount,a.fa_terms_snapshot,c.fpc_reason,cr.fcr_iso_code FROM fd_premature_closure c JOIN fd_accounts a ON a.fa_account_id=c.fpc_account_id JOIN fd_currency_ref cr ON cr.fcr_currency_id=c.fpc_currency_id WHERE c.fpc_closure_id=? AND a.fa_primary_holder_id=?",r->{if(!r.next())throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Premature closure request not found");BigDecimal points=r.getBigDecimal(2),penalty=r.getBigDecimal(3),net=r.getBigDecimal(4),principal=r.getBigDecimal(10);FrozenTerms terms=frozenTerms(r.getString(11));BigDecimal paid=net==null||principal==null?null:net.subtract(principal);BigDecimal full=paid==null||penalty==null?null:paid.add(penalty);BigDecimal penalized=terms.annualRate()==null||points==null?null:terms.annualRate().subtract(points.divide(new BigDecimal("100"),12,RoundingMode.HALF_UP)).max(BigDecimal.ZERO);return new PrematureQuote(closure,r.getLong(1),points,terms.annualRate(),penalized,paid,full,penalty,net,r.getString(5),r.getTimestamp(6).toInstant().toString(),r.getObject(7)==null?null:((Number)r.getObject(7)).longValue(),r.getObject(8)==null?null:((Number)r.getObject(8)).longValue(),r.getString(9),r.getString(12),r.getString(13));},closure,user);}
     private FdCloseResponse closeResponse(long id,long user){return closeResponse(id,user,true);}
-    private FdCloseResponse closeResponse(long id,long user,boolean enforceOwner){String sql="SELECT fa_status,fa_maturity_amount,sa_balance FROM fd_accounts a JOIN savings_accounts s ON s.sa_account_id=a.fa_funding_savings_account_id WHERE a.fa_account_id=?"+(enforceOwner?" AND a.fa_primary_holder_id=?":"");Map<String,Object> r=enforceOwner?jdbc.query(sql,rs->rs.next()?Map.of("status",rs.getString(1),"amount",rs.getBigDecimal(2),"balance",rs.getBigDecimal(3)):null,id,user):jdbc.query(sql,rs->rs.next()?Map.of("status",rs.getString(1),"amount",rs.getBigDecimal(2),"balance",rs.getBigDecimal(3)):null,id);if(r==null)throw notFound();return new FdCloseResponse(id,(String)r.get("status"),(BigDecimal)r.get("amount"),(BigDecimal)r.get("balance"));}
+    private FdCloseResponse closeResponse(long id,long user,boolean enforceOwner){String sql="SELECT a.fa_status,CASE WHEN a.fa_status='PREMATURELY_CLOSED' THEN (SELECT q.fpc_net_payable_amount FROM fd_premature_closure q WHERE q.fpc_account_id=a.fa_account_id AND q.fpc_status='APPROVED' ORDER BY q.fpc_closure_id DESC LIMIT 1) ELSE a.fa_maturity_amount END,s.sa_balance FROM fd_accounts a JOIN savings_accounts s ON s.sa_account_id=a.fa_funding_savings_account_id WHERE a.fa_account_id=?"+(enforceOwner?" AND a.fa_primary_holder_id=?":"");FdCloseResponse response=enforceOwner?jdbc.query(sql,rs->rs.next()?new FdCloseResponse(id,rs.getString(1),rs.getBigDecimal(2),rs.getBigDecimal(3)):null,id,user):jdbc.query(sql,rs->rs.next()?new FdCloseResponse(id,rs.getString(1),rs.getBigDecimal(2),rs.getBigDecimal(3)):null,id);if(response==null)throw notFound();return response;}
     private Long claim(String scope,long actor,String key,String hash){try{jdbc.update("INSERT INTO fd_operation_idempotency(foi_operation_scope,foi_actor_key,foi_idempotency_key,foi_request_hash,foi_status) VALUES(?,?,?,?,'PENDING')",scope,Long.toString(actor),key,hash);return null;}catch(DuplicateKeyException e){Map<String,Object> r=jdbc.queryForMap("SELECT foi_request_hash,foi_status,foi_aggregate_id FROM fd_operation_idempotency WHERE foi_operation_scope=? AND foi_actor_key=? AND foi_idempotency_key=?",scope,Long.toString(actor),key);if(!hash.equals(r.get("foi_request_hash")))throw conflict("Idempotency key was used for a different operation");if("COMPLETED".equals(r.get("foi_status"))&&r.get("foi_aggregate_id")!=null)return ((Number)r.get("foi_aggregate_id")).longValue();throw conflict("Operation is already in progress");}}
     private void complete(String scope,long actor,String key,long aggregate){jdbc.update("UPDATE fd_operation_idempotency SET foi_status='COMPLETED',foi_aggregate_id=?,foi_response_reference=?,foi_completed_at=UTC_TIMESTAMP(6) WHERE foi_operation_scope=? AND foi_actor_key=? AND foi_idempotency_key=?",aggregate,Long.toString(aggregate),scope,Long.toString(actor),key);}
     private long userId(Authentication a){Object x=a.getDetails() instanceof Map<?,?> d?d.get("userId"):null;if(!(x instanceof Number n))throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,"Token has no user identity");return n.longValue();}
     private int currencyScale(long id){Integer n=jdbc.queryForObject("SELECT fcr_decimal_places FROM fd_currency_ref WHERE fcr_currency_id=?",Integer.class,id);return n==null?2:n;}
+    private long accountOwner(long closureId){Long owner=jdbc.queryForObject("SELECT a.fa_primary_holder_id FROM fd_premature_closure q JOIN fd_accounts a ON a.fa_account_id=q.fpc_account_id WHERE q.fpc_closure_id=?",Long.class,closureId);if(owner==null)throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Premature closure request not found");return owner;}
+    private FrozenTerms frozenTerms(String snapshot){try{if(snapshot==null||snapshot.isBlank())return new FrozenTerms(null,null);com.fasterxml.jackson.databind.JsonNode root=json.readTree(snapshot);return new FrozenTerms(decimal(root.path("annualRate")),decimal(root.path("prematurePenaltyPoints")));}catch(Exception e){return new FrozenTerms(null,null);}}
+    private BigDecimal decimal(com.fasterxml.jackson.databind.JsonNode node){if(node==null||node.isMissingNode()||node.isNull()||node.asText().isBlank())return null;try{return new BigDecimal(node.asText());}catch(NumberFormatException e){return null;}}
+    private boolean isExpired(Timestamp created){if(created==null)return true;ZoneId zone=ZoneId.of(clock.status().businessZone());LocalDate quoteDate=created.toInstant().atZone(zone).toLocalDate();return quoteDate.isBefore(clock.businessDate());}
+    private void expireStaleQuotes(Long accountId){String sql="SELECT fpc_closure_id,fpc_closure_date FROM fd_premature_closure WHERE fpc_status='PENDING'"+(accountId==null?"":" AND fpc_account_id=?");List<StaleQuote> pending=accountId==null?jdbc.query(sql,(r,n)->new StaleQuote(r.getLong(1),r.getTimestamp(2))):jdbc.query(sql,(r,n)->new StaleQuote(r.getLong(1),r.getTimestamp(2)),accountId);for(StaleQuote quote:pending)if(isExpired(quote.createdAt()))jdbc.update("UPDATE fd_premature_closure SET fpc_status='EXPIRED',fpc_decision_at=? WHERE fpc_closure_id=? AND fpc_status='PENDING'",Timestamp.from(clock.status().effectiveTime()),quote.id());}
+    private void recognizePrematureInterest(long fdId,long savingsId,long currencyId,BigDecimal interest){if(interest.signum()==0)return;String key="INTEREST:"+fdId+":PREMATURE";if(existsJournal(key)){BigDecimal recorded=jdbc.queryForObject("SELECT fj_total_credit FROM fd_journals WHERE fj_key=?",BigDecimal.class,key);if(recorded.compareTo(interest)!=0)throw conflict("Premature interest journal does not match the approved quote");return;}jdbc.update("INSERT INTO fd_journals(fj_key,fj_fd_account_id,fj_savings_account_id,fj_currency_id,fj_operation,fj_posted_at,fj_total_debit,fj_total_credit,fj_savings_balance_after) VALUES(?,?,?,?,'INTEREST',UTC_TIMESTAMP(6),?,?,NULL)",key,fdId,savingsId,currencyId,interest,interest);long journal=jdbc.queryForObject("SELECT LAST_INSERT_ID()",Long.class);jdbc.update("INSERT INTO fd_journal_lines(jl_journal_id,jl_sequence,jl_account_code,jl_debit,jl_credit) VALUES(?,1,'INTEREST_EXPENSE',?,0),(?,2,'FIXED_DEPOSIT',0,?)",journal,interest,journal,interest);}
     private long typeId(String code){return jdbc.queryForObject("SELECT tt_txn_type_id FROM transaction_types WHERE tt_txn_type_code=?",Long.class,code);}
     private boolean existsJournal(String key){return Boolean.TRUE.equals(jdbc.query("SELECT fj_id FROM fd_journals WHERE fj_key=?",(org.springframework.jdbc.core.ResultSetExtractor<Boolean>)r->r.next(),key));}
     private void event(long id,String type,Object payload){try{jdbc.update("INSERT INTO fd_account_events(fae_account_id,fae_event_type,fae_payload,fae_aggregate_version,fae_created_by) VALUES(?,?,CAST(? AS JSON),COALESCE((SELECT fa_row_version FROM fd_accounts WHERE fa_account_id=?),0),?)",id,type,json.writeValueAsString(payload),id,"fd-workflow");}catch(Exception e){throw new IllegalStateException(e);}}
@@ -185,7 +224,12 @@ public class FdLifecycleController {
     private ResponseStatusException conflict(String s){return new ResponseStatusException(HttpStatus.CONFLICT,s);}
 
     public record PrematureRequest(@Size(max=500) String reason){}
-    public record PrematureQuote(@com.fasterxml.jackson.annotation.JsonProperty("closure_id") long closureId,@com.fasterxml.jackson.annotation.JsonProperty("account_id") long accountId,@com.fasterxml.jackson.annotation.JsonProperty("penalty_points") BigDecimal penaltyPoints,@com.fasterxml.jackson.annotation.JsonProperty("penalty_amount") BigDecimal penaltyAmount,@com.fasterxml.jackson.annotation.JsonProperty("net_payable_amount") BigDecimal netPayableAmount,String status,@com.fasterxml.jackson.annotation.JsonProperty("requested_date") String requestedDate,@com.fasterxml.jackson.annotation.JsonProperty("approved_by") Long approvedBy,@com.fasterxml.jackson.annotation.JsonProperty("penalized_rate") BigDecimal penalizedRate,@com.fasterxml.jackson.annotation.JsonProperty("currency_code") String currencyCode){}
+    public record DecisionRequest(@Size(max=500) String reason){}
+    private record FrozenTerms(BigDecimal annualRate,BigDecimal penaltyPoints){}
+    private record StaleQuote(long id,Timestamp createdAt){}
+    public record PrematureQuote(@com.fasterxml.jackson.annotation.JsonProperty("closure_id") long closureId,@com.fasterxml.jackson.annotation.JsonProperty("account_id") long accountId,@com.fasterxml.jackson.annotation.JsonProperty("penalty_points") BigDecimal penaltyPoints,@com.fasterxml.jackson.annotation.JsonProperty("annual_rate") BigDecimal annualRate,@com.fasterxml.jackson.annotation.JsonProperty("penalized_rate") BigDecimal penalizedRate,@com.fasterxml.jackson.annotation.JsonProperty("paid_interest") BigDecimal paidInterest,@com.fasterxml.jackson.annotation.JsonProperty("full_rate_interest") BigDecimal fullRateInterest,@com.fasterxml.jackson.annotation.JsonProperty("penalty_amount") BigDecimal penaltyAmount,@com.fasterxml.jackson.annotation.JsonProperty("net_payable_amount") BigDecimal netPayableAmount,String status,@com.fasterxml.jackson.annotation.JsonProperty("requested_date") String requestedDate,@com.fasterxml.jackson.annotation.JsonProperty("approved_by") Long approvedBy,@com.fasterxml.jackson.annotation.JsonProperty("decision_by") Long decisionBy,@com.fasterxml.jackson.annotation.JsonProperty("decision_reason") String decisionReason,@com.fasterxml.jackson.annotation.JsonProperty("request_reason") String requestReason,@com.fasterxml.jackson.annotation.JsonProperty("currency_code") String currencyCode){}
+    public record StaffPrematureQuote(@com.fasterxml.jackson.annotation.JsonProperty("account_id") long accountId,@com.fasterxml.jackson.annotation.JsonProperty("account_number") String accountNumber,BigDecimal principal,PrematureQuote quote){}
+    public record StaffQuotePage(List<StaffPrematureQuote> content,int page,int pageSize,int totalElements){}
     public record JournalView(@com.fasterxml.jackson.annotation.JsonProperty("journal_id") long journalId,String operation,@com.fasterxml.jackson.annotation.JsonProperty("posted_at") String postedAt,@com.fasterxml.jackson.annotation.JsonProperty("savings_account_id") long savingsAccountId,@com.fasterxml.jackson.annotation.JsonProperty("currency_code") String currencyCode,@com.fasterxml.jackson.annotation.JsonProperty("total_debit") BigDecimal totalDebit,@com.fasterxml.jackson.annotation.JsonProperty("total_credit") BigDecimal totalCredit,@com.fasterxml.jackson.annotation.JsonProperty("savings_balance_after") BigDecimal savingsBalanceAfter,List<JournalLine> lines){}
     public record JournalLine(@com.fasterxml.jackson.annotation.JsonProperty("account_code") String accountCode,BigDecimal debit,BigDecimal credit){}
     public record AccrualView(@com.fasterxml.jackson.annotation.JsonProperty("account_id") long accountId,@com.fasterxml.jackson.annotation.JsonProperty("accrual_date") String accrualDate,@com.fasterxml.jackson.annotation.JsonProperty("accrued_amount") BigDecimal accruedAmount,@com.fasterxml.jackson.annotation.JsonProperty("cumulative_accrued") BigDecimal cumulativeAccrued,@com.fasterxml.jackson.annotation.JsonProperty("currency_code") String currencyCode,@com.fasterxml.jackson.annotation.JsonProperty("maturity_amount") BigDecimal maturityAmount,String status){}

@@ -352,7 +352,7 @@ class FdBookingAndCalculatorFinancialTest {
                         "ACTIVE",
                         10L,
                         new BigDecimal("10660.00"),
-                        new BigDecimal("0.0650"),
+                        new BigDecimal("0.0900"),
                         Timestamp.valueOf(LocalDate.now().minusDays(90).atStartOfDay()),
                         Date.valueOf(LocalDate.now().plusDays(90)),
                         frozenSnapshot
@@ -371,20 +371,21 @@ class FdBookingAndCalculatorFinancialTest {
 
         // quote response
         when(jdbc.query(contains("SELECT c.fpc_account_id,c.fpc_penalty_pct_applied"), any(ResultSetExtractor.class), eq(501L), eq(userId)))
-                .thenReturn(new FdLifecycleController.PrematureQuote(501L, fdId, new BigDecimal("1.0000"), new BigDecimal("25.00"), new BigDecimal("10135.00"), "PENDING", LocalDate.now().toString(), null, new BigDecimal("0.0550"), "INR"));
+                .thenReturn(new FdLifecycleController.PrematureQuote(501L, fdId, new BigDecimal("1.0000"), new BigDecimal("0.0650"), new BigDecimal("0.0550"), new BigDecimal("135.00"), new BigDecimal("160.00"), new BigDecimal("25.00"), new BigDecimal("10135.00"), "PENDING", LocalDate.now().toString(), null, null, null, "Fixture request", "INR"));
 
         FdLifecycleController.PrematureQuote quote = lifecycleController.requestPremature(
                 actor, fdId, "quote-key-1", new FdLifecycleController.PrematureRequest("Emergency cash"));
 
         assertNotNull(quote);
         assertEquals(new BigDecimal("1.0000"), quote.penaltyPoints());
+        assertEquals(new BigDecimal("0.0650"), quote.annualRate());
         // Verify fd_product_currency_ref query was NOT executed because snapshot took precedence
         verify(jdbc, never()).query(contains("SELECT premature_penalty_points FROM fd_product_currency_ref"), any(ResultSetExtractor.class), any(), any());
     }
 
     @Test
-    @DisplayName("Premature Closure: Fallback to fd_product_currency_ref for legacy records without penalty in snapshot")
-    void prematureClosureFallsBackToLiveTableForLegacyRecordsWithoutSnapshotPenalty() {
+    @DisplayName("Premature Closure: Fails closed for legacy records without a booked penalty snapshot")
+    void prematureClosureFailsClosedWithoutBookedPenaltySnapshot() {
         long fdId = 201L;
         // Legacy record snapshot without prematurePenaltyPoints
         String legacySnapshot = "{\"productId\":1,\"annualRate\":0.0650,\"principal\":10000.00}";
@@ -407,22 +408,10 @@ class FdBookingAndCalculatorFinancialTest {
                 .thenReturn(0);
         when(jdbc.queryForObject(contains("fcr_decimal_places"), eq(Integer.class), eq(1L)))
                 .thenReturn(2);
-        when(jdbc.queryForObject(contains("LAST_INSERT_ID"), eq(Long.class)))
-                .thenReturn(502L);
-
-        // Fallback live query is executed
-        when(jdbc.query(contains("SELECT premature_penalty_points FROM fd_product_currency_ref"), any(ResultSetExtractor.class), eq(1L), eq(1L)))
-                .thenReturn(Map.of("points", "1.5000"));
-
-        when(jdbc.query(contains("SELECT c.fpc_account_id,c.fpc_penalty_pct_applied"), any(ResultSetExtractor.class), eq(502L), eq(userId)))
-                .thenReturn(new FdLifecycleController.PrematureQuote(502L, fdId, new BigDecimal("1.5000"), new BigDecimal("35.00"), new BigDecimal("10125.00"), "PENDING", LocalDate.now().toString(), null, new BigDecimal("0.0500"), "INR"));
-
-        FdLifecycleController.PrematureQuote quote = lifecycleController.requestPremature(
-                actor, fdId, "quote-key-2", new FdLifecycleController.PrematureRequest("Legacy withdrawal"));
-
-        assertNotNull(quote);
-        assertEquals(new BigDecimal("1.5000"), quote.penaltyPoints());
-        // Verify fallback query was executed exactly once for legacy record
-        verify(jdbc, times(1)).query(contains("SELECT premature_penalty_points FROM fd_product_currency_ref"), any(ResultSetExtractor.class), eq(1L), eq(1L));
+        ResponseStatusException failure = assertThrows(ResponseStatusException.class,
+                () -> lifecycleController.requestPremature(actor, fdId, "quote-key-2", new FdLifecycleController.PrematureRequest("Legacy withdrawal")));
+        assertEquals(HttpStatus.CONFLICT, failure.getStatusCode());
+        verify(jdbc, never()).query(contains("SELECT premature_penalty_points FROM fd_product_currency_ref"), any(ResultSetExtractor.class), any(), any());
+        verify(jdbc, never()).update(contains("INSERT INTO fd_premature_closure"), any(), any(), any(), any(), any(), any(), any());
     }
 }

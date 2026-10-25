@@ -48,7 +48,6 @@
           <p *ngIf="confirmation === 'FUND'"> {{ 'This records the principal transfer from your selected savings account to this fixed deposit.' | translate }} </p>
           <p *ngIf="confirmation === 'CLOSE'"> {{ 'This records the return of principal and earned interest to your original savings account and closes the fixed deposit.' | translate }} </p>
           <p *ngIf="confirmation === 'REQUEST_PREMATURE'"> {{ 'This submits your premature-closure request.' | translate }} </p>
-          <p *ngIf="confirmation === 'APPROVE_PREMATURE'"> {{ 'This accepts the penalty and net amount shown above and closes the deposit early.' | translate }} </p>
           <div class="fd-confirmation-actions">
             <button type="button" class="glass-btn glass-btn--ghost" (click)="cancelConfirmation()" [disabled]="!!busyAction"> {{ 'Cancel' | translate }} </button>
             <button type="button" class="glass-btn" (click)="confirmPendingAction()" [disabled]="!!busyAction || (pendingConfirmation === 'FUND' && productAccessBlocked)"> {{ 'Confirm action' | translate }} </button>
@@ -88,8 +87,9 @@
         <div class="fd-premature-list">
           <article class="fd-premature-row" *ngFor="let closure of prematureClosures">
             <div><strong> {{ (closureStatusLabel(closure.status)) | translate }} </strong><span> {{ '{0} IST' | translate: [(closure.requested_date | date:'medium':'+0530')] }} </span></div>
-            <dl><div><dt> {{ 'Penalty' | translate }} </dt><dd>{{ closure.penalty_amount | number:'1.2-2' }} {{ closure.currency_code }}</dd></div><div><dt> {{ 'Net payable' | translate }} </dt><dd>{{ closure.net_payable_amount | number:'1.2-2' }} {{ closure.currency_code }}</dd></div></dl>
-            <button type="button" class="glass-btn glass-btn--ghost" *ngIf="closure.status === 'PENDING'" (click)="selectPrematureClosure(closure); approvePrematureClosure()" [disabled]="!!busyAction"> {{ 'Accept closure amount' | translate }} </button>
+            <dl><div><dt> {{ 'Penalty points' | translate }} </dt><dd>{{ closure.penalty_points | number:'1.2-4' }}</dd></div><div><dt> {{ 'Penalized rate' | translate }} </dt><dd>{{ closure.penalized_rate * 100 | number:'1.2-4' }}%</dd></div><div><dt> {{ 'Interest payable' | translate }} </dt><dd>{{ closure.paid_interest | number:'1.2-4' }} {{ closure.currency_code }}</dd></div><div><dt> {{ 'Foregone interest' | translate }} </dt><dd>{{ closure.penalty_amount | number:'1.2-4' }} {{ closure.currency_code }}</dd></div><div><dt> {{ 'Net payable' | translate }} </dt><dd>{{ closure.net_payable_amount | number:'1.2-4' }} {{ closure.currency_code }}</dd></div></dl>
+            <p class="fd-muted" *ngIf="closure.status === 'PENDING'" role="status"> {{ 'This quote is awaiting review by a different bank officer. You cannot approve your own closure request.' | translate }} </p>
+            <p class="fd-muted" *ngIf="closure.status === 'REJECTED' && closure.decision_reason"> {{ 'Staff decision: {0}' | translate: [closure.decision_reason] }} </p>
           </article>
         </div>
       </section>

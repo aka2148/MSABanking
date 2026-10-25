@@ -16,6 +16,7 @@ describe('FdAccountDetail lifecycle actions', () => {
 
   it('allows closure and history after maturity', () => {
     expect(FdAccountDetail.actionsForStatus('MATURED')).toContain('CLOSE');
+    expect(FdAccountDetail.actionsForStatus('MATURED')).not.toContain('REQUEST_PREMATURE');
     expect(FdAccountDetail.actionsForStatus('MATURED')).not.toContain('FUND');
   });
 
@@ -28,7 +29,6 @@ describe('FdAccountDetail lifecycle actions', () => {
     expect(FdAccountDetail.requiresConfirmation('FUND')).toBeTrue();
     expect(FdAccountDetail.requiresConfirmation('CLOSE')).toBeTrue();
     expect(FdAccountDetail.requiresConfirmation('REQUEST_PREMATURE')).toBeTrue();
-    expect(FdAccountDetail.requiresConfirmation('APPROVE_PREMATURE')).toBeTrue();
   });
 
   it('labels quarterly capitalization as a customer-readable history item', () => {
