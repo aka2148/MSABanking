@@ -48,12 +48,14 @@
           <p *ngIf="confirmation === 'FUND'"> {{ 'This records the principal transfer from your selected savings account to this fixed deposit.' | translate }} </p>
           <p *ngIf="confirmation === 'CLOSE'"> {{ 'This records the return of principal and earned interest to your original savings account and closes the fixed deposit.' | translate }} </p>
           <p *ngIf="confirmation === 'REQUEST_PREMATURE'"> {{ 'This submits your premature-closure request.' | translate }} </p>
+          <label class="glass-field"><span class="glass-field__label">{{'MPIN'|translate}}</span><app-mpin-input [(ngModel)]="mpin"></app-mpin-input></label>
           <div class="fd-confirmation-actions">
             <button type="button" class="glass-btn glass-btn--ghost" (click)="cancelConfirmation()" [disabled]="!!busyAction"> {{ 'Cancel' | translate }} </button>
             <button type="button" class="glass-btn" (click)="confirmPendingAction()" [disabled]="!!busyAction || (pendingConfirmation === 'FUND' && productAccessBlocked)"> {{ 'Confirm action' | translate }} </button>
           </div>
         </div>
       </section>
+      <a *ngIf="mpinNotSet" routerLink="/mpin">{{'Set up your MPIN'|translate}}</a>
 
       <section class="fd-section" aria-labelledby="terms-heading">
         <div class="fd-section-heading">

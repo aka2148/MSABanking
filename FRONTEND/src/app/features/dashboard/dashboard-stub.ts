@@ -5,6 +5,8 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { WorkspaceShell } from '../../shared/components/workspace-shell/workspace-shell';
+import { MpinProofService } from '../../core/services/mpin-proof.service';
+import { OnInit } from '@angular/core';
 
 @Component({
   selector: 'app-dashboard-stub',
@@ -18,6 +20,7 @@ import { WorkspaceShell } from '../../shared/components/workspace-shell/workspac
           <h1> {{ (canManageProducts ? 'Staff workspace' : 'Welcome back') | translate }} </h1>
           <p> {{ (canManageProducts ? 'Choose an area to continue.' : 'Manage savings and fixed deposits.') | translate }} </p>
         </header>
+        <section class="glass-card" *ngIf="!canManageProducts && !mpinSet"><h2>{{ 'Set up your MPIN' | translate }}</h2><p>{{ 'Set up an MPIN to authorize financial actions.' | translate }}</p><a class="glass-btn" routerLink="/mpin">{{ 'Set up your MPIN' | translate }}</a></section>
         <app-kyc-progress-ring *ngIf="!canManageProducts"></app-kyc-progress-ring>
 
         <nav class="workspace-home__links" [attr.aria-label]="'Workspace shortcuts' | translate">
@@ -48,8 +51,10 @@ import { WorkspaceShell } from '../../shared/components/workspace-shell/workspac
     @media (max-width: 640px) { .workspace-home__header { margin-bottom: 20px; } .workspace-home__header h1 { font-size: 1.75rem; } }
   `],
 })
-export class DashboardStub {
-  constructor(private readonly auth: AuthService) {}
+export class DashboardStub implements OnInit {
+  mpinSet=true;
+  constructor(private readonly auth: AuthService,private readonly mpin:MpinProofService) {}
+  ngOnInit():void{if(!this.canManageProducts)this.mpin.status().subscribe({next:s=>this.mpinSet=s.set,error:()=>{}});}
 
   get isAdmin(): boolean { return this.auth.currentRole() === 'ROLE_ADMIN'; }
   get canManageProducts(): boolean { return ['ROLE_BANK_OFFICER', 'ROLE_ADMIN'].includes(this.auth.currentRole() ?? ''); }

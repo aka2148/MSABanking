@@ -19,7 +19,8 @@ import java.util.UUID;
 @PreAuthorize("hasAnyRole('BANK_OFFICER','ADMIN')")
 public class CustomerAdminController {
     private final JdbcTemplate jdbc;
-    public CustomerAdminController(JdbcTemplate jdbc) { this.jdbc=jdbc; }
+    private final CustomerRiskConfiguration customerRisk;
+    public CustomerAdminController(JdbcTemplate jdbc, CustomerRiskConfiguration customerRisk) { this.jdbc=jdbc; this.customerRisk=customerRisk; }
 
     @GetMapping
     public CustomerPage list(@RequestParam(defaultValue="0") int page,
@@ -63,7 +64,8 @@ public class CustomerAdminController {
         if(!jdbc.queryForList("SELECT cus_customer_id FROM customers WHERE cus_user_id=?",Long.class,request.userId).isEmpty())
             throw new ResponseStatusException(HttpStatus.CONFLICT,"User already has a customer profile");
         String number=present(request.customerNumber)?request.customerNumber.trim():"CUS-"+UUID.randomUUID().toString().replace("-","").substring(0,12).toUpperCase();
-        jdbc.update("INSERT INTO customers(cus_user_id,cus_customer_number,cus_legal_entity_type,cus_kyc_status,cus_risk_category) VALUES(?,?,?,?,?)",request.userId,number,request.legalEntityType,present(request.kycStatus)?request.kycStatus:"PENDING",request.riskCategory);
+        String risk = request.riskCategory == null ? customerRisk.defaultCategory() : validatedRisk(request.riskCategory);
+        jdbc.update("INSERT INTO customers(cus_user_id,cus_customer_number,cus_legal_entity_type,cus_kyc_status,cus_risk_category) VALUES(?,?,?,?,?)",request.userId,number,request.legalEntityType,present(request.kycStatus)?request.kycStatus:"PENDING",risk);
         long id=jdbc.queryForObject("SELECT LAST_INSERT_ID()",Long.class);
         String name=present(request.fullName)?request.fullName.trim():username(request.userId);
         jdbc.update("INSERT INTO customer_details(cud_customer_id,cud_full_name) VALUES(?,?)",id,name);
@@ -76,7 +78,7 @@ public class CustomerAdminController {
         findCustomer(customerId);
         if(request.legalEntityType!=null) jdbc.update("UPDATE customers SET cus_legal_entity_type=? WHERE cus_customer_id=?",request.legalEntityType,customerId);
         if(request.kycStatus!=null) jdbc.update("UPDATE customers SET cus_kyc_status=? WHERE cus_customer_id=?",request.kycStatus,customerId);
-        if(request.riskCategory!=null) jdbc.update("UPDATE customers SET cus_risk_category=? WHERE cus_customer_id=?",request.riskCategory,customerId);
+        if(request.riskCategory!=null) jdbc.update("UPDATE customers SET cus_risk_category=? WHERE cus_customer_id=?",validatedRisk(request.riskCategory),customerId);
         if(request.fullName!=null) {
             List<Long> detailIds=jdbc.queryForList("SELECT cud_detail_id FROM customer_details WHERE cud_customer_id=? ORDER BY cud_detail_id LIMIT 1",Long.class,customerId);
             if(detailIds.isEmpty()) jdbc.update("INSERT INTO customer_details(cud_customer_id,cud_full_name) VALUES(?,?)",customerId,request.fullName);
@@ -91,7 +93,7 @@ public class CustomerAdminController {
     public CustomerResponse updateStatus(@PathVariable long customerId,@RequestBody Map<String,String> body) {
         String status=body.get("status"),risk=body.get("riskCategory");
         if(status!=null) jdbc.update("UPDATE customers SET cus_kyc_status=? WHERE cus_customer_id=?",status,customerId);
-        if(risk!=null) jdbc.update("UPDATE customers SET cus_risk_category=? WHERE cus_customer_id=?",risk,customerId);
+        if(risk!=null) jdbc.update("UPDATE customers SET cus_risk_category=? WHERE cus_customer_id=?",validatedRisk(risk),customerId);
         UserSnapshots.writeUserSnapshot(jdbc, jdbc.queryForObject("SELECT cus_user_id FROM customers WHERE cus_customer_id=?", Long.class, customerId));
         return findCustomer(customerId);
     }
@@ -101,6 +103,11 @@ public class CustomerAdminController {
     }
     private String username(long userId) { return jdbc.query("SELECT ucr_username FROM user_credentials WHERE ucr_user_id=?",rs->rs.next()?rs.getString(1):"Customer",userId); }
     private boolean present(String value) { return value!=null&&!value.isBlank(); }
+    private String validatedRisk(String value) {
+        String normalized=value==null?"":value.trim().toUpperCase(java.util.Locale.ROOT);
+        if(!java.util.Set.of("LOW","MEDIUM","HIGH").contains(normalized)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Risk category must be LOW, MEDIUM, or HIGH.");
+        return normalized;
+    }
 
     public record CreateCustomer(@NotNull Long userId,String customerNumber,String legalEntityType,String kycStatus,String riskCategory,String fullName) {}
     public record UpdateCustomer(String legalEntityType,String kycStatus,String riskCategory,String fullName) {}

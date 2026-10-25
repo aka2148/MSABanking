@@ -29,12 +29,13 @@ final class KycValidation {
         return switch (field) {
             case "dateOfBirth" -> {
                 LocalDate date = date(value);
-                yield date != null && !date.isBefore(LocalDate.of(1900, 1, 1)) && !date.isAfter(today.minusYears(18))
+                yield date != null && date.isAfter(today) ? "Date of birth can't be in the future."
+                        : date != null && !date.isBefore(LocalDate.of(1900, 1, 1)) && !date.isAfter(today.minusYears(18))
                         ? null : "You must be at least 18.";
             }
             case "gender" -> Set.of("MALE", "FEMALE", "OTHER").contains(value) ? null : "Select a valid option.";
             case "relationship" -> Set.of("FATHER", "SPOUSE").contains(value) ? null : "Select a valid option.";
-            case "occupation" -> Set.of("STUDENT", "SALARIED", "SELF_EMPLOYED", "BUSINESS", "PROFESSIONAL", "HOMEMAKER", "RETIRED", "OTHER").contains(value) ? null : "Select a valid option.";
+            case "occupation" -> Set.of("STUDENT", "SALARIED", "SELF_EMPLOYED", "BUSINESS", "PROFESSIONAL", "HOMEMAKER", "RETIRED", "UNEMPLOYED", "OTHER").contains(value) ? null : "Select a valid option.";
             case "countryOfOrigin" -> COUNTRIES.contains(value) ? null : "Select a valid country.";
             case "fatherOrSpouseName" -> safeText(value, 2, 100) && value.codePoints().anyMatch(Character::isLetter)
                     ? null : "Enter a name of 2–100 characters containing a letter, without markup or control characters.";
@@ -42,7 +43,8 @@ final class KycValidation {
             case "proofOfIdValue" -> validId(values.get("proofOfIdType"), value) ? null : "Enter a valid ID number for the selected proof type.";
             case "idIssueDate" -> {
                 LocalDate issue = date(value), birth = date(values.get("dateOfBirth"));
-                yield issue != null && !issue.isAfter(today) && birth != null && issue.isAfter(birth)
+                yield issue != null && issue.isAfter(today) ? "ID issue date can't be in the future."
+                        : issue != null && birth != null && issue.isAfter(birth)
                         ? null : "Enter an issue date after birth and not in the future.";
             }
             default -> throw new IllegalArgumentException("Unknown KYC field");

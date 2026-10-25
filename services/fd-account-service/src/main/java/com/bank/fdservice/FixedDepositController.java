@@ -28,8 +28,8 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/fixed-deposits")
 public class FixedDepositController {
-    private final JdbcTemplate jdbc; private final ObjectMapper json; private final DemoClockService clock;
-    public FixedDepositController(JdbcTemplate jdbc,ObjectMapper json,DemoClockService clock){this.jdbc=jdbc;this.json=json;this.clock=clock;}
+    private final JdbcTemplate jdbc; private final ObjectMapper json; private final DemoClockService clock; private final MpinProofVerifier mpin;
+    public FixedDepositController(JdbcTemplate jdbc,ObjectMapper json,DemoClockService clock,MpinProofVerifier mpin){this.jdbc=jdbc;this.json=json;this.clock=clock;this.mpin=mpin;}
 
     @GetMapping
     public List<FdView> mine(Authentication actor){return jdbc.query("SELECT a.fa_account_id,a.fa_account_number,a.fa_principal_amount,a.fa_currency_id,c.fcr_iso_code,a.fa_tenure_months,a.fa_interest_rate,a.fa_open_date,a.fa_maturity_date,a.fa_maturity_amount,a.fa_status,a.fa_funding_savings_account_id,a.fa_product_id,p.fpr_product_code,p.fpr_product_name,a.fa_compounding_frequency,a.fa_payout_frequency,a.fa_policy_version FROM fd_accounts a JOIN fd_currency_ref c ON c.fcr_currency_id=a.fa_currency_id JOIN fd_product_ref p ON p.fpr_product_id=a.fa_product_id WHERE a.fa_primary_holder_id=? ORDER BY a.fa_account_id",(r,n)->view(r),userId(actor));}
@@ -74,7 +74,7 @@ public class FixedDepositController {
     }
 
     @PostMapping("/{id}/fund") @Transactional
-    public FdView fund(Authentication actor,@PathVariable long id,@RequestHeader("Idempotency-Key") @NotBlank @Size(max=255) String key,@RequestBody(required=false) FundingChoice choice){
+    public FdView fund(Authentication actor,@PathVariable long id,@RequestHeader("Idempotency-Key") @NotBlank @Size(max=255) String key,@RequestHeader(value="X-MPIN-Proof",required=false) String proof,@RequestBody(required=false) FundingChoice choice){
         long userId=userId(actor);CustomerProductAccess.requireVerified(jdbc,userId);String hash=hash(Long.toString(id));Long replay=claim("FD_FUNDING",userId,key,hash);if(replay!=null)return find(replay,userId);
         Map<String,Object> fd=jdbc.query("SELECT fa_primary_holder_id,fa_principal_amount,fa_currency_id,fa_status,fa_funding_savings_account_id FROM fd_accounts WHERE fa_account_id=? FOR UPDATE",r->r.next()?Map.of("owner",r.getLong(1),"principal",r.getBigDecimal(2),"currency",r.getLong(3),"status",r.getString(4),"savings",r.getLong(5)):null,id);
         if(fd==null)throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Fixed deposit not found");
@@ -82,8 +82,10 @@ public class FixedDepositController {
         if(!"PENDING".equals(fd.get("status")))throw new ResponseStatusException(HttpStatus.CONFLICT,"Only a pending fixed deposit can be funded");
         long savingsId=((Number)fd.get("savings")).longValue(),currency=((Number)fd.get("currency")).longValue();BigDecimal principal=(BigDecimal)fd.get("principal");
         if(choice!=null && choice.savingsAccountId()!=null && choice.savingsAccountId()!=savingsId)throw new ResponseStatusException(HttpStatus.CONFLICT,"Funding account differs from the account selected at booking");
+        String jti=mpin.verify(actor,proof,"FD_FUNDING",userId,MpinProofVerifier.canonical("FD_FUNDING",id,principal));
         Map<String,Object> savings=jdbc.query("SELECT sa_balance,sa_status FROM savings_accounts WHERE sa_account_id=? AND sa_holder_id=? AND sa_currency_id=? FOR UPDATE",r->r.next()?Map.of("balance",r.getBigDecimal(1),"status",r.getString(2)):null,savingsId,userId,currency);
         if(savings==null||!"ACTIVE".equals(savings.get("status")))throw new ResponseStatusException(HttpStatus.CONFLICT,"Funding savings account is unavailable or mismatched");
+        mpin.consume(jti,userId,"FD_FUNDING");
         BigDecimal balance=(BigDecimal)savings.get("balance");if(balance.compareTo(principal)<0)throw new ResponseStatusException(HttpStatus.CONFLICT,"Insufficient savings balance");
         int scale=currencyScale(currency);BigDecimal after=balance.subtract(principal).setScale(scale,RoundingMode.HALF_UP);String ref=UUID.randomUUID().toString();
         jdbc.update("UPDATE savings_accounts SET sa_balance=?,sa_row_version=sa_row_version+1 WHERE sa_account_id=?",after,savingsId);

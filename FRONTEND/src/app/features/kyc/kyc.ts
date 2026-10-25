@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router,RouterLink } from '@angular/router';
 import { Subject, catchError, concatMap, finalize, of } from 'rxjs';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { TranslationService } from '../../core/i18n/translation.service';
@@ -10,11 +10,13 @@ import { AuthService } from '../../core/services/auth.service';
 import { KycService } from '../../core/services/kyc.service';
 import { GlassSelect } from '../../shared/components/glass-select/glass-select';
 import { WorkspaceShell } from '../../shared/components/workspace-shell/workspace-shell';
+import { MpinInput } from '../../shared/components/mpin-input';
+import { mpinErrorMessage } from '../../core/services/mpin-proof.service';
 import { countryOptions, validId } from '../../shared/kyc-validation';
 
 @Component({
   selector: 'app-kyc', standalone: true,
-  imports: [CommonModule, FormsModule, TranslatePipe, GlassSelect, WorkspaceShell],
+  imports: [CommonModule, FormsModule, TranslatePipe, GlassSelect, WorkspaceShell,MpinInput,RouterLink],
   templateUrl: './kyc.html', styleUrl: './kyc.scss',
 })
 export class Kyc implements OnInit, OnDestroy {
@@ -33,6 +35,7 @@ export class Kyc implements OnInit, OnDestroy {
   busy = false;
   requesting = false;
   remarks = '';
+  rekycMpin='';mpinNotSet=false;
   form = Object.fromEntries(KYC_FIELDS.map(f => [f, ''])) as Record<KycField, string>;
   errors: Partial<Record<KycField, string>> = {};
   private pending: KycDraft = {};
@@ -57,10 +60,11 @@ export class Kyc implements OnInit, OnDestroy {
   readonly options: Partial<Record<KycField, { label: string; value: string }[]>> = {
     gender: this.choices(['MALE', 'Male'], ['FEMALE', 'Female'], ['OTHER', 'Other']),
     relationship: this.choices(['FATHER', 'Father'], ['SPOUSE', 'Spouse']),
-    occupation: this.choices(['STUDENT', 'Student'], ['SALARIED', 'Salaried'], ['SELF_EMPLOYED', 'Self-employed'], ['BUSINESS', 'Business'], ['PROFESSIONAL', 'Professional'], ['HOMEMAKER', 'Homemaker'], ['RETIRED', 'Retired'], ['OTHER', 'Other']),
+    occupation: this.choices(['STUDENT', 'Student'], ['SALARIED', 'Salaried'], ['SELF_EMPLOYED', 'Self-employed'], ['BUSINESS', 'Business'], ['PROFESSIONAL', 'Professional'], ['HOMEMAKER', 'Homemaker'], ['RETIRED', 'Retired'], ['UNEMPLOYED', 'Unemployed'], ['OTHER', 'Other']),
     proofOfIdType: this.choices(['AADHAAR', 'Aadhaar'], ['PAN', 'PAN'], ['PASSPORT', 'Passport'], ['DRIVING_LICENSE', 'Driving Licence'], ['VOTER_ID', 'Voter ID']),
   };
   private choices(...pairs: string[][]) { return pairs.map(([value, label]) => ({ value, label })); }
+  get utcToday(): string { return new Date().toISOString().slice(0, 10); }
   proofLabel(): string { return this.options.proofOfIdType?.find(o => o.value === this.profile?.values.proofOfIdType)?.label ?? '—'; }
 
   ngOnInit(): void {
@@ -84,6 +88,8 @@ export class Kyc implements OnInit, OnDestroy {
     this.versions[field] = (this.versions[field] ?? 0) + 1;
     this.pending[field] = value; this.saved = false;
     delete this.errors[field];
+    if ((field === 'dateOfBirth' || field === 'idIssueDate') && value && value > this.utcToday)
+      this.errors[field] = field === 'dateOfBirth' ? "Date of birth can't be in the future." : "ID issue date can't be in the future.";
     if (field === 'proofOfIdValue' && value && !validId(this.form.proofOfIdType, value)) this.errors[field] = 'Enter a valid ID number for the selected proof type.';
     clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), 800);
   }
@@ -143,9 +149,9 @@ export class Kyc implements OnInit, OnDestroy {
   }
   requestRekyc(): void {
     this.busy = true; this.remarksError = '';
-    this.api.rekyc(this.remarks).subscribe({
-      next: p => { this.restore(p); this.busy = false; this.requesting = false; this.remarks = ''; this.saved = false; this.verified = false; },
-      error: err => { this.busy = false; this.remarksError = this.message(err); },
+    this.api.rekyc(this.remarks,this.rekycMpin).subscribe({
+      next: p => { this.restore(p); this.busy = false; this.requesting = false; this.remarks = ''; this.rekycMpin='';this.saved = false; this.verified = false; },
+      error: err => { this.busy = false;this.mpinNotSet=err?.error?.code==='MPIN_NOT_SET'; this.remarksError = err?.error?.code?mpinErrorMessage(err):this.message(err);this.rekycMpin=''; },
     });
   }
   upload(event: Event): void {
@@ -162,5 +168,5 @@ export class Kyc implements OnInit, OnDestroy {
     this.api.removeDocument().subscribe({ next: () => { if (this.profile) this.profile.document = null; this.busy = false; }, error: err => { this.busy = false; this.documentError = this.message(err); } });
   }
   private message(err: { error?: { message?: string } }): string { return err.error?.message || 'Unable to save KYC. Please try again.'; }
-  ngOnDestroy(): void { this.flush(); this.saves.complete(); }
+  ngOnDestroy(): void { this.rekycMpin='';this.flush(); this.saves.complete(); }
 }

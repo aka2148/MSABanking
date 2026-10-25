@@ -27,8 +27,8 @@ import java.util.UUID;
 
 @RestController
 public class FdLifecycleController {
-    private final JdbcTemplate jdbc; private final FdBatchService batches; private final ObjectMapper json; private final DemoClockService clock;
-    public FdLifecycleController(JdbcTemplate jdbc,FdBatchService batches,ObjectMapper json,DemoClockService clock){this.jdbc=jdbc;this.batches=batches;this.json=json;this.clock=clock;}
+    private final JdbcTemplate jdbc; private final FdBatchService batches; private final ObjectMapper json; private final DemoClockService clock;private final MpinProofVerifier mpin;
+    public FdLifecycleController(JdbcTemplate jdbc,FdBatchService batches,ObjectMapper json,DemoClockService clock,MpinProofVerifier mpin){this.jdbc=jdbc;this.batches=batches;this.json=json;this.clock=clock;this.mpin=mpin;}
 
     @PostMapping("/api/v1/admin/fixed-deposits/accrual-batch") @PreAuthorize("hasAnyRole('BANK_OFFICER','ADMIN')")
     public FdBatchService.BatchResult accrue(@RequestParam(required=false) LocalDate businessDate){return batches.accrue(businessDate);}
@@ -37,21 +37,23 @@ public class FdLifecycleController {
     public FdBatchService.BatchResult mature(@RequestParam(required=false) LocalDate businessDate){return batches.mature(businessDate);}
 
     @PostMapping("/api/v1/fixed-deposits/{id}/close") @Transactional
-    public FdCloseResponse close(Authentication actor,@PathVariable long id,@RequestHeader("Idempotency-Key") @NotBlank @Size(max=255) String key){
+    public FdCloseResponse close(Authentication actor,@PathVariable long id,@RequestHeader("Idempotency-Key") @NotBlank @Size(max=255) String key,@RequestHeader(value="X-MPIN-Proof",required=false)String proof){
         long user=userId(actor);String hash=hash(Long.toString(id));Long replay=claim("FD_CLOSE",user,key,hash);if(replay!=null)return closeResponse(replay,user);
         Map<String,Object> fd=fd(id);
         if(((Number)fd.get("owner")).longValue()!=user)throw notFound();
+        String jti=mpin.verify(actor,proof,"FD_CLOSE",user,MpinProofVerifier.canonical("FD_CLOSE",id));mpin.consume(jti,user,"FD_CLOSE");
         if(!"MATURED".equals(fd.get("status")))throw conflict("Only a matured FD can be closed normally");
         verifyMaturityJournals(id,((Number)fd.get("savings")).longValue(),(BigDecimal)fd.get("principal"),(BigDecimal)fd.get("maturityAmount"));
         return settle(id,user,user,key,"FD_CLOSE",fd,(BigDecimal)fd.get("maturityAmount"),"CLOSED","MATURITY_SETTLEMENT");
     }
 
     @PostMapping("/api/v1/fixed-deposits/{id}/premature-closure") @Transactional
-    public PrematureQuote requestPremature(Authentication actor,@PathVariable long id,@RequestHeader("Idempotency-Key") @NotBlank @Size(max=255) String key,@Valid @RequestBody PrematureRequest request){
+    public PrematureQuote requestPremature(Authentication actor,@PathVariable long id,@RequestHeader("Idempotency-Key") @NotBlank @Size(max=255) String key,@RequestHeader(value="X-MPIN-Proof",required=false)String proof,@Valid @RequestBody PrematureRequest request){
         long user=userId(actor);String reason=request.reason==null?"":request.reason.trim();
         Map<String,Object> fd=fd(id);if(((Number)fd.get("owner")).longValue()!=user)throw notFound();
-        expireStaleQuotes(id);
         String hash=hash(id+"|"+reason);Long replay=claim("PREMATURE_REQUEST",user,key,hash);if(replay!=null)return quote(replay,user);
+        String jti=mpin.verify(actor,proof,"FD_PREMATURE_REQUEST",user,MpinProofVerifier.canonical("FD_PREMATURE_REQUEST",id));mpin.consume(jti,user,"FD_PREMATURE_REQUEST");
+        expireStaleQuotes(id);
         if(!"ACTIVE".equals(fd.get("status")))throw conflict("Only an active FD can request premature closure");
         if(jdbc.queryForObject("SELECT COUNT(*) FROM fd_premature_closure WHERE fpc_account_id=? AND fpc_status='PENDING'",Integer.class,id)>0)throw conflict("A premature closure request is already pending");
         long currency=((Number)fd.get("currency")).longValue();

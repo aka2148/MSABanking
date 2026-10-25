@@ -8,6 +8,7 @@ import {
   FormBuilder,
   FormControl,
   FormGroup,
+  FormsModule,
   ReactiveFormsModule,
   ValidationErrors,
   ValidatorFn,
@@ -25,11 +26,13 @@ import {
 import { FdService, normalizeApiError } from '../../../core/services/fd.service';
 import { WorkspaceShell } from '../../../shared/components/workspace-shell/workspace-shell';
 import { GlassSelect, GlassSelectOption } from '../../../shared/components/glass-select/glass-select';
+import { MpinInput } from '../../../shared/components/mpin-input';
+import { MpinProofService, mpinErrorMessage } from '../../../core/services/mpin-proof.service';
 
 @Component({
   selector: 'app-fd-booking',
   standalone: true,
-  imports: [CustomerProductWarning, TranslatePipe, CommonModule, ReactiveFormsModule, RouterLink, WorkspaceShell, GlassSelect],
+  imports: [CustomerProductWarning, TranslatePipe, CommonModule, ReactiveFormsModule, FormsModule, RouterLink, WorkspaceShell, GlassSelect, MpinInput],
   templateUrl: './fd-booking.html',
   styleUrl: './fd-booking.scss',
 })
@@ -44,6 +47,7 @@ export class FdBooking implements OnInit {
   selectedCurrencyOffer: CurrencyOffer | null = null;
   selectedRateTier: RateTier | null = null;
   submittedAccount: AccountResponse | null = null;
+  mpin='';mpinNotSet=false;
   tenureOptions: GlassSelectOption[] = [];
   savingsOptions: GlassSelectOption[] = [];
   savingsAccounts: SavingsAccount[] = [];
@@ -56,6 +60,7 @@ export class FdBooking implements OnInit {
 
   constructor(
     private readonly fdService: FdService,
+    private readonly mpinProof:MpinProofService,
     private readonly router: Router,
     private readonly route: ActivatedRoute,
     private readonly fb: FormBuilder
@@ -130,7 +135,7 @@ export class FdBooking implements OnInit {
 
   submitBooking(): void {
     if (this.productAccessBlocked) return;
-    if (this.submitting || this.submittedAccount || !this.selectedProduct
+    if (this.submitting || !this.selectedProduct
         || !this.selectedCurrencyOffer || !this.selectedRateTier) return;
     if (this.bookingForm.invalid) {
       this.bookingForm.markAllAsTouched();
@@ -151,21 +156,27 @@ export class FdBooking implements OnInit {
 
     this.submitting = true;
     this.bookingError = '';
-    this.fdService.book(request).subscribe({
+    const book=this.submittedAccount?null:this.fdService.book(request);
+    const startFunding=(account:AccountResponse)=>{this.submittedAccount=account;this.fundBooked(account);};
+    if(!book){startFunding(this.submittedAccount!);return;}
+    book.subscribe({
       next: (account) => {
-        this.submitting = false;
-        if (!Number.isInteger(account.account_id) || account.account_id <= 0) {
-          this.bookingError = 'We could not open the deposit details after booking. Check whether the deposit was created before trying again.';
-          return;
-        }
-        this.submittedAccount = account;
-        void this.router.navigate(['/fd/accounts', account.account_id]);
+        if (!Number.isInteger(account.account_id) || account.account_id <= 0) { this.submitting = false;this.bookingError = 'We could not open the deposit details after booking. Check whether the deposit was created before trying again.';return; }
+        startFunding(account);
       },
       error: (error: HttpErrorResponse) => {
         this.submitting = false;
         const apiError = normalizeApiError(error);
         this.bookingError = this.messageFor(apiError);
       },
+    });
+  }
+
+  private fundBooked(account:AccountResponse):void {
+    const principal=Number(account.principal_amount);this.bookingError='';
+    this.mpinProof.requestProof('FD_FUNDING',{fdId:account.account_id,principal},this.mpin).subscribe({
+      next:proof=>this.fdService.fund(account.account_id,{amount:principal,currency_code:account.currency_code,savings_account_id:account.funding_savings_account_id??undefined},proof.proofToken).subscribe({next:()=>{this.mpin='';this.submitting=false;void this.router.navigate(['/fd/accounts',account.account_id]);},error:e=>{this.mpin='';this.submitting=false;this.bookingError=mpinErrorMessage(e);}}),
+      error:e=>{this.mpin='';this.submitting=false;this.bookingError=mpinErrorMessage(e);},
     });
   }
 

@@ -18,6 +18,8 @@
     <section *ngIf="mode === 'product' && offer as product">
       <p>{{ product.description }}</p>
       <form class="workflow-form" [formGroup]="form" (ngSubmit)="submit()">
+        <label class="workflow-wide"><span>{{'MPIN'|translate}}</span><app-mpin-input [(ngModel)]="mpin" [ngModelOptions]="{standalone:true}"></app-mpin-input></label>
+        <a *ngIf="mpinNotSet" routerLink="/mpin">{{'Set up your MPIN'|translate}}</a>
         <label>Funding currency <input [value]="product.baseCurrencyCode" disabled></label>
         <label>Destination currency <select formControlName="destinationCurrencyCode"><option *ngFor="let currency of product.currencies" [value]="currency.code" [disabled]="currency.code === product.baseCurrencyCode">{{ currency.code }}</option></select></label>
         <label>Funding amount <input type="number" step="0.01" min="0.01" formControlName="amount"></label>

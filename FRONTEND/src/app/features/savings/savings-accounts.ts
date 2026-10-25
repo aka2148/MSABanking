@@ -8,23 +8,25 @@ import { SavingsAccount } from '../../core/models/fd.models';
 import { FdService, normalizeApiError, SavingsHistory, SavingsTransferResponse } from '../../core/services/fd.service';
 import { WorkspaceShell } from '../../shared/components/workspace-shell/workspace-shell';
 import { GlassSelect } from '../../shared/components/glass-select/glass-select';
+import { MpinInput } from '../../shared/components/mpin-input';
+import { MpinProofService, mpinErrorMessage } from '../../core/services/mpin-proof.service';
 
 @Component({
   selector: 'app-savings-accounts', standalone: true,
-  imports: [TranslatePipe, CommonModule, ReactiveFormsModule, RouterLink, WorkspaceShell, GlassSelect],
+  imports: [TranslatePipe, CommonModule, ReactiveFormsModule, RouterLink, WorkspaceShell, GlassSelect, MpinInput],
   templateUrl: './savings-accounts.html', styleUrl: './savings-accounts.scss',
 })
 export class SavingsAccounts implements OnInit {
   accounts: SavingsAccount[] = [];
   loading = false; submitting = false; error = ''; message = '';
   messageParameters: readonly unknown[] = [];
-  demoEnabled = false; demoBusy = false;
   transferBusy = false;
   transferError = '';
   transferMessage = '';
   transferReference = '';
   transferOptions: Array<{ label: string; value: string }> = [];
   transferHistory: SavingsHistory[] = [];
+  mpinNotSet=false;mpinAttempts:string|null=null;mpinLockedUntil:string|null=null;
   historyAccountId: number | null = null;
   currenciesLoading = true;
   private submission: { body: string; key: string } | null = null;
@@ -32,7 +34,7 @@ export class SavingsAccounts implements OnInit {
   readonly form;
   readonly transferForm;
   private transferSubmission: { signature: string; key: string } | null = null;
-  constructor(private readonly fd: FdService, fb: FormBuilder) {
+  constructor(private readonly fd: FdService, private readonly mpin:MpinProofService,fb: FormBuilder) {
     this.form = fb.nonNullable.group({
       displayName: ['', [Validators.required, Validators.maxLength(80), Validators.pattern(/.*\S.*/)]],
       currencyCode: ['INR', Validators.required],
@@ -42,8 +44,8 @@ export class SavingsAccounts implements OnInit {
       toAccountNumber: ['', [Validators.required, Validators.maxLength(64)]],
       amount: [null as number | null, [Validators.required, Validators.min(0.00000001)]],
       remark: ['', Validators.maxLength(140)],
+      mpin: ['', [Validators.required,Validators.pattern(/^[0-9]{6}$/)]],
     });
-    this.transferForm.valueChanges.subscribe(() => { this.transferSubmission = null; });
   }
   ngOnInit(): void {
     this.load();
@@ -64,15 +66,6 @@ export class SavingsAccounts implements OnInit {
         this.error = normalizeApiError(e).message;
         this.currenciesLoading = false;
       },
-    });
-    this.fd.demoOptions().subscribe({ next: options => { this.demoEnabled = options.enabled; }, error: () => {} });
-  }
-  demoOpening(account: SavingsAccount): void {
-    if (!this.demoEnabled || this.demoBusy) return;
-    this.demoBusy = true; this.error = '';
-    this.fd.provisionDemoOpening(account.account_id, 100000).subscribe({
-      next: () => { this.demoBusy = false; this.message = 'Demo opening funds recorded. This action credits each savings account once.'; this.load(); },
-      error: (e: HttpErrorResponse) => { this.demoBusy = false; this.error = normalizeApiError(e).message; },
     });
   }
   statusLabel(status: string): string {
@@ -103,15 +96,18 @@ export class SavingsAccounts implements OnInit {
     if (this.transferSubmission?.signature !== signature) this.transferSubmission = { signature, key: crypto.randomUUID() };
     const key = this.transferSubmission.key;
     this.transferBusy = true; this.transferError = ''; this.transferMessage = '';
-    this.fd.transferSavings({ fromAccountId, toAccountNumber, amount, ...(remark ? { remark } : {}) }, key).subscribe({
+    const pin=raw.mpin??'';this.transferBusy=true;
+    this.mpin.requestProof('TRANSFER',{fromAccountId,toAccountNumber,amount},pin).subscribe({next:proof=>this.fd.transferSavings({ fromAccountId, toAccountNumber, amount, ...(remark ? { remark } : {}) }, key,proof.proofToken).subscribe({
       next: (result: SavingsTransferResponse) => {
-        this.transferBusy = false; this.transferSubmission = null; this.transferReference = result.reference;
+        this.transferBusy = false; this.transferSubmission = null; this.transferReference = result.reference;this.clearTransferPin();
         this.transferMessage = 'Transfer completed. Reference: {0}';
         this.load(); this.loadHistory(fromAccountId);
       },
-      error: error => { this.transferBusy = false; this.transferError = normalizeApiError(error).message; },
-    });
+      error: error => { this.transferBusy = false; this.readMpinError(error);this.clearTransferPin(); },
+    }),error:error=>{this.transferBusy=false;this.readMpinError(error);this.clearTransferPin();}});
   }
+  private clearTransferPin():void{this.transferForm.controls.mpin.setValue('');}
+  private readMpinError(error:any):void{const msg=mpinErrorMessage(error);this.mpinNotSet=msg==='MPIN_NOT_SET';this.mpinAttempts=msg.startsWith('MPIN_INVALID:')?msg.split(':')[1]:null;this.mpinLockedUntil=msg.startsWith('MPIN_LOCKED:')?msg.split(':').slice(1).join(':'):null;this.transferError=this.mpinNotSet?'Set up your MPIN before continuing.':this.mpinAttempts!==null?`MPIN is incorrect. Attempts remaining: ${this.mpinAttempts}.`:this.mpinLockedUntil?`MPIN is locked until ${this.mpinLockedUntil}.`:msg;}
   private loadHistory(accountId: number): void {
     this.historyAccountId = accountId;
     this.fd.savingsTransactions(accountId).subscribe({ next: rows => this.transferHistory = rows, error: () => this.transferHistory = [] });

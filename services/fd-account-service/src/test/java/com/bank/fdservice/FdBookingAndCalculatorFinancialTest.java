@@ -34,6 +34,7 @@ class FdBookingAndCalculatorFinancialTest {
 
     @Mock private JdbcTemplate jdbc;
     @Mock private Authentication actor;
+    @Mock private MpinProofVerifier mpin;
 
     private ObjectMapper json;
     private DemoClockService clock;
@@ -48,8 +49,8 @@ class FdBookingAndCalculatorFinancialTest {
         json = new ObjectMapper();
         clock = new DemoClockService(jdbc, "Asia/Kolkata");
         calculatorController = new FdCalculatorController(jdbc);
-        depositController = new FixedDepositController(jdbc, json, clock);
-        lifecycleController = new FdLifecycleController(jdbc, null, json, clock);
+        depositController = new FixedDepositController(jdbc, json, clock, mpin);
+        lifecycleController = new FdLifecycleController(jdbc, null, json, clock, mpin);
 
         when(actor.getName()).thenReturn("test-user");
         when(actor.getDetails()).thenReturn(Map.of("userId", userId));
@@ -374,7 +375,7 @@ class FdBookingAndCalculatorFinancialTest {
                 .thenReturn(new FdLifecycleController.PrematureQuote(501L, fdId, new BigDecimal("1.0000"), new BigDecimal("0.0650"), new BigDecimal("0.0550"), new BigDecimal("135.00"), new BigDecimal("160.00"), new BigDecimal("25.00"), new BigDecimal("10135.00"), "PENDING", LocalDate.now().toString(), null, null, null, "Fixture request", "INR"));
 
         FdLifecycleController.PrematureQuote quote = lifecycleController.requestPremature(
-                actor, fdId, "quote-key-1", new FdLifecycleController.PrematureRequest("Emergency cash"));
+                actor, fdId, "quote-key-1", null, new FdLifecycleController.PrematureRequest("Emergency cash"));
 
         assertNotNull(quote);
         assertEquals(new BigDecimal("1.0000"), quote.penaltyPoints());
@@ -409,7 +410,7 @@ class FdBookingAndCalculatorFinancialTest {
         when(jdbc.queryForObject(contains("fcr_decimal_places"), eq(Integer.class), eq(1L)))
                 .thenReturn(2);
         ResponseStatusException failure = assertThrows(ResponseStatusException.class,
-                () -> lifecycleController.requestPremature(actor, fdId, "quote-key-2", new FdLifecycleController.PrematureRequest("Legacy withdrawal")));
+                () -> lifecycleController.requestPremature(actor, fdId, "quote-key-2", null, new FdLifecycleController.PrematureRequest("Legacy withdrawal")));
         assertEquals(HttpStatus.CONFLICT, failure.getStatusCode());
         verify(jdbc, never()).query(contains("SELECT premature_penalty_points FROM fd_product_currency_ref"), any(ResultSetExtractor.class), any(), any());
         verify(jdbc, never()).update(contains("INSERT INTO fd_premature_closure"), any(), any(), any(), any(), any(), any(), any());

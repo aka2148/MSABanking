@@ -45,6 +45,7 @@ public class AuthController {
     private final byte[] jwtKey;
     private final long jwtExpiry;
     private final TotpService totp;
+    private final CustomerRiskConfiguration customerRisk;
     private final RestClient mailApi;
     private final String mailFrom;
     private final String mailApiUrl;
@@ -55,7 +56,7 @@ public class AuthController {
 
     public AuthController(JdbcTemplate jdbc, PasswordEncoder passwords,
                           @Value("${app.jwt.secret}") String secret,
-                          @Value("${app.jwt.expiration-ms}") long jwtExpiry, TotpService totp,
+                          @Value("${app.jwt.expiration-ms}") long jwtExpiry, TotpService totp, CustomerRiskConfiguration customerRisk,
                           @Value("${app.auth.password-reset-from:no-reply@localhost}") String mailFrom,
                           @Value("${app.auth.password-reset-api-url:https://api.brevo.com/v3/smtp/email}") String mailApiUrl,
                           RestClient.Builder mailApiBuilder,
@@ -65,6 +66,7 @@ public class AuthController {
         this.jwtKey = Decoders.BASE64.decode(secret);
         this.jwtExpiry = jwtExpiry;
         this.totp = totp;
+        this.customerRisk = customerRisk;
         this.mailFrom = mailFrom;
         this.mailApiUrl = mailApiUrl;
         this.mailApiKey = mailApiKey;
@@ -169,7 +171,7 @@ public class AuthController {
         if (roleCount == null || roleCount == 0) jdbc.update("INSERT INTO roles(rol_role_code,rol_role_name) VALUES('ROLE_CUSTOMER','Customer')");
         long roleId = jdbc.queryForObject("SELECT rol_role_id FROM roles WHERE rol_role_code='ROLE_CUSTOMER'", Long.class);
         jdbc.update("INSERT INTO user_roles(ur_user_id,ur_role_id) VALUES(?,?)", userId, roleId);
-        jdbc.update("INSERT INTO customers(cus_user_id,cus_customer_number,cus_legal_entity_type) VALUES(?,?,?)", userId, "CUS-"+UUID.randomUUID().toString().replace("-", "").substring(0,12).toUpperCase(), request.legalEntityType);
+        jdbc.update("INSERT INTO customers(cus_user_id,cus_customer_number,cus_legal_entity_type,cus_risk_category) VALUES(?,?,?,?)", userId, "CUS-"+UUID.randomUUID().toString().replace("-", "").substring(0,12).toUpperCase(), request.legalEntityType, customerRisk.defaultCategory());
         long customerId = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         jdbc.update("INSERT INTO customer_details(cud_customer_id,cud_full_name) VALUES(?,?)", customerId, request.fullName);
         jdbc.update("INSERT INTO customer_emails(cem_customer_id,cem_email_address,cem_contact_type,cem_is_primary_signup,cem_is_primary) VALUES(?,?,'PRIMARY',1,1)", customerId, normalizedEmail);

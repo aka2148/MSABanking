@@ -6,6 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { CustomerAdminPage, CustomerAdminRecord, CustomerAdminService } from '../../../core/services/customer-admin.service';
 import { WorkspaceShell } from '../../../shared/components/workspace-shell/workspace-shell';
+import { MpinProofService } from '../../../core/services/mpin-proof.service';
 
 @Component({
   selector: 'app-customer-admin',
@@ -21,10 +22,11 @@ export class CustomerAdmin implements OnInit {
   savingId: number | null = null;
   error = '';
   message = '';
+  resetConfirmId:number|null=null;resettingId:number|null=null;
   readonly kycStatuses = ['PENDING', 'VERIFIED', 'REJECTED'];
   readonly riskCategories = ['LOW', 'MEDIUM', 'HIGH'];
 
-  constructor(private readonly customers: CustomerAdminService) {}
+  constructor(private readonly customers: CustomerAdminService,private readonly mpin:MpinProofService) {}
 
   ngOnInit(): void { this.load(0); }
 
@@ -54,6 +56,10 @@ export class CustomerAdmin implements OnInit {
       },
       error: (error: HttpErrorResponse) => { this.error = this.errorText(error); this.savingId = null; },
     });
+  }
+  resetMpin(customer:CustomerAdminRecord):void{
+    if(this.resetConfirmId!==customer.id){this.resetConfirmId=customer.id;return;}
+    this.resettingId=customer.id;this.error='';this.message='';this.mpin.reset(customer.id).subscribe({next:()=>{this.resettingId=null;this.resetConfirmId=null;this.message='MPIN reset. The customer must set a new MPIN with their account password.';},error:e=>{this.resettingId=null;this.error=this.errorText(e);}});
   }
 
   private errorText(error: HttpErrorResponse): string {

@@ -22,6 +22,10 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.util.UUID;
+import java.util.Date;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -101,16 +105,19 @@ class LedgerInvariantIntegrationTest {
     }
 
     @Test void tellerOperationsAreJournaledAndOpeningDefaultsOff() throws Exception {
-        mvc.perform(get("/api/v1/savings-accounts/demo-options").header("Authorization", customerToken)).andExpect(status().isOk()).andExpect(jsonPath("$.enabled").value(false));
+        mvc.perform(get("/api/v1/savings-accounts/demo-options").header("Authorization", customerToken)).andExpect(status().isForbidden());
         mvc.perform(post("/api/v1/savings-accounts/{id}/demo-opening", source).header("Authorization", customerToken).header("Idempotency-Key","demo-off").contentType(MediaType.APPLICATION_JSON).content("{\"amount\":10.00}"))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/savings-accounts/demo-options").header("Authorization", staffToken)).andExpect(status().isOk()).andExpect(jsonPath("$.enabled").value(false));
+        mvc.perform(post("/api/v1/savings-accounts/{id}/demo-opening", source).header("Authorization", staffToken).header("Idempotency-Key","demo-off-staff").contentType(MediaType.APPLICATION_JSON).content("{\"amount\":10.00}"))
                 .andExpect(status().isNotFound());
         mvc.perform(post("/fd/v1/staff/savings-accounts/{id}/deposit", source).header("Authorization", staffToken).header("Idempotency-Key","teller-deposit").contentType(MediaType.APPLICATION_JSON).content("{\"amount\":10.00,\"remarks\":\"cash\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.balance").value(110));
         mvc.perform(post("/fd/v1/staff/savings-accounts/{id}/deposit", source).header("Authorization", staffToken).header("Idempotency-Key","teller-deposit").contentType(MediaType.APPLICATION_JSON).content("{\"amount\":10.00,\"remarks\":\"cash\"}"))
                 .andExpect(status().isOk());
-        mvc.perform(post("/fd/v1/staff/savings-accounts/{id}/withdraw", source).header("Authorization", staffToken).header("Idempotency-Key","teller-withdraw").contentType(MediaType.APPLICATION_JSON).content("{\"amount\":20.00}"))
+        mvc.perform(post("/fd/v1/staff/savings-accounts/{id}/withdraw", source).header("Authorization", staffToken).header("X-MPIN-Proof",proof(customer,Long.toString(staff),"WITHDRAWAL",MpinProofVerifier.canonical("WITHDRAWAL",source,new java.math.BigDecimal("20.00")))).header("Idempotency-Key","teller-withdraw").contentType(MediaType.APPLICATION_JSON).content("{\"amount\":20.00}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.balance").value(90));
-        mvc.perform(post("/fd/v1/staff/savings-accounts/{id}/withdraw", source).header("Authorization", staffToken).header("Idempotency-Key","teller-overdraft").contentType(MediaType.APPLICATION_JSON).content("{\"amount\":1000.00}"))
+        mvc.perform(post("/fd/v1/staff/savings-accounts/{id}/withdraw", source).header("Authorization", staffToken).header("X-MPIN-Proof",proof(customer,Long.toString(staff),"WITHDRAWAL",MpinProofVerifier.canonical("WITHDRAWAL",source,new java.math.BigDecimal("1000.00")))).header("Idempotency-Key","teller-overdraft").contentType(MediaType.APPLICATION_JSON).content("{\"amount\":1000.00}"))
                 .andExpect(status().isConflict());
         assertMoney("90.00", source);
         assertEquals(2, jdbc.queryForObject("SELECT COUNT(*) FROM fd_journals WHERE fj_operation IN ('TELLER_DEPOSIT','TELLER_WITHDRAWAL')", Integer.class));
@@ -175,7 +182,8 @@ class LedgerInvariantIntegrationTest {
 
     private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder transfer(String key,long from,String to,String amount,String remark) {
         String body="{\"fromAccountId\":"+from+",\"toAccountNumber\":\""+to+"\",\"amount\":"+amount+(remark==null?"":",\"remark\":\""+remark+"\"")+"}";
-        return post("/api/v1/savings-accounts/transfers").header("Authorization",customerToken).header("Idempotency-Key",key).contentType(MediaType.APPLICATION_JSON).content(body);
+        String canonical=MpinProofVerifier.canonical("TRANSFER",from,to,new java.math.BigDecimal(amount));
+        return post("/api/v1/savings-accounts/transfers").header("Authorization",customerToken).header("X-MPIN-Proof",proof(customer,Long.toString(customer),"TRANSFER",canonical)).header("Idempotency-Key",key).contentType(MediaType.APPLICATION_JSON).content(body);
     }
     private long account(String number,long owner,long currency,String balance) {
         jdbc.update("INSERT INTO savings_accounts(sa_account_number,sa_holder_id,sa_currency_id,sa_display_name,sa_balance,sa_status,sa_created_date) VALUES(?,?,?, 'Test account',?,'ACTIVE',UTC_TIMESTAMP(6))",number,owner,currency,new java.math.BigDecimal(balance));
@@ -184,4 +192,9 @@ class LedgerInvariantIntegrationTest {
     private String accountNumber(long id){return jdbc.queryForObject("SELECT sa_account_number FROM savings_accounts WHERE sa_account_id=?",String.class,id);}
     private void assertMoney(String expected,long id){assertEquals(0,new java.math.BigDecimal(expected).compareTo(jdbc.queryForObject("SELECT sa_balance FROM savings_accounts WHERE sa_account_id=?",java.math.BigDecimal.class,id)));}
     private static String token(long id,String role){return "Bearer "+Jwts.builder().setSubject(Long.toString(id)).claim("userId",id).claim("roles",role).signWith(Keys.hmacShaKeyFor(Decoders.BASE64.decode(SECRET)),SignatureAlgorithm.HS512).compact();}
+    private static String proof(long owner,String actor,String purpose,String canonical){
+        try{Mac mac=Mac.getInstance("HmacSHA256");mac.init(new SecretKeySpec(Decoders.BASE64.decode(SECRET),"HmacSHA256"));byte[] key=mac.doFinal("mpin-proof-v1".getBytes(StandardCharsets.UTF_8));java.time.Instant now=java.time.Instant.now();
+            return Jwts.builder().setIssuer("identity").setSubject(Long.toString(owner)).claim("typ","mpin-proof").claim("act",actor).claim("purpose",purpose).claim("bind",MpinProofVerifier.hash(canonical)).claim("jti",UUID.randomUUID().toString()).setIssuedAt(Date.from(now)).setExpiration(Date.from(now.plusSeconds(90))).signWith(Keys.hmacShaKeyFor(key),SignatureAlgorithm.HS256).compact();
+        }catch(Exception e){throw new IllegalStateException(e);}
+    }
 }

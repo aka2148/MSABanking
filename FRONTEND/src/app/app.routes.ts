@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
 import { staffGuard } from './core/guards/staff.guard';
 import { adminGuard } from './core/guards/admin.guard';
+import { customerGuard } from './core/guards/customer.guard';
 
 export const routes: Routes = [
   { path: 'kyc', canActivate: [authGuard], canDeactivate: [(component: { beforeLeave: () => Promise<boolean> }) => component.beforeLeave()], loadComponent: () => import('./features/kyc/kyc').then(m => m.Kyc) },
@@ -69,6 +70,7 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./features/savings/savings-accounts').then(m => m.SavingsAccounts),
   },
+  { path: 'mpin', canActivate: [authGuard, customerGuard], loadComponent: () => import('./features/auth/mpin/mpin-page').then(m => m.MpinPage) },
   { path: 'loans', canActivate: [authGuard], data: { mode: 'catalog' }, loadComponent: () => import('./features/loans/loan-page').then(m => m.LoanPage) },
   { path: 'loans/:id', canActivate: [authGuard], data: { mode: 'product' }, loadComponent: () => import('./features/loans/loan-page').then(m => m.LoanPage) },
   { path: 'applications', canActivate: [authGuard], data: { mode: 'applications' }, loadComponent: () => import('./features/loans/loan-page').then(m => m.LoanPage) },

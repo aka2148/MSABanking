@@ -65,11 +65,9 @@ Transfer endpoint: `POST /api/v1/savings-accounts/transfers`, customer JWT only.
 
 The gateway already routes `/api/v1/savings-accounts/` and `/api/v1/admin/ledger/`; no nginx change was needed. Loan disbursement now returns 409 and leaves an approved application, balance, history, and journal untouched until receivable accounting exists. A previously disbursed loan still returns its existing record.
 
-## Readiness for planned later changes
+## Later changes A–E status
 
-1. **Demo opening staff-only:** the current gate is `SavingsAccountController.requireDemoOpeningAuthorization(userId, accountId)` (feature flag plus owner check). To switch it, change this one authorization method to the staff policy and add the staff role annotation to `demoOpening`. The Angular page already checks `GET /demo-options` and hides the customer button while disabled; when later making it staff-only, remove that customer button and expose staff UI. It remains customer-accessible when the explicit feature flag is enabled in this change.
-2. **MPIN:** in the transfer controller, place MPIN validation after request/source-owner/KYC and idempotency prechecks but immediately before `transfers.transfer(...)`. Keep the attempt counter write outside the money transaction so a rejected PIN persists when the money operation is never invoked. Teller withdrawal currently enters `StaffAccountController.withdraw()` and its private `transact()` helper under a controller transaction; split it into a nontransactional authorization/MPIN boundary and a separate transactional service, then validate MPIN before calling that service.
-3. **Secrets:** the transfer request has no secret field; its request hash is assembled from the explicit business fields only. Request bodies are not logged, and idempotency storage contains the hash and operation reference, never a body or credential.
+See [HANDOFF_LATER_CHANGES.md](HANDOFF_LATER_CHANGES.md) for the implemented staff-only demo opening, MPIN workflow, KYC validation updates, product template descriptions, default LOW risk category, environment settings, exact MPIN proof bindings, and residual risks. The transfer request hash continues to include only its explicit business fields; credentials are neither logged nor stored in idempotency records.
 
 ## Verified gaps and outstanding risks
 

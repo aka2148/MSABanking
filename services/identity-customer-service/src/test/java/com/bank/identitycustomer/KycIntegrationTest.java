@@ -8,6 +8,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.mock.web.MockMultipartFile;
@@ -34,11 +35,14 @@ class KycIntegrationTest {
     @Autowired MockMvc mvc;
     @Autowired JdbcTemplate jdbc;
     @Autowired ObjectMapper json;
+    @Autowired AuthController authController;
     private static final String URL = "/api/v1/customers/me/kyc";
     record Customer(String token, String username, long id) {}
     private Customer customer(boolean phone) throws Exception {
         String username = "kyc_" + UUID.randomUUID().toString().substring(0, 8);
-        Map<String,Object> body = new HashMap<>(Map.of("username", username, "password", UUID.randomUUID().toString(), "email", username + "@example.test", "fullName", "KYC Test", "legalEntityType", "INDIVIDUAL"));
+        @SuppressWarnings("unchecked") Map<String,java.time.Instant> verified=(Map<String,java.time.Instant>)org.springframework.test.util.ReflectionTestUtils.getField(authController,"verifiedEmails");
+        verified.put(username+"@example.test",java.time.Instant.now().plusSeconds(600));
+        Map<String,Object> body = new HashMap<>(Map.of("username", username, "password", "SkyRiver82!Mint", "email", username + "@example.test", "fullName", "KYC Test", "legalEntityType", "INDIVIDUAL", "address", "12 Sample Road", "city", "Sample City", "state", "Sample State", "postalCode", "560001"));
         if (phone) body.put("phone", "9000000000");
         JsonNode response = json.readTree(mvc.perform(post("/api/v1/auth/register").contentType("application/json").content(json.writeValueAsBytes(body))).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         long id = jdbc.queryForObject("SELECT cus_customer_id FROM customers c JOIN user_credentials u ON c.cus_user_id=u.ucr_user_id WHERE u.ucr_username=?", Long.class, username);
@@ -107,9 +111,10 @@ class KycIntegrationTest {
         Customer c = customer(false);
         mvc.perform(post(URL + "/rekyc").header("Authorization", "Bearer " + c.token()).contentType("application/json").content("{\"remarks\":\"Update my details\"}")).andExpect(status().isConflict());
         save(c, complete()); submit(c);
+        mvc.perform(post("/api/v1/auth/mpin/setup").header("Authorization", "Bearer " + c.token()).contentType("application/json").content("{\"password\":\"SkyRiver82!Mint\",\"mpin\":\"864209\"}")).andExpect(status().isNoContent());
         for (String remarks : List.of("", "short", "x".repeat(501), "<update details>"))
-            mvc.perform(post(URL + "/rekyc").header("Authorization", "Bearer " + c.token()).contentType("application/json").content(json.writeValueAsBytes(Map.of("remarks", remarks)))).andExpect(status().isBadRequest());
-        mvc.perform(post(URL + "/rekyc").header("Authorization", "Bearer " + c.token()).contentType("application/json").content("{\"remarks\":\" Update my details \"}"))
+            mvc.perform(post(URL + "/rekyc").header("Authorization", "Bearer " + c.token()).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(Map.of("remarks", remarks,"mpin","864209")))).andExpect(status().isBadRequest());
+        mvc.perform(post(URL + "/rekyc").header("Authorization", "Bearer " + c.token()).contentType("application/json").content("{\"remarks\":\" Update my details \",\"mpin\":\"864209\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.completionPercent").value(0)).andExpect(jsonPath("$.cycleNumber").value(2)).andExpect(jsonPath("$.values.occupation").value("SALARIED"));
         assertSnapshot(c, "PENDING", 3); assertEquals(1, eventCount(c, "REKYC_REQUESTED"));
         Map<String,Object> unchanged = complete(); unchanged.remove("proofOfIdValue"); unchanged.put("confirmSavedProof", true);
@@ -119,7 +124,7 @@ class KycIntegrationTest {
         JsonNode p = getProfile(c); assertEquals(3, p.get("cycleNumber").asInt()); assertEquals(0, p.get("completionPercent").asInt());
         jdbc.update("UPDATE customers SET cus_kyc_status='REJECTED' WHERE cus_customer_id=?", c.id());
         mvc.perform(put(URL + "/draft").header("Authorization", "Bearer " + c.token()).contentType("application/json").content(json.writeValueAsBytes(complete()))).andExpect(status().isConflict());
-        mvc.perform(post(URL + "/rekyc").header("Authorization", "Bearer " + c.token()).contentType("application/json").content("{\"remarks\":\"Update my details\"}")).andExpect(status().isConflict());
+        mvc.perform(post(URL + "/rekyc").header("Authorization", "Bearer " + c.token()).contentType("application/json").content("{\"remarks\":\"Update my details\",\"mpin\":\"864209\"}")).andExpect(status().isConflict());
     }
     @Test void concurrentFinalDraftSavesStayPendingUntilSubmit() throws Exception {
         Customer c = customer(false); Map<String,Object> draft = complete(); draft.remove("idIssueDate"); save(c, draft);
@@ -145,7 +150,7 @@ class KycIntegrationTest {
         for (byte[] bytes : new byte[][]{"fake".getBytes(), new byte[5 * 1024 * 1024 + 1], new byte[0]}) mvc.perform(multipart(URL + "/document").file(new MockMultipartFile("file", "proof.pdf", "application/pdf", bytes)).header("Authorization", "Bearer " + c.token())).andExpect(status().isBadRequest());
         mvc.perform(delete(URL + "/document").header("Authorization", "Bearer " + c.token())).andExpect(status().isOk()).andExpect(jsonPath("$.document").isEmpty());
         save(c, complete());
-        mvc.perform(delete(URL + "/document").header("Authorization", "Bearer " + c.token())).andExpect(status().isConflict());
+        mvc.perform(delete(URL + "/document").header("Authorization", "Bearer " + c.token())).andExpect(status().isOk());
     }
     @Test void authenticationAndStaffCannotAccessCustomerEndpoints() throws Exception {
         Customer c = customer(false);
@@ -186,5 +191,17 @@ class KycIntegrationTest {
             p = save(c, Map.of(field, "")); assertFalse(p.at("/completedFields/" + field).asBoolean());
         }
         assertEquals(0, p.get("completionPercent").asInt());
+    }
+
+    @Test void mpinSetupStoresNoPlaintextAndLocksAfterFiveFailures() throws Exception {
+        Customer c=customer(false);
+        mvc.perform(post("/api/v1/auth/mpin/setup").header("Authorization","Bearer "+c.token()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"password\":\"SkyRiver82!Mint\",\"mpin\":\"864209\"}")).andExpect(status().isNoContent());
+        String protectedValue=jdbc.queryForObject("SELECT cmp_hash FROM customer_mpin WHERE cmp_user_id=(SELECT ucr_user_id FROM user_credentials WHERE ucr_username=?)",String.class,c.username());
+        assertNotEquals("864209",protectedValue); assertFalse(protectedValue.contains("864209"));
+        String body=json.writeValueAsString(Map.of("mpin","111111","purpose","TRANSFER","fields",Map.of("fromAccountId",1,"toAccountNumber","SA-TEST-001","amount",new java.math.BigDecimal("10.00"))));
+        for(int i=0;i<4;i++) mvc.perform(post("/api/v1/auth/mpin/verify").header("Authorization","Bearer "+c.token()).contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("MPIN_INVALID"));
+        mvc.perform(post("/api/v1/auth/mpin/verify").header("Authorization","Bearer "+c.token()).contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isLocked()).andExpect(jsonPath("$.code").value("MPIN_LOCKED"));
+        mvc.perform(get("/api/v1/auth/mpin/status").header("Authorization","Bearer "+c.token())).andExpect(status().isOk()).andExpect(jsonPath("$.locked").value(true));
     }
 }

@@ -29,10 +29,12 @@ import java.util.Map;
 public class SavingsTransferController {
     private final JdbcTemplate jdbc;
     private final SavingsTransferService transfers;
+    private final MpinProofVerifier mpin;
 
-    public SavingsTransferController(JdbcTemplate jdbc, SavingsTransferService transfers) {
+    public SavingsTransferController(JdbcTemplate jdbc, SavingsTransferService transfers, MpinProofVerifier mpin) {
         this.jdbc = jdbc;
         this.transfers = transfers;
+        this.mpin=mpin;
     }
 
     @PostMapping("/transfers")
@@ -40,6 +42,7 @@ public class SavingsTransferController {
     @PreAuthorize("hasRole('CUSTOMER')")
     public SavingsTransferService.TransferResponse transfer(Authentication actor,
             @RequestHeader("Idempotency-Key") @NotBlank @Size(max=255) String key,
+            @RequestHeader(value="X-MPIN-Proof",required=false) String proof,
             @Valid @RequestBody TransferRequest request) {
         long userId = userId(actor);
         Integer owned = jdbc.query("SELECT 1 FROM savings_accounts WHERE sa_account_id=? AND sa_holder_id=?",
@@ -50,7 +53,9 @@ public class SavingsTransferController {
         String hash = requestHash(request);
         SavingsTransferService.TransferResponse replay = transfers.replayIfPresent(userId, key, hash, request.fromAccountId());
         if (replay != null) return replay;
-        return transfers.transfer(userId, actor.getName(), key, hash, request);
+        String canonical=MpinProofVerifier.canonical("TRANSFER",request.fromAccountId(),request.toAccountNumber(),request.amount());
+        String jti=mpin.verify(actor,proof,"TRANSFER",userId,canonical);
+        return transfers.transfer(userId, actor.getName(), key, hash, request,jti);
     }
 
     static String requestHash(TransferRequest request) {

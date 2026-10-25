@@ -53,6 +53,7 @@ class IdentityCustomerMigrationTest {
 
     @Autowired
     private JdbcTemplate jdbc;
+    @Autowired private AuthController authController;
 
     @Autowired private MockMvc mvc;
 
@@ -63,6 +64,7 @@ class IdentityCustomerMigrationTest {
                 Integer.class);
 
         assertEquals(1, appliedMigrations);
+        assertEquals(9,jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1",Integer.class));
         assertTrue(tableExists("users"));
         assertTrue(tableExists("user_credentials"));
         assertTrue(tableExists("customers"));
@@ -74,6 +76,7 @@ class IdentityCustomerMigrationTest {
     void registrationReturnsCustomerTokenAndTokenProtectsMeEndpoint() throws Exception {
         String username = newUsername();
         String token = register(username);
+        assertEquals("LOW",jdbc.queryForObject("SELECT c.cus_risk_category FROM customers c JOIN user_credentials u ON u.ucr_user_id=c.cus_user_id WHERE u.ucr_username=?",String.class,username));
         mvc.perform(get("/api/v1/auth/me").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username").value(username))
@@ -90,7 +93,7 @@ class IdentityCustomerMigrationTest {
                 .content("{\"username\":\""+username+"\",\"password\":\"incorrect-password\"}"))
                 .andExpect(status().isLocked());
         mvc.perform(post("/api/v1/auth/login").contentType("application/json")
-                .content("{\"username\":\""+username+"\",\"password\":\"DemoPassword123\"}"))
+                .content("{\"username\":\""+username+"\",\"password\":\"SkyRiver82!Mint\"}"))
                 .andExpect(status().isLocked());
     }
 
@@ -98,10 +101,10 @@ class IdentityCustomerMigrationTest {
     void passwordChangeRequiresCurrentPasswordAndUpdatesLoginCredential() throws Exception {
         String username=newUsername(); String token=register(username);
         mvc.perform(post("/api/v1/auth/change-password").header("Authorization","Bearer "+token)
-                .contentType("application/json").content("{\"currentPassword\":\"DemoPassword123\",\"newPassword\":\"NewDemoPassword123\"}"))
+                .contentType("application/json").content("{\"currentPassword\":\"SkyRiver82!Mint\",\"newPassword\":\"OceanTrail49#Violet\"}"))
                 .andExpect(status().isNoContent());
         mvc.perform(post("/api/v1/auth/login").contentType("application/json")
-                .content("{\"username\":\""+username+"\",\"password\":\"NewDemoPassword123\"}"))
+                .content("{\"username\":\""+username+"\",\"password\":\"OceanTrail49#Violet\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.roles[0]").value("ROLE_CUSTOMER"));
     }
 
@@ -126,6 +129,7 @@ class IdentityCustomerMigrationTest {
         String created=mvc.perform(post("/api/v1/customers").header("Authorization","Bearer "+admin)
                         .contentType("application/json").content("{\"userId\":"+userId+",\"fullName\":\"Admin Created Customer\"}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.username").value(username))
+                .andExpect(jsonPath("$.riskCategory").value("LOW"))
                 .andReturn().getResponse().getContentAsString();
         long customerId=com.fasterxml.jackson.databind.json.JsonMapper.builder().build().readTree(created).get("id").asLong();
         mvc.perform(get("/api/v1/customers/search").header("Authorization","Bearer "+admin).param("q","Admin Created Customer"))
@@ -138,6 +142,12 @@ class IdentityCustomerMigrationTest {
                         .header("Authorization","Bearer "+admin).contentType("application/json")
                         .content("{\"status\":\"VERIFIED\",\"riskCategory\":\"MEDIUM\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.kycStatus").value("VERIFIED"));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/v1/customers/"+customerId+"/status")
+                        .header("Authorization","Bearer "+admin).contentType("application/json").content("{\"riskCategory\":\"INVALID\"}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/v1/customers/"+customerId+"/status")
+                        .header("Authorization","Bearer "+admin).contentType("application/json").content("{\"riskCategory\":\" \"}"))
+                .andExpect(status().isBadRequest());
         var snapshot=com.fasterxml.jackson.databind.json.JsonMapper.builder().build().readTree(jdbc.queryForObject(
                 "SELECT payload FROM outbox_event WHERE event_key=(SELECT usr_user_uuid FROM users WHERE usr_user_id=?) ORDER BY source_version DESC LIMIT 1",String.class,userId));
         assertEquals("VERIFIED",snapshot.path("user").path("kycStatus").asText());
@@ -151,7 +161,7 @@ class IdentityCustomerMigrationTest {
         long roleId=jdbc.queryForObject("SELECT rol_role_id FROM roles WHERE rol_role_code='ROLE_BANK_OFFICER'",Long.class);
         jdbc.update("INSERT INTO user_roles(ur_user_id,ur_role_id) VALUES(?,?)",userId,roleId);
         String response=mvc.perform(post("/api/v1/auth/login").contentType("application/json")
-                        .content("{\"username\":\""+username+"\",\"password\":\"DemoPassword123\"}"))
+                        .content("{\"username\":\""+username+"\",\"password\":\"SkyRiver82!Mint\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.roles").isArray())
                 .andReturn().getResponse().getContentAsString();
         return com.fasterxml.jackson.databind.json.JsonMapper.builder().build().readTree(response).get("token").asText();
@@ -160,8 +170,10 @@ class IdentityCustomerMigrationTest {
     private String newUsername() { return "demo_" + UUID.randomUUID().toString().substring(0, 8); }
 
     private String register(String username) throws Exception {
+        @SuppressWarnings("unchecked") java.util.Map<String,java.time.Instant> verified = (java.util.Map<String,java.time.Instant>) org.springframework.test.util.ReflectionTestUtils.getField(authController,"verifiedEmails");
+        verified.put(username+"@example.test",java.time.Instant.now().plusSeconds(600));
         String response=mvc.perform(post("/api/v1/auth/register").contentType("application/json")
-                        .content("{\"username\":\""+username+"\",\"password\":\"DemoPassword123\",\"email\":\""+username+"@example.test\",\"fullName\":\"Demo Customer\",\"role\":\"ADMIN\"}"))
+                        .content("{\"username\":\""+username+"\",\"password\":\"SkyRiver82!Mint\",\"email\":\""+username+"@example.test\",\"fullName\":\"Demo Customer\",\"address\":\"12 Sample Road\",\"city\":\"Sample City\",\"state\":\"Sample State\",\"postalCode\":\"560001\",\"role\":\"ADMIN\"}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.roles[0]").value("ROLE_CUSTOMER"))
                 .andReturn().getResponse().getContentAsString();
         return com.fasterxml.jackson.databind.json.JsonMapper.builder().build().readTree(response).get("token").asText();

@@ -21,6 +21,10 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 
 import java.util.UUID;
+import java.util.Date;
+import java.nio.charset.StandardCharsets;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -57,8 +61,8 @@ class FdAccountMigrationTest {
 
     @Test
     void appliesAllFdMigrationsAndCreatesWorkflowSchema() {
-        assertEquals(13, jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1", Integer.class));
-        assertEquals(13, jdbc.queryForObject("SELECT MAX(CAST(version AS UNSIGNED)) FROM flyway_schema_history WHERE success=1", Integer.class));
+        assertEquals(14, jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1", Integer.class));
+        assertEquals(14, jdbc.queryForObject("SELECT MAX(CAST(version AS UNSIGNED)) FROM flyway_schema_history WHERE success=1", Integer.class));
 
         assertTrue(table("fd_accounts"));
         assertTrue(table("savings_accounts"));
@@ -75,6 +79,7 @@ class FdAccountMigrationTest {
         assertTrue(table("forex_requests"));
         assertTrue(table("chart_of_accounts"));
         assertTrue(table("fd_ledger_cutover"));
+        assertTrue(table("fd_mpin_proof_use"));
 
         assertEquals(8, decimalScale("fd_accounts", "fa_principal_amount"));
         assertEquals(8, decimalScale("savings_accounts", "sa_balance"));
@@ -90,6 +95,9 @@ class FdAccountMigrationTest {
 
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/savings-accounts/demo-options")
                         .header("Authorization", "Bearer " + customerToken))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isForbidden());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/savings-accounts/demo-options")
+                        .header("Authorization", "Bearer " + adminToken))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.enabled").value(true));
         var openingAccount = mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/savings-accounts")
@@ -102,25 +110,25 @@ class FdAccountMigrationTest {
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/savings-accounts/{id}/demo-opening", openingSavingsId)
                         .header("Authorization", "Bearer " + customerToken).header("Idempotency-Key", "opening-precision-reject")
                         .contentType(MediaType.APPLICATION_JSON).content("{\"amount\":123.456}"))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isBadRequest());
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isForbidden());
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/savings-accounts/{id}/demo-opening", openingSavingsId)
-                        .header("Authorization", "Bearer " + customerToken).header("Idempotency-Key", "opening-cap")
+                        .header("Authorization", "Bearer " + adminToken).header("Idempotency-Key", "opening-cap")
                         .contentType(MediaType.APPLICATION_JSON).content("{\"amount\":5000.01}"))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isBadRequest());
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/savings-accounts/{id}/demo-opening", openingSavingsId)
-                        .header("Authorization", "Bearer " + customerToken).header("Idempotency-Key", "opening-valid")
+                        .header("Authorization", "Bearer " + adminToken).header("Idempotency-Key", "opening-valid")
                         .contentType(MediaType.APPLICATION_JSON).content("{\"amount\":123.45}"))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.balance").value(123.45));
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/savings-accounts/{id}/demo-opening", openingSavingsId)
-                        .header("Authorization", "Bearer " + customerToken).header("Idempotency-Key", "opening-again")
+                        .header("Authorization", "Bearer " + adminToken).header("Idempotency-Key", "opening-again")
                         .contentType(MediaType.APPLICATION_JSON).content("{\"amount\":123.45}"))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isConflict());
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/savings-accounts/{id}", openingSavingsId)
                         .header("Authorization", "Bearer " + token(799, "ROLE_CUSTOMER")))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isNotFound());
         assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM savings_transactions WHERE st_account_id=?", Integer.class, openingSavingsId));
-        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM fd_journals WHERE fj_key=? AND fj_operation='DEMO_OPENING' AND fj_created_by=?", Integer.class, "DEMO_OPENING:"+openingSavingsId, "701"));
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM fd_journals WHERE fj_key=? AND fj_operation='DEMO_OPENING' AND fj_created_by=?", Integer.class, "DEMO_OPENING:"+openingSavingsId, "702"));
         assertEquals(2, jdbc.queryForObject("SELECT COUNT(*) FROM fd_journal_lines WHERE jl_journal_id=(SELECT fj_id FROM fd_journals WHERE fj_key=?)", Integer.class, "DEMO_OPENING:"+openingSavingsId));
 
         String booking = """
@@ -142,7 +150,7 @@ class FdAccountMigrationTest {
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isConflict());
 
         var funded = mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/fixed-deposits/{id}/fund", fdId)
-                        .header("Authorization", "Bearer " + customerToken).header("Idempotency-Key", "fund-701-1"))
+                        .header("Authorization", "Bearer " + customerToken).header("X-MPIN-Proof",proof(701,"FD_FUNDING",MpinProofVerifier.canonical("FD_FUNDING",fdId,new BigDecimal("100.00")))).header("Idempotency-Key", "fund-701-1"))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk()).andReturn();
         org.junit.jupiter.api.Assertions.assertEquals("ACTIVE", new com.fasterxml.jackson.databind.ObjectMapper().readTree(funded.getResponse().getContentAsString()).get("status").asText());
         assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM fd_transactions WHERE ft_account_id=? AND ft_source_savings_account_id=?",Integer.class,fdId,1));
@@ -180,7 +188,7 @@ class FdAccountMigrationTest {
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.cumulative_accrued").isNumber());
 
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/fixed-deposits/{id}/close", fdId)
-                        .header("Authorization", "Bearer " + customerToken).header("Idempotency-Key", "close-701-1"))
+                        .header("Authorization", "Bearer " + customerToken).header("X-MPIN-Proof",proof(701,"FD_CLOSE",MpinProofVerifier.canonical("FD_CLOSE",fdId))).header("Idempotency-Key", "close-701-1"))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.status").value("CLOSED"));
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/fixed-deposits/{id}/transactions", fdId)
@@ -200,11 +208,11 @@ class FdAccountMigrationTest {
                 .andReturn();
         long secondFdId = new com.fasterxml.jackson.databind.ObjectMapper().readTree(secondBooking.getResponse().getContentAsString()).get("account_id").asLong();
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/fixed-deposits/{id}/fund", secondFdId)
-                        .header("Authorization", "Bearer " + customerToken).header("Idempotency-Key", "fund-701-2"))
+                        .header("Authorization", "Bearer " + customerToken).header("X-MPIN-Proof",proof(701,"FD_FUNDING",MpinProofVerifier.canonical("FD_FUNDING",secondFdId,new BigDecimal("200.00")))).header("Idempotency-Key", "fund-701-2"))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
         jdbc.update("UPDATE fd_accounts SET fa_open_date=DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 30 DAY), fa_maturity_date=DATE_ADD(UTC_TIMESTAMP(6), INTERVAL 30 DAY) WHERE fa_account_id=?", secondFdId);
         var quote = mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/fixed-deposits/{id}/premature-closure", secondFdId)
-                        .header("Authorization", "Bearer " + customerToken).header("Idempotency-Key", "premature-701-2")
+                        .header("Authorization", "Bearer " + customerToken).header("X-MPIN-Proof",proof(701,"FD_PREMATURE_REQUEST",MpinProofVerifier.canonical("FD_PREMATURE_REQUEST",secondFdId))).header("Idempotency-Key", "premature-701-2")
                         .contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"Demo premature withdrawal\"}"))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.status").value("PENDING"))
@@ -292,6 +300,12 @@ class FdAccountMigrationTest {
     private String token(long userId, String role) {
         return Jwts.builder().setSubject(Long.toString(userId)).claim("userId", userId).claim("roles", role)
                 .signWith(Keys.hmacShaKeyFor(Decoders.BASE64.decode(JWT_SECRET)), SignatureAlgorithm.HS512).compact();
+    }
+
+    private String proof(long userId,String purpose,String canonical) {
+        try{Mac mac=Mac.getInstance("HmacSHA256");mac.init(new SecretKeySpec(Decoders.BASE64.decode(JWT_SECRET),"HmacSHA256"));byte[] key=mac.doFinal("mpin-proof-v1".getBytes(StandardCharsets.UTF_8));java.time.Instant now=java.time.Instant.now();
+            return Jwts.builder().setIssuer("identity").setSubject(Long.toString(userId)).claim("typ","mpin-proof").claim("act",Long.toString(userId)).claim("purpose",purpose).claim("bind",MpinProofVerifier.hash(canonical)).claim("jti",UUID.randomUUID().toString()).setIssuedAt(Date.from(now)).setExpiration(Date.from(now.plusSeconds(90))).signWith(Keys.hmacShaKeyFor(key),SignatureAlgorithm.HS256).compact();
+        }catch(Exception e){throw new IllegalStateException(e);}
     }
 
     private boolean table(String name) {

@@ -34,6 +34,7 @@
                 [ngModel]="form[field]" [name]="field" (ngModelChange)="changed(field, $event); flush()" [placeholder]="'Select' | translate"></app-glass-select>
               <ng-template #textField>
                 <input [type]="field === 'dateOfBirth' || field === 'idIssueDate' ? 'date' : 'text'"
+                  [max]="field === 'dateOfBirth' || field === 'idIssueDate' ? utcToday : null"
                   [ngModel]="form[field]" [name]="field" (ngModelChange)="changed(field, $event)"
                   [placeholder]="field === 'proofOfIdValue' ? (p.proofNumberMasked || '') : ''" autocomplete="off" />
               </ng-template>
@@ -61,6 +62,7 @@
           <textarea name="remarks" [(ngModel)]="remarks" [placeholder]="'Reason for re-KYC (10–500 characters)' | translate"></textarea>
           <span class="glass-field__error" *ngIf="remarksError">{{ remarksError | translate }}</span>
         </label>
+        <label class="glass-field"><span class="glass-field__label">{{'MPIN'|translate}}</span><app-mpin-input [(ngModel)]="rekycMpin" name="rekycMpin"></app-mpin-input><span class="glass-field__error" *ngIf="mpinNotSet">{{'Set up your MPIN before continuing.'|translate}} <a routerLink="/mpin">{{'Set up your MPIN'|translate}}</a></span></label>
         <div class="kyc-actions">
           <button class="glass-btn" type="submit" [disabled]="busy">{{ 'Send' | translate }}</button>
           <button class="glass-btn glass-btn--ghost" type="button" (click)="requesting = false" [disabled]="busy">{{ 'Cancel' | translate }}</button>

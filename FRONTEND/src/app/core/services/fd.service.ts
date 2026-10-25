@@ -64,22 +64,12 @@ export class FdService {
     return this.getAccount(id).pipe(switchMap(account => this.getSavings(account.funding_savings_account_id!)));
   }
 
-  demoOptions(): Observable<{ enabled: boolean }> {
-    return this.http.get<{ enabled: boolean }>(this.path('/savings-accounts/demo-options'));
-  }
-
   listSavingsCurrencies(): Observable<Array<{ currencyCode: string; currencyName: string; decimalPlaces: number }>> {
     return this.http.get<Array<{ currencyCode: string; currencyName: string; decimalPlaces: number }>>(this.path('/savings-accounts/currencies'));
   }
 
-  provisionDemoOpening(id: number, amount: number): Observable<SavingsAccount> {
-    return this.http.post<SavingsAccount>(this.path(`/savings-accounts/${id}/demo-opening`), { amount }, {
-      headers: { 'Idempotency-Key': createIdempotencyKey() },
-    });
-  }
-
-  transferSavings(request: { fromAccountId: number; toAccountNumber: string; amount: number; remark?: string }, idempotencyKey: string): Observable<SavingsTransferResponse> {
-    return this.http.post<SavingsTransferResponse>(this.path('/savings-accounts/transfers'), request, { headers: { 'Idempotency-Key': idempotencyKey } });
+  transferSavings(request: { fromAccountId: number; toAccountNumber: string; amount: number; remark?: string }, idempotencyKey: string, proof: string): Observable<SavingsTransferResponse> {
+    return this.http.post<SavingsTransferResponse>(this.path('/savings-accounts/transfers'), request, { headers: { 'Idempotency-Key': idempotencyKey, 'X-MPIN-Proof': proof } });
   }
 
   savingsTransactions(id: number): Observable<SavingsHistory[]> {
@@ -121,8 +111,8 @@ export class FdService {
     }).pipe(map(accountView));
   }
 
-  fund(accountId: number, request: FundingRequest): Observable<FundingResponse> {
-    return this.write<BackendFdAccount>(`/fixed-deposits/${accountId}/fund`, { savingsAccountId: request.savings_account_id }).pipe(map(account => ({
+  fund(accountId: number, request: FundingRequest,proof:string): Observable<FundingResponse> {
+    return this.write<BackendFdAccount>(`/fixed-deposits/${accountId}/fund`, { savingsAccountId: request.savings_account_id },proof).pipe(map(account => ({
       ...accountView(account), funding_recorded: true as const,
       funding_description: 'Internal demonstration transfer from the linked savings account.',
     })));
@@ -140,8 +130,8 @@ export class FdService {
     return this.http.get<AccrualResponse>(this.path(`/fixed-deposits/${accountId}/accruals/cumulative`));
   }
 
-  close(accountId: number): Observable<ClosureResponse> {
-    return this.write<BackendCloseResponse>(`/fixed-deposits/${accountId}/close`).pipe(
+  close(accountId: number,proof:string): Observable<ClosureResponse> {
+    return this.write<BackendCloseResponse>(`/fixed-deposits/${accountId}/close`,{},proof).pipe(
       switchMap(result => this.getAccount(accountId).pipe(map(account => ({
         account_id: result.accountId, account_number: account.account_number, status: 'CLOSED' as const,
         closed_date: new Date().toISOString(), settlement_amount: result.settledAmount,
@@ -153,9 +143,10 @@ export class FdService {
 
   requestPrematureClosure(
     accountId: number,
-    request?: PrematureClosureRequest
+    request: PrematureClosureRequest|undefined,
+    proof:string
   ): Observable<PrematureClosureResponse> {
-    return this.write<PrematureClosureResponse>(`/fixed-deposits/${accountId}/premature-closure`, request ?? {});
+    return this.write<PrematureClosureResponse>(`/fixed-deposits/${accountId}/premature-closure`, request ?? {},proof);
   }
 
   getPrematureClosures(accountId: number): Observable<PrematureClosureResponse[]> {
@@ -192,7 +183,7 @@ export class FdService {
     this.writeSubmissions(submissions);
   }
 
-  private write<T>(path: string, body?: object): Observable<T> {
+  private write<T>(path: string, body?: object,proof?:string): Observable<T> {
     let key: string;
     try {
       key = this.getSubmissionKey(path, body);
@@ -201,7 +192,7 @@ export class FdService {
     }
 
     return this.http.post<T>(this.path(path), body, {
-      headers: { 'Idempotency-Key': key },
+      headers: { 'Idempotency-Key': key, ...(proof?{'X-MPIN-Proof':proof}:{}) },
     }).pipe(tap(() => this.clearSubmissionIfCurrent(path, key)), catchError((error: HttpErrorResponse) => {
       // 4xx responses other than 409 are definitive rejections. A 409, network
       // failure, or server failure can have an uncertain outcome, so preserve

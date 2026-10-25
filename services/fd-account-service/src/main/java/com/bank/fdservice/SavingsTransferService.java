@@ -16,10 +16,12 @@ import java.util.UUID;
 public class SavingsTransferService {
     private final JdbcTemplate jdbc;
     private final PostingService postings;
+    private final MpinProofVerifier mpin;
 
-    public SavingsTransferService(JdbcTemplate jdbc, PostingService postings) {
+    public SavingsTransferService(JdbcTemplate jdbc, PostingService postings, MpinProofVerifier mpin) {
         this.jdbc = jdbc;
         this.postings = postings;
+        this.mpin=mpin;
     }
 
     public TransferResponse replayIfPresent(long actorId, String key, String hash, long fromAccountId) {
@@ -32,7 +34,7 @@ public class SavingsTransferService {
 
     @Transactional
     public TransferResponse transfer(long actorId, String actorUsername, String key, String hash,
-                                     SavingsTransferController.TransferRequest request) {
+                                     SavingsTransferController.TransferRequest request,String mpinJti) {
         CustomerProductAccess.requireVerified(jdbc, actorId);
         try {
             jdbc.update("INSERT INTO fd_operation_idempotency(foi_operation_scope,foi_actor_key,foi_idempotency_key,foi_request_hash,foi_status) VALUES('SAVINGS_TRANSFER',?,?,?,'PENDING')",
@@ -44,6 +46,7 @@ public class SavingsTransferService {
             if (row != null) return replayRow(row, hash, request.fromAccountId());
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Transfer is already in progress");
         }
+        mpin.consume(mpinJti,actorId,"TRANSFER");
 
         Map<String, Object> source = jdbc.query("SELECT sa_currency_id,sa_status FROM savings_accounts WHERE sa_account_id=? AND sa_holder_id=?",
                 rs -> rs.next() ? Map.of("currency", rs.getLong(1), "status", rs.getString(2)) : null,

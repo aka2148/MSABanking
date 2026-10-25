@@ -29,6 +29,8 @@
         <label>Requested amount <input type="number" min="0.01" step="0.01" formControlName="amount"></label>
         <label>Tenure in months <input type="number" min="1" step="1" formControlName="tenureMonths"></label>
         <label class="workflow-wide">Purpose <textarea formControlName="purpose" maxlength="500" rows="3"></textarea></label>
+        <label class="workflow-wide"><span>{{'MPIN'|translate}}</span><app-mpin-input [(ngModel)]="mpin" [ngModelOptions]="{standalone:true}"></app-mpin-input></label>
+        <a *ngIf="mpinNotSet" routerLink="/mpin">{{'Set up your MPIN'|translate}}</a>
         <label class="workflow-wide">Disbursement savings account
           <select formControlName="destinationSavingsAccountId">
             <option [ngValue]="0">Choose your savings account</option>

@@ -31,10 +31,12 @@ import java.util.Map;
 public class LoanForexController {
     private final JdbcTemplate jdbc;
     private final RestClient products;
+    private final MpinProofVerifier mpin;
 
-    public LoanForexController(JdbcTemplate jdbc, @Value("${app.product.base-url:http://localhost:8082}") String productUrl) {
+    public LoanForexController(JdbcTemplate jdbc, @Value("${app.product.base-url:http://localhost:8082}") String productUrl,MpinProofVerifier mpin) {
         this.jdbc = jdbc;
         this.products = RestClient.create(productUrl);
+        this.mpin=mpin;
     }
 
     @GetMapping("/api/v1/loans")
@@ -54,6 +56,7 @@ public class LoanForexController {
     @PostMapping("/api/v1/loans") @ResponseStatus(HttpStatus.CREATED) @Transactional
     public Map<String,Object> apply(Authentication actor, HttpServletRequest http,
             @RequestHeader("Idempotency-Key") @NotBlank @Size(max=255) String key,
+            @RequestHeader(value="X-MPIN-Proof",required=false) String proof,
             @Valid @RequestBody LoanRequest request) {
         long customer = userId(actor);
         CustomerProductAccess.requireVerified(jdbc,customer);
@@ -69,12 +72,14 @@ public class LoanForexController {
                 throw conflict("Idempotency key already belongs to another loan application");
             return loan(((Number)replay.get("id")).longValue(),customer);
         }
+        String proofJti=mpin.verify(actor,proof,"LOAN_APPLICATION",customer,MpinProofVerifier.canonical("LOAN_APPLICATION",request.productId(),request.amount(),request.currencyCode(),request.tenureMonths(),request.destinationSavingsAccountId()));
         requireCustomerActive(customer);
         JsonNode offer = offer("LOAN",request.productId(),http);
         Currency currency = currency(offer,request.currencyCode());
         BigDecimal amount = amount(request.amount(),currency);
         BigDecimal rate = rate(offer,request.currencyCode(),BigDecimal.valueOf(request.tenureMonths()));
         requireSavings(request.destinationSavingsAccountId(),customer,currency.id(),false);
+        mpin.consume(proofJti,customer,"LOAN_APPLICATION");
         try {
             jdbc.update("INSERT INTO loan_applications(la_customer_id,la_product_id,la_product_name,la_requested_amount,la_currency_id,la_tenure_months,la_annual_rate,la_purpose,la_destination_savings_id,la_idempotency_key) VALUES(?,?,?,?,?,?,?,?,?,?)",
                     customer,request.productId(),offer.path("productName").asText(),amount,currency.id(),request.tenureMonths(),rate,request.purpose().trim(),request.destinationSavingsAccountId(),key);
@@ -142,7 +147,7 @@ public class LoanForexController {
 
     @PostMapping("/api/v1/forex-requests") @ResponseStatus(HttpStatus.CREATED) @Transactional
     public Map<String,Object> forexRequest(Authentication actor,HttpServletRequest http,
-            @RequestHeader("Idempotency-Key") @NotBlank @Size(max=255) String key,@Valid @RequestBody ForexRequest request) {
+            @RequestHeader("Idempotency-Key") @NotBlank @Size(max=255) String key,@RequestHeader(value="X-MPIN-Proof",required=false) String proof,@Valid @RequestBody ForexRequest request) {
         long customer=userId(actor);
         CustomerProductAccess.requireVerified(jdbc,customer);
         Long replay=jdbc.query("SELECT fr_id FROM forex_requests WHERE fr_customer_id=? AND fr_idempotency_key=?",rs->rs.next()?rs.getLong(1):null,customer,key);
@@ -154,6 +159,7 @@ public class LoanForexController {
                     || !request.destinationCurrencyCode().equalsIgnoreCase((String)existing.get("destinationCurrency"))) throw conflict("Idempotency key already belongs to another forex request");
             return existing;
         }
+        String proofJti=mpin.verify(actor,proof,"FOREX_REQUEST",customer,MpinProofVerifier.canonical("FOREX_REQUEST",request.productId(),request.amount(),request.fundingCurrencyCode(),request.destinationCurrencyCode()));
         requireCustomerActive(customer);
         JsonNode offer=offer("FOREX",request.productId(),http);
         String base=offer.path("baseCurrencyCode").asText();
@@ -162,6 +168,7 @@ public class LoanForexController {
         Currency destination=currency(offer,request.destinationCurrencyCode());
         BigDecimal amount=amount(request.amount(),funding);
         BigDecimal markup=rate(offer,destination.code(),amount);
+        mpin.consume(proofJti,customer,"FOREX_REQUEST");
         try {
             jdbc.update("INSERT INTO forex_requests(fr_customer_id,fr_product_id,fr_product_name,fr_funding_currency_id,fr_destination_currency_id,fr_amount,fr_markup_rate,fr_fee,fr_idempotency_key) VALUES(?,?,?,?,?,?,?,0,?)",
                     customer,request.productId(),offer.path("productName").asText(),funding.id(),destination.id(),amount,markup,key);

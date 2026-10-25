@@ -61,7 +61,7 @@ class LoanForexIntegrationTest {
         long wrongCurrencyAccount=openSavings(customer,"USD");
         String applicant=token(customer,"ROLE_CUSTOMER"),stranger=token(other,"ROLE_CUSTOMER"),administrator=token(admin,"ROLE_ADMIN");
         String body="{\"productId\":11,\"amount\":1000,\"currencyCode\":\"INR\",\"tenureMonths\":12,\"purpose\":\"Education\",\"destinationSavingsAccountId\":"+destination+"}";
-        String created=mvc.perform(post("/api/v1/loans").header("Authorization",applicant).header("Idempotency-Key","loan-1").contentType(MediaType.APPLICATION_JSON).content(body))
+        String created=mvc.perform(post("/api/v1/loans").header("Authorization",applicant).header("X-MPIN-Proof",proof(customer,"LOAN_APPLICATION",MpinProofVerifier.canonical("LOAN_APPLICATION",11,1000,"INR",12,destination))).header("Idempotency-Key","loan-1").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("PENDING_REVIEW"))
                 .andExpect(jsonPath("$.disbursementTransactionId").isEmpty()).andReturn().getResponse().getContentAsString();
         long id=json.readTree(created).path("id").asLong();
@@ -71,10 +71,10 @@ class LoanForexIntegrationTest {
         assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM loan_applications WHERE la_customer_id=?",Integer.class,customer));
         mvc.perform(get("/api/v1/loans/{id}",id).header("Authorization",stranger)).andExpect(status().isNotFound());
         String wrong=body.replace("\"destinationSavingsAccountId\":"+destination,"\"destinationSavingsAccountId\":"+otherAccount);
-        mvc.perform(post("/api/v1/loans").header("Authorization",applicant).header("Idempotency-Key","loan-wrong").contentType(MediaType.APPLICATION_JSON).content(wrong)).andExpect(status().isBadRequest());
+        mvc.perform(post("/api/v1/loans").header("Authorization",applicant).header("X-MPIN-Proof",proof(customer,"LOAN_APPLICATION",MpinProofVerifier.canonical("LOAN_APPLICATION",11,1000,"INR",12,otherAccount))).header("Idempotency-Key","loan-wrong").contentType(MediaType.APPLICATION_JSON).content(wrong)).andExpect(status().isBadRequest());
         String mismatch=body.replace("\"destinationSavingsAccountId\":"+destination,"\"destinationSavingsAccountId\":"+wrongCurrencyAccount);
-        mvc.perform(post("/api/v1/loans").header("Authorization",applicant).header("Idempotency-Key","loan-mismatch").contentType(MediaType.APPLICATION_JSON).content(mismatch)).andExpect(status().isBadRequest());
-        mvc.perform(post("/api/v1/loans").header("Authorization",applicant).header("Idempotency-Key","loan-limits").contentType(MediaType.APPLICATION_JSON).content(body.replace("\"amount\":1000","\"amount\":1000000"))).andExpect(status().isBadRequest());
+        mvc.perform(post("/api/v1/loans").header("Authorization",applicant).header("X-MPIN-Proof",proof(customer,"LOAN_APPLICATION",MpinProofVerifier.canonical("LOAN_APPLICATION",11,1000,"INR",12,wrongCurrencyAccount))).header("Idempotency-Key","loan-mismatch").contentType(MediaType.APPLICATION_JSON).content(mismatch)).andExpect(status().isBadRequest());
+        mvc.perform(post("/api/v1/loans").header("Authorization",applicant).header("X-MPIN-Proof",proof(customer,"LOAN_APPLICATION",MpinProofVerifier.canonical("LOAN_APPLICATION",11,1000000,"INR",12,destination))).header("Idempotency-Key","loan-limits").contentType(MediaType.APPLICATION_JSON).content(body.replace("\"amount\":1000","\"amount\":1000000"))).andExpect(status().isBadRequest());
         mvc.perform(post("/api/v1/loans").header("Authorization",applicant).header("Idempotency-Key","loan-1").contentType(MediaType.APPLICATION_JSON).content(body.replace("\"amount\":1000","\"amount\":2000"))).andExpect(status().isConflict());
         mvc.perform(post("/api/v1/admin/loans/{id}/approve",id).header("Authorization",applicant)).andExpect(status().isForbidden());
         mvc.perform(post("/api/v1/admin/loans/{id}/approve",id).header("Authorization",administrator)).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("APPROVED"));
@@ -84,7 +84,7 @@ class LoanForexIntegrationTest {
         assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM savings_transactions WHERE st_reference_id=?",Integer.class,"LOAN:"+id));
         assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM savings_transactions WHERE st_account_id=?",Integer.class,otherAccount));
         assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM loan_applications WHERE la_id=? AND la_destination_savings_id<>?",Integer.class,id,destination));
-        String rejected=mvc.perform(post("/api/v1/loans").header("Authorization",applicant).header("Idempotency-Key","loan-2").contentType(MediaType.APPLICATION_JSON).content(body))
+        String rejected=mvc.perform(post("/api/v1/loans").header("Authorization",applicant).header("X-MPIN-Proof",proof(customer,"LOAN_APPLICATION",MpinProofVerifier.canonical("LOAN_APPLICATION",11,1000,"INR",12,destination))).header("Idempotency-Key","loan-2").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         long rejectedId=json.readTree(rejected).path("id").asLong();
         mvc.perform(post("/api/v1/admin/loans/{id}/reject",rejectedId).header("Authorization",administrator).contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\" \"}"))
@@ -95,10 +95,10 @@ class LoanForexIntegrationTest {
                 .andExpect(status().isOk());
         mvc.perform(post("/api/v1/admin/loans/{id}/disburse",rejectedId).header("Authorization",administrator)).andExpect(status().isConflict());
         String forex="{\"productId\":12,\"amount\":2000,\"fundingCurrencyCode\":\"INR\",\"destinationCurrencyCode\":\"USD\"}";
-        String request=mvc.perform(post("/api/v1/forex-requests").header("Authorization",applicant).header("Idempotency-Key","forex-1").contentType(MediaType.APPLICATION_JSON).content(forex))
+        String request=mvc.perform(post("/api/v1/forex-requests").header("Authorization",applicant).header("X-MPIN-Proof",proof(customer,"FOREX_REQUEST",MpinProofVerifier.canonical("FOREX_REQUEST",12,2000,"INR","USD"))).header("Idempotency-Key","forex-1").contentType(MediaType.APPLICATION_JSON).content(forex))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("REQUESTED")).andExpect(jsonPath("$.markupRate").value(0.01)).andReturn().getResponse().getContentAsString();
         long forexId=json.readTree(request).path("id").asLong();
-        mvc.perform(post("/api/v1/forex-requests").header("Authorization",applicant).header("Idempotency-Key","forex-invalid").contentType(MediaType.APPLICATION_JSON).content(forex.replace("\"destinationCurrencyCode\":\"USD\"","\"destinationCurrencyCode\":\"INR\""))).andExpect(status().isBadRequest());
+        mvc.perform(post("/api/v1/forex-requests").header("Authorization",applicant).header("X-MPIN-Proof",proof(customer,"FOREX_REQUEST",MpinProofVerifier.canonical("FOREX_REQUEST",12,2000,"INR","INR"))).header("Idempotency-Key","forex-invalid").contentType(MediaType.APPLICATION_JSON).content(forex.replace("\"destinationCurrencyCode\":\"USD\"","\"destinationCurrencyCode\":\"INR\""))).andExpect(status().isBadRequest());
         mvc.perform(post("/api/v1/forex-requests").header("Authorization",applicant).header("Idempotency-Key","forex-1").contentType(MediaType.APPLICATION_JSON).content(forex))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.id").value(forexId));
         mvc.perform(get("/api/v1/forex-requests/{id}",forexId).header("Authorization",stranger)).andExpect(status().isNotFound());
@@ -145,6 +145,11 @@ class LoanForexIntegrationTest {
         Date now=new Date();
         return "Bearer "+Jwts.builder().setSubject("test-"+user).claim("userId",user).claim("roles",role).setIssuedAt(now)
                 .setExpiration(new Date(now.getTime()+60000)).signWith(Keys.hmacShaKeyFor(Decoders.BASE64.decode(SECRET)),SignatureAlgorithm.HS512).compact();
+    }
+    private String proof(long user,String purpose,String canonical) {
+        try{javax.crypto.Mac mac=javax.crypto.Mac.getInstance("HmacSHA256");mac.init(new javax.crypto.spec.SecretKeySpec(Decoders.BASE64.decode(SECRET),"HmacSHA256"));byte[] key=mac.doFinal("mpin-proof-v1".getBytes(StandardCharsets.UTF_8));java.time.Instant now=java.time.Instant.now();
+            return Jwts.builder().setIssuer("identity").setSubject(Long.toString(user)).claim("typ","mpin-proof").claim("act","test-"+user).claim("purpose",purpose).claim("bind",MpinProofVerifier.hash(canonical)).claim("jti",UUID.randomUUID().toString()).setIssuedAt(Date.from(now)).setExpiration(Date.from(now.plusSeconds(90))).signWith(Keys.hmacShaKeyFor(key),SignatureAlgorithm.HS256).compact();
+        }catch(Exception e){throw new IllegalStateException(e);}
     }
     private static HttpServer productServer() {
         try {

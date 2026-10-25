@@ -7,9 +7,13 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { normalizeApiError } from '../../core/services/fd.service';
 import { CustomerOffer, ForexRequest, LoanForexService } from '../../core/services/loan-forex.service';
 import { WorkspaceShell } from '../../shared/components/workspace-shell/workspace-shell';
+import { FormsModule } from '@angular/forms';
+import { MpinInput } from '../../shared/components/mpin-input';
+import { MpinProofService,mpinErrorMessage } from '../../core/services/mpin-proof.service';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({ selector: 'app-forex-page', standalone: true,
-  imports: [CustomerProductWarning, CommonModule, ReactiveFormsModule, RouterLink, WorkspaceShell],
+  imports: [CustomerProductWarning, CommonModule, ReactiveFormsModule,FormsModule,RouterLink, WorkspaceShell,MpinInput,TranslatePipe],
   templateUrl: './forex-page.html', styleUrl: '../loans/loan-page.scss' })
 export class ForexPage implements OnInit {
   productAccessBlocked = true;
@@ -18,8 +22,9 @@ export class ForexPage implements OnInit {
   offers: CustomerOffer[] = []; offer: CustomerOffer | null = null;
   requests: ForexRequest[] = []; request: ForexRequest | null = null;
   private key: string | null = null;
+  mpin='';mpinNotSet=false;
   readonly form;
-  constructor(private readonly api: LoanForexService, route: ActivatedRoute, private readonly router: Router, fb: FormBuilder) {
+  constructor(private readonly api: LoanForexService,private readonly mpinProof:MpinProofService, route: ActivatedRoute, private readonly router: Router, fb: FormBuilder) {
     this.mode = route.snapshot.data['mode'] as ForexPage['mode'];
     this.id = Number(route.snapshot.paramMap.get('id'));
     this.form = fb.nonNullable.group({ amount: [0, [Validators.required, Validators.min(0.01)]], destinationCurrencyCode: ['', Validators.required] });
@@ -48,10 +53,11 @@ export class ForexPage implements OnInit {
       this.error = 'Choose a supported destination currency and enter an amount within the offered range.'; this.form.markAllAsTouched(); return;
     }
     this.busy = true; this.error = ''; this.key ??= crypto.randomUUID();
-    this.api.requestForex({ productId: this.offer.productId, amount: value.amount, fundingCurrencyCode: base.code, destinationCurrencyCode: value.destinationCurrencyCode }, this.key).subscribe({
-      next: row => { this.busy = false; this.key = null; void this.router.navigate(['/forex/requests', row.id]); },
-      error: e => { this.busy = false; this.error = normalizeApiError(e).message; },
-    });
+    const body={ productId: this.offer.productId, amount: value.amount, fundingCurrencyCode: base.code, destinationCurrencyCode: value.destinationCurrencyCode };
+    this.mpinProof.requestProof('FOREX_REQUEST',body,this.mpin).subscribe({next:proof=>this.api.requestForex(body,this.key!,proof.proofToken).subscribe({
+      next: row => { this.busy = false; this.key = null;this.mpin=''; void this.router.navigate(['/forex/requests', row.id]); },
+      error: e => { this.busy = false;this.mpin='';this.mpinNotSet=e?.error?.code==='MPIN_NOT_SET'; this.error = mpinErrorMessage(e); },
+    }),error:e=>{this.busy=false;this.mpin='';this.mpinNotSet=e?.error?.code==='MPIN_NOT_SET';this.error=mpinErrorMessage(e);}});
   }
   private fail(error: HttpErrorResponse): void { this.loading = false; this.error = normalizeApiError(error).message; }
 }

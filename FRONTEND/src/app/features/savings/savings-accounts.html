@@ -25,6 +25,7 @@
     <form [formGroup]="transferForm" (ngSubmit)="transfer()" class="savings-page__form" aria-labelledby="transfer-heading">
       <div class="savings-page__section-heading"><div><p class="fd-eyebrow"> {{ 'Savings transfer' | translate }} </p><h3 id="transfer-heading"> {{ 'Transfer money' | translate }} </h3></div></div>
       <p class="glass-error" *ngIf="transferError" role="alert">{{ transferError | translate }}</p>
+      <a *ngIf="mpinNotSet" routerLink="/mpin">{{ 'Set up your MPIN' | translate }}</a>
       <p class="fd-step-copy" *ngIf="transferMessage" role="status">{{ transferMessage | translate: [transferReference] }}</p>
       <div class="glass-field-row">
         <label class="glass-field"><span class="glass-field__label"> {{ 'From account' | translate }} </span>
@@ -39,6 +40,7 @@
         <label class="glass-field"><span class="glass-field__label"> {{ 'Remark (optional)' | translate }} </span>
           <input formControlName="remark" maxlength="140" />
         </label>
+        <label class="glass-field"><span class="glass-field__label">{{'MPIN'|translate}}</span><app-mpin-input formControlName="mpin"></app-mpin-input></label>
       </div>
       <button class="glass-btn" type="submit" [disabled]="transferBusy || transferOptions.length === 0"> {{ (transferBusy ? 'Transfer pending…' : 'Transfer money') | translate }} </button>
     </form>
@@ -50,7 +52,6 @@
         <div><dt>{{ account.display_name }}</dt><dd>{{ account.account_number }}</dd></div>
         <div><dt> {{ 'Balance' | translate }} </dt><dd>{{ account.balance | number:'1.2-4' }} {{ account.currency_code }}</dd></div>
         <div><dt> {{ 'Status' | translate }} </dt><dd> {{ (statusLabel(account.status)) | translate }} </dd></div>
-        <div *ngIf="demoEnabled"><dt> {{ 'Demo only' | translate }} </dt><dd><button type="button" class="glass-btn glass-btn--ghost" [disabled]="demoBusy" (click)="demoOpening(account)"> {{ 'Add demo opening funds' | translate }} </button></dd></div>
       </dl>
       <section *ngIf="historyAccountId !== null" aria-labelledby="transfer-history-heading" class="savings-page__list">
         <h3 id="transfer-history-heading"> {{ 'Recent savings history' | translate }} </h3>

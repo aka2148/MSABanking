@@ -23,6 +23,10 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.Date;
+import java.nio.charset.StandardCharsets;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -186,6 +190,7 @@ class FdFlowIntegrationTest {
         // 5. Fund FD: Transitions PENDING -> ACTIVE
         var fundResult = mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/fixed-deposits/{id}/fund", fdId)
                         .header("Authorization", "Bearer " + customerToken)
+                        .header("X-MPIN-Proof",proof(customerId,"FD_FUNDING",MpinProofVerifier.canonical("FD_FUNDING",fdId,new BigDecimal("10000.00"))))
                         .header("Idempotency-Key", "fund-key-flow-1"))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
                 .andReturn();
@@ -235,5 +240,10 @@ class FdFlowIntegrationTest {
     private String token(long userId, String role) {
         return Jwts.builder().setSubject(Long.toString(userId)).claim("userId", userId).claim("roles", role)
                 .signWith(Keys.hmacShaKeyFor(Decoders.BASE64.decode(JWT_SECRET)), SignatureAlgorithm.HS512).compact();
+    }
+    private String proof(long userId,String purpose,String canonical) {
+        try{Mac mac=Mac.getInstance("HmacSHA256");mac.init(new SecretKeySpec(Decoders.BASE64.decode(JWT_SECRET),"HmacSHA256"));byte[] key=mac.doFinal("mpin-proof-v1".getBytes(StandardCharsets.UTF_8));java.time.Instant now=java.time.Instant.now();
+            return Jwts.builder().setIssuer("identity").setSubject(Long.toString(userId)).claim("typ","mpin-proof").claim("act",Long.toString(userId)).claim("purpose",purpose).claim("bind",MpinProofVerifier.hash(canonical)).claim("jti",UUID.randomUUID().toString()).setIssuedAt(Date.from(now)).setExpiration(Date.from(now.plusSeconds(90))).signWith(Keys.hmacShaKeyFor(key),SignatureAlgorithm.HS256).compact();
+        }catch(Exception e){throw new IllegalStateException(e);}
     }
 }

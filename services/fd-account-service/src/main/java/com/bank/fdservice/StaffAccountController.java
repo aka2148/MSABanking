@@ -27,10 +27,9 @@ import java.util.UUID;
 @RequestMapping("/fd/v1/staff")
 @PreAuthorize("hasAnyRole('BANK_OFFICER','ADMIN')")
 public class StaffAccountController {
-    private final JdbcTemplate jdbc;
-    private final PostingService postings;
+    private final JdbcTemplate jdbc; private final StaffSavingsMovementService movements;private final MpinProofVerifier mpin;
 
-    public StaffAccountController(JdbcTemplate jdbc, PostingService postings) { this.jdbc = jdbc; this.postings = postings; }
+    public StaffAccountController(JdbcTemplate jdbc, StaffSavingsMovementService movements,MpinProofVerifier mpin) { this.jdbc = jdbc; this.movements=movements;this.mpin=mpin; }
 
     @GetMapping("/accounts")
     public Page<FdRow> fixedDeposits(@RequestParam(defaultValue = "0") int page,
@@ -58,8 +57,8 @@ public class StaffAccountController {
         String where = filter == null ? "" : " WHERE s.sa_status=?";
         Object[] args = filter == null ? new Object[]{} : new Object[]{filter};
         long total = jdbc.queryForObject("SELECT COUNT(*) FROM savings_accounts s" + where, Long.class, args);
-        List<SavingsRow> rows = jdbc.query("SELECT s.sa_account_id,s.sa_account_number,s.sa_display_name,s.sa_balance,c.fcr_iso_code,c.fcr_decimal_places,s.sa_status,s.sa_created_date,u.fur_full_name FROM savings_accounts s JOIN fd_currency_ref c ON c.fcr_currency_id=s.sa_currency_id LEFT JOIN fd_user_ref u ON u.fur_user_id=s.sa_holder_id" + where + " ORDER BY s.sa_account_id DESC LIMIT ? OFFSET ?",
-                (rs, n) -> new SavingsRow(rs.getLong(1), mask(rs.getString(2)), rs.getString(3), rs.getBigDecimal(4), rs.getString(5), rs.getInt(6), rs.getString(7), str(rs.getTimestamp(8)), rs.getString(9)), append(args, size, (long) safePage * size));
+        List<SavingsRow> rows = jdbc.query("SELECT s.sa_account_id,s.sa_account_number,s.sa_display_name,s.sa_balance,c.fcr_iso_code,c.fcr_decimal_places,s.sa_status,s.sa_created_date,u.fur_full_name,s.sa_holder_id,(SELECT COUNT(*) FROM savings_transactions t WHERE t.st_account_id=s.sa_account_id) FROM savings_accounts s JOIN fd_currency_ref c ON c.fcr_currency_id=s.sa_currency_id LEFT JOIN fd_user_ref u ON u.fur_user_id=s.sa_holder_id" + where + " ORDER BY s.sa_account_id DESC LIMIT ? OFFSET ?",
+                (rs, n) -> new SavingsRow(rs.getLong(1), mask(rs.getString(2)), rs.getString(3), rs.getBigDecimal(4), rs.getString(5), rs.getInt(6), rs.getString(7), str(rs.getTimestamp(8)), rs.getString(9),rs.getLong(10), rs.getLong(11)), append(args, size, (long) safePage * size));
         return new Page<>(rows, safePage, size, total);
     }
 
@@ -70,48 +69,17 @@ public class StaffAccountController {
     }
 
     @PostMapping("/savings-accounts/{id}/deposit")
-    @Transactional
     public SavingsRow deposit(Authentication actor, @PathVariable long id, @RequestHeader("Idempotency-Key") @NotBlank @Size(max = 255) String key, @Valid @RequestBody MoneyRequest request) {
-        return transact(actor, id, key, request, true);
+        return movements.transact(actor.getName(), id, key, request, true,null,0);
     }
 
     @PostMapping("/savings-accounts/{id}/withdraw")
-    @Transactional
-    public SavingsRow withdraw(Authentication actor, @PathVariable long id, @RequestHeader("Idempotency-Key") @NotBlank @Size(max = 255) String key, @Valid @RequestBody MoneyRequest request) {
-        return transact(actor, id, key, request, false);
-    }
-
-    private SavingsRow transact(Authentication actor, long id, String key, MoneyRequest request, boolean credit) {
-        String scope = credit ? "STAFF_SAVINGS_DEPOSIT" : "STAFF_SAVINGS_WITHDRAWAL";
-        String actorKey = actor.getName();
-        String hash = hash(id + "|" + request.amount.toPlainString() + "|" + (request.remarks == null ? "" : request.remarks));
-        try { jdbc.update("INSERT INTO fd_operation_idempotency(foi_operation_scope,foi_actor_key,foi_idempotency_key,foi_request_hash,foi_status) VALUES(?,?,?,?,'PENDING')", scope, actorKey, key, hash); }
-        catch (DuplicateKeyException e) {
-            Map<String, Object> existing = jdbc.queryForMap("SELECT foi_request_hash,foi_status,foi_aggregate_id FROM fd_operation_idempotency WHERE foi_operation_scope=? AND foi_actor_key=? AND foi_idempotency_key=?", scope, actorKey, key);
-            if (!hash.equals(existing.get("foi_request_hash"))) throw new ResponseStatusException(HttpStatus.CONFLICT, "Idempotency key was already used for a different transaction");
-            if ("COMPLETED".equals(existing.get("foi_status"))) return savingsRow(id);
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Transaction is already in progress");
-        }
-        Map<String, Object> account = jdbc.query("SELECT sa_currency_id,sa_balance,sa_status FROM savings_accounts WHERE sa_account_id=? FOR UPDATE", rs -> rs.next() ? Map.of("currency", rs.getLong(1), "balance", rs.getBigDecimal(2), "status", rs.getString(3)) : null, id);
-        if (account == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Savings account not found");
-        if (!"ACTIVE".equals(account.get("status"))) throw new ResponseStatusException(HttpStatus.CONFLICT, "Savings account is not active");
-        long currencyId = ((Number) account.get("currency")).longValue();
-        Integer scale = jdbc.queryForObject("SELECT fcr_decimal_places FROM fd_currency_ref WHERE fcr_currency_id=?", Integer.class, currencyId);
-        int decimals = scale == null ? 2 : scale;
-        BigDecimal amount;
-        try { amount = request.amount.setScale(decimals, RoundingMode.UNNECESSARY); }
-        catch (ArithmeticException e) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Amount exceeds the currency decimal scale"); }
-        String reference = "STAFF-" + UUID.randomUUID();
-        PostingService.MovementResult movement = postings.postSavingsMovement(id,currencyId,amount,credit?"CREDIT":"DEBIT",reference,
-                request.remarks == null ? "Staff teller transaction" : request.remarks.trim(),actorKey,
-                (credit?"TELLER_DEPOSIT:":"TELLER_WITHDRAWAL:")+reference,credit?"TELLER_DEPOSIT":"TELLER_WITHDRAWAL",
-                credit?"CASH_TELLER":"SAVINGS",credit?"SAVINGS":"CASH_TELLER");
-        jdbc.update("UPDATE fd_operation_idempotency SET foi_status='COMPLETED',foi_aggregate_id=?,foi_response_reference=?,foi_completed_at=UTC_TIMESTAMP(6) WHERE foi_operation_scope=? AND foi_actor_key=? AND foi_idempotency_key=?", id, reference, scope, actorKey, key);
-        return savingsRow(id);
-    }
-
-    private SavingsRow savingsRow(long id) {
-        return jdbc.query("SELECT s.sa_account_id,s.sa_account_number,s.sa_display_name,s.sa_balance,c.fcr_iso_code,c.fcr_decimal_places,s.sa_status,s.sa_created_date,u.fur_full_name FROM savings_accounts s JOIN fd_currency_ref c ON c.fcr_currency_id=s.sa_currency_id LEFT JOIN fd_user_ref u ON u.fur_user_id=s.sa_holder_id WHERE s.sa_account_id=?", rs -> { if (!rs.next()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Savings account not found"); return new SavingsRow(rs.getLong(1), mask(rs.getString(2)), rs.getString(3), rs.getBigDecimal(4), rs.getString(5), rs.getInt(6), rs.getString(7), str(rs.getTimestamp(8)), rs.getString(9)); }, id);
+    public SavingsRow withdraw(Authentication actor, @PathVariable long id, @RequestHeader("Idempotency-Key") @NotBlank @Size(max = 255) String key,@RequestHeader(value="X-MPIN-Proof",required=false)String proof, @Valid @RequestBody MoneyRequest request) {
+        SavingsRow replay=movements.replayIfPresent(actor.getName(),id,key,request);if(replay!=null)return replay;
+        Long owner=jdbc.query("SELECT sa_holder_id FROM savings_accounts WHERE sa_account_id=?",rs->rs.next()?rs.getLong(1):null,id);
+        if(owner==null)throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Savings account not found");
+        String jti=mpin.verify(actor,proof,"WITHDRAWAL",owner,MpinProofVerifier.canonical("WITHDRAWAL",id,request.amount()));
+        return movements.transact(actor.getName(),id,key,request,false,jti,owner);
     }
 
     private Map<String, Object> requireSavings(long id, boolean lock) {
@@ -124,6 +92,6 @@ public class StaffAccountController {
 
     public record Page<T>(List<T> content, int number, int size, long totalElements) {}
     public record FdRow(long id, String accountNumber, String status, BigDecimal principal, String currency, BigDecimal rate, int tenureMonths, String openedAt, String maturityAt, String customerName, String productName) {}
-    public record SavingsRow(long id, String accountNumber, String displayName, BigDecimal balance, String currency, int decimalPlaces, String status, String createdAt, String customerName) {}
+    public record SavingsRow(long id, String accountNumber, String displayName, BigDecimal balance, String currency, int decimalPlaces, String status, String createdAt, String customerName,long customerUserId,long transactionCount) {}
     public record MoneyRequest(@NotNull @DecimalMin("0.01") BigDecimal amount, @Size(max = 500) String remarks) {}
 }

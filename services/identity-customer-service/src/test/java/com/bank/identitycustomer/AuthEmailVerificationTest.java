@@ -76,7 +76,8 @@ class AuthEmailVerificationTest {
 
     private AuthController controller(JdbcTemplate jdbc, RestClient.Builder builder, String from) {
         return new AuthController(jdbc, mock(PasswordEncoder.class),
-                Base64.getEncoder().encodeToString(new byte[64]), 60_000, mock(TotpService.class), from,
+                Base64.getEncoder().encodeToString(new byte[64]), 60_000, mock(TotpService.class),
+                new CustomerRiskConfiguration("LOW"), from,
                 "https://api.brevo.com/v3/smtp/email", builder, KEY);
     }
 }

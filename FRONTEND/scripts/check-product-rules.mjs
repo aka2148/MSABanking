@@ -36,6 +36,8 @@ try {
   assert.equal(builder.currencyStep('JPY'), '1');
   builder.productStep = 2;
   builder.productName = '123';
+  builder.effectiveFrom = '2099-01-01';
+  builder.effectiveTo = '2100-01-01';
   const form = { controls: {}, invalid: false };
   builder.nextProductStep(form);
   assert.equal(builder.validatingIdentity, true);
@@ -43,6 +45,8 @@ try {
   assert.equal(builder.productStep, 2);
   assert.ok(builder.identityErrors.productName);
   builder.productName = 'Future product';
+  builder.effectiveFrom = '2099-01-01';
+  builder.effectiveTo = '2100-01-01';
   builder.identityEdited('productName');
   assert.equal(builder.identityErrors.productName, undefined);
   builder.effectiveFrom = '2099-01-01';
@@ -57,6 +61,8 @@ try {
   assert.deepEqual(builder.factOption(rule).choices,['true','false']);
   builder.categoryId = 1;
   builder.applyTemplate(PRODUCT_TEMPLATES[0]);
+  builder.effectiveFrom = '2099-01-01';
+  builder.effectiveTo = '2100-01-01';
   assert.equal(builder.buildRequest(form).productCode, '');
   assert.equal(builder.ruleName({ fact: 'KYC_STATUS', operator: 'EQ', valueFrom: 'VERIFIED' }), 'KYC_STATUS EQ VERIFIED');
   for (const [kycStatus, riskCategory, blocked] of [

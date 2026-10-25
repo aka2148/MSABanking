@@ -66,6 +66,10 @@
       <section *ngIf="step === 3" class="fd-step-panel">
         <p class="fd-eyebrow"> {{ 'Review and confirm' | translate }} </p>
         <p class="fd-step-copy"> {{ 'Confirm the product, amount, tenure, currency, and original funding savings account.' | translate }} </p>
+        <label class="glass-field" *ngIf="!submittedAccount"><span class="glass-field__label">{{'MPIN'|translate}}</span><app-mpin-input [(ngModel)]="mpin" [ngModelOptions]="{standalone:true}"></app-mpin-input></label>
+        <label class="glass-field" *ngIf="submittedAccount"><span class="glass-field__label">{{'MPIN'|translate}}</span><app-mpin-input [(ngModel)]="mpin" [ngModelOptions]="{standalone:true}"></app-mpin-input><span>{{'The FD is booked and can be funded again if this step fails.'|translate}}</span></label>
+        <p *ngIf="bookingError==='MPIN_NOT_SET'" class="glass-field__error">{{'Set up your MPIN before continuing.'|translate}} <a routerLink="/mpin">{{'Set up your MPIN'|translate}}</a></p>
+        <p class="glass-field__error" *ngIf="bookingError && bookingError!=='MPIN_NOT_SET'">{{bookingError|translate}}</p>
         <dl class="fd-review-list" *ngIf="!submittedAccount">
           <div><dt> {{ 'Product' | translate }} </dt><dd>{{ product.product_name }}</dd></div>
           <div><dt> {{ 'Funding savings account' | translate }} </dt><dd> {{ (selectedSavingsAccountLabel()) | translate }} </dd></div>
@@ -88,7 +92,7 @@
         <button type="button" class="glass-btn glass-btn--ghost" *ngIf="step > 1" (click)="previousStep()" [disabled]="submitting"> {{ 'Back' | translate }} </button>
         <span *ngIf="step === 1"></span>
         <button type="button" class="glass-btn" *ngIf="step < 3" (click)="nextStep()" [disabled]="submitting"> {{ 'Continue' | translate }} </button>
-        <button type="button" class="glass-btn" *ngIf="step === 3" (click)="submitBooking()" [disabled]="productAccessBlocked || submitting || submittedAccount"> {{ (submitting ? 'Submitting…' : 'Confirm booking') | translate }} </button>
+        <button type="button" class="glass-btn" *ngIf="step === 3" (click)="submitBooking()" [disabled]="productAccessBlocked || submitting"> {{ (submitting ? 'Submitting…' : (submittedAccount ? 'Retry funding' : 'Confirm booking')) | translate }} </button>
       </div>
     </ng-container>
   </main>

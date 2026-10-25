@@ -59,8 +59,8 @@ export class LoanForexService {
   loans(): Observable<LoanApplication[]> { return this.http.get<LoanApplication[]>(apiUrl(this.base, '/api/v1/loans')); }
   loan(id: number): Observable<LoanApplication> { return this.http.get<LoanApplication>(apiUrl(this.base, `/api/v1/loans/${id}`)); }
   loanHistory(id: number): Observable<LoanEvent[]> { return this.http.get<LoanEvent[]>(apiUrl(this.base, `/api/v1/loans/${id}/history`)); }
-  apply(body: { productId: number; amount: number; tenureMonths: number; currencyCode: string; purpose: string; destinationSavingsAccountId: number }, key: string): Observable<LoanApplication> {
-    return this.http.post<LoanApplication>(apiUrl(this.base, '/api/v1/loans'), body, { headers: { 'Idempotency-Key': key } });
+  apply(body: { productId: number; amount: number; tenureMonths: number; currencyCode: string; purpose: string; destinationSavingsAccountId: number }, key: string,proof:string): Observable<LoanApplication> {
+    return this.http.post<LoanApplication>(apiUrl(this.base, '/api/v1/loans'), body, { headers: { 'Idempotency-Key': key,'X-MPIN-Proof':proof } });
   }
   adminLoans(status = 'PENDING_REVIEW'): Observable<LoanApplication[]> {
     return this.http.get<LoanApplication[]>(apiUrl(this.base, '/api/v1/admin/loans'), { params: { status } });
@@ -72,7 +72,7 @@ export class LoanForexService {
   disburse(id: number): Observable<LoanApplication> { return this.http.post<LoanApplication>(apiUrl(this.base, `/api/v1/admin/loans/${id}/disburse`), {}); }
   forexRequests(): Observable<ForexRequest[]> { return this.http.get<ForexRequest[]>(apiUrl(this.base, '/api/v1/forex-requests')); }
   forexRequest(id: number): Observable<ForexRequest> { return this.http.get<ForexRequest>(apiUrl(this.base, `/api/v1/forex-requests/${id}`)); }
-  requestForex(body: { productId: number; amount: number; fundingCurrencyCode: string; destinationCurrencyCode: string }, key: string): Observable<ForexRequest> {
-    return this.http.post<ForexRequest>(apiUrl(this.base, '/api/v1/forex-requests'), body, { headers: { 'Idempotency-Key': key } });
+  requestForex(body: { productId: number; amount: number; fundingCurrencyCode: string; destinationCurrencyCode: string }, key: string,proof:string): Observable<ForexRequest> {
+    return this.http.post<ForexRequest>(apiUrl(this.base, '/api/v1/forex-requests'), body, { headers: { 'Idempotency-Key': key,'X-MPIN-Proof':proof } });
   }
 }

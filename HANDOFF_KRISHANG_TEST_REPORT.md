@@ -1,42 +1,28 @@
-# Ledger and savings transfer test report
+# MoneyPal later changes test report
 
-**Date:** 2026-10-25  
-**Baseline:** `efe761c` (`main`)  
-**Scope:** shared ledger, demo opening, teller movements, savings transfers, reconciliation, and loan disbursement guard.
+**Scope:** staff-only demo opening, MPIN-bound actions, KYC corrections, product descriptions, and LOW risk default (A–E). The previous ledger handoff remains relevant to V13 behavior.
 
-## Results
+## Baseline before this implementation
 
-| Check | Baseline | Final |
-|---|---|---|
-| `mvn -f services/fd-account-service/pom.xml test` | 30 tests passed, 0 failures/errors/skips | 41 tests passed, 0 failures/errors/skips; BUILD SUCCESS |
-| Angular production build | Passed, existing size warnings | Passed; initial bundle 842.07 kB exceeds the 512 kB budget and existing component style budgets are exceeded |
-| `npm run check:i18n` | Not run | Failed on 33 untranslated strings elsewhere in existing templates; newly added transfer labels are present in all six supported language columns |
-| Angular unit/spec runner | No configured test target | Not run; `angular.json` and `package.json` do not configure a runner |
-| `git diff --check` | Not run | Passed; Git reports a line-ending normalization warning for `customer-messages.ts` |
+- `mvn -f services/identity-customer-service/pom.xml test`: 19 tests, 12 failures and 2 errors. Signup test fixtures omitted required address fields, and `AuthEmailVerificationTest` used the old `AuthController` constructor.
+- `mvn -f services/fd-account-service/pom.xml test`: 41 tests passed before MPIN enforcement changes.
+- `mvn -f services/product-service/pom.xml test`: 21 tests passed.
+- An earlier documented frontend build passed at HEAD. The attempted fresh baseline build could not read the workspace under the restricted invocation; its successful escalated build occurred after implementation began, so it is not counted as a pre-change baseline.
 
-The final Maven suite includes existing FD lifecycle, migration, loan/forex, and calculator coverage plus seven ledger invariant integration tests and four PostingService unit tests. Integration tests used disposable Testcontainers MySQL 8.4 databases. All 13 Flyway migrations, including V13, applied in those disposable databases. No live/shared database was used or changed.
+## Current verification
 
-During implementation, an intermediate run exposed a transaction-proxy issue in a test fault injection and a loan error response assertion mismatch. Both were corrected; the final full suite passes. The test-only rollback failure is injected inside an explicit transaction and leaves no production test hook.
+| Check | Result |
+|---|---|
+| `npm run build` | Passed after the navigation edit. Angular production bundle generated; existing bundle and SCSS budget warnings remain. |
+| `npm run check:mpin` | Passed. Checks weak-PIN rejection, verify-before-action wiring for transfer/FD/loan/forex/teller, re-KYC submission, and local field clearing. |
+| `node scripts/check-i18n.mjs` | Fails on the existing untranslated-template-string list (33 unrelated strings). MPIN/KYC additions are translated in the six configured locales. |
+| `node scripts/check-product-rules.mjs` | Passed after completing the fixture's effective dates for both identity validation and template serialization. |
+| `mvn -f services/product-service/pom.xml test` | Passed, 21 tests, 0 failures/errors/skips. |
+| `mvn -f services/identity-customer-service/pom.xml clean test` | Passed, 20 tests, 0 failures/errors/skips. Includes risk-category migration/signup/admin rules, KYC date and occupation validation, re-KYC MPIN verification, encrypted MPIN storage, and five-attempt lockout. |
+| `mvn -f services/fd-account-service/pom.xml clean test` | Passed, 41 tests, 0 failures/errors/skips. Integration fixtures issue purpose-bound test proofs; transfer, teller, FD funding/closure, loan, forex, migration, and ledger coverage pass. |
 
-## New integration coverage
+All integration database runs used disposable Testcontainers MySQL 8.4 instances. No compose or shared database was used. Baseline and current Maven commands used the local Maven cache; the cache emitted an unrelated Flyway GitHub metadata 401 warning, while dependency resolution and service tests proceeded.
 
-- Transfer debit and credit, paired history and balanced journal entries.
-- Idempotent retry and same-key/different-body rejection.
-- Ownership, KYC, account state, currency, amount precision, insufficient funds, self-transfer, destination lookup, and remark validation.
-- Teller deposit/withdrawal journal entries, replay, and overdraft prevention.
-- Disabled demo opening, configured maximum amount, and balanced demo-opening journal.
-- Concurrent debits, same-key transfer replay, and opposite-direction transfers with stable lock ordering.
-- Full transactional rollback across balances, history, journals, and idempotency.
-- Reconciliation response has no journal-header mismatch after successful postings.
-- Approved loan disbursement is rejected and creates no loan transaction.
+## Go/no-go
 
-## Unverified
-
-- Angular Jasmine-style spec is added but could not be executed because this repository has no configured frontend test runner. To run it, add/configure the project’s runner and invoke its test target; `npm run build` verifies the production app compiles.
-- `npm run check:i18n` needs the 33 existing untranslated template strings resolved before it can pass. The current checker output did not list any newly added transfer message keys.
-- No live gateway/browser walkthrough was run. The gateway already contains the savings and admin-ledger proxy routes; a local manual walkthrough can use the existing customer UI and `GET /api/v1/admin/ledger/reconciliation` with an admin token.
-- Database cutover starts at migration time. Old savings histories/journals are kept as historical and are not backfilled or automatically reconciled.
-
-## Decision
-
-**GO for local API demonstration** of ledger-backed teller/demo movements and same-currency savings transfer with idempotency. **NO-GO for production financial use**: teller/demo counterpart accounts are illustrative, old history is not migrated, and gateway/browser plus frontend unit execution remain unverified. Loan disbursement intentionally remains unavailable until receivable accounting exists.
+**GO for local API demonstration** with the MPIN-protected workflow and staff-only demo funds. All three backend service suites pass, as do the Angular build, MPIN logic check, and product-rules check. The i18n checker still fails on the 33 pre-existing untranslated template strings listed above. This is not a production financial-use approval; see residual risks in [HANDOFF_LATER_CHANGES.md](HANDOFF_LATER_CHANGES.md).

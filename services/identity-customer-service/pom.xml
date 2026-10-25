@@ -89,7 +89,11 @@
                 <directory>${project.basedir}/../../BACKEND/src/main/resources/db/service-migration/customer</directory>
                 <targetPath>db/service-migration/customer</targetPath>
                 <includes>
-                    <include>V*.sql</include>
+                    <include>V1__initial_schema.sql</include><include>V2__identity_security_admin.sql</include>
+                    <include>V3__bank_officer_role.sql</include><include>V4__restore_audit_metadata.sql</include>
+                    <include>V5__kyc_profile.sql</include><include>V6__remove_redundant_audit_columns.sql</include>
+                    <include>V7__signup_address_details.sql</include><include>V8__default_risk_category.sql</include>
+                    <include>V9__customer_mpin.sql</include>
                 </includes>
             </resource>
         </resources>

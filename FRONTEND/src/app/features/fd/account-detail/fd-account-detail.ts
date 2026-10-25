@@ -16,6 +16,9 @@ import {
 } from '../../../core/models/fd.models';
 import { FdService, normalizeApiError } from '../../../core/services/fd.service';
 import { WorkspaceShell } from '../../../shared/components/workspace-shell/workspace-shell';
+import { FormsModule } from '@angular/forms';
+import { MpinInput } from '../../../shared/components/mpin-input';
+import { MpinProofService, MpinPurpose, mpinErrorMessage } from '../../../core/services/mpin-proof.service';
 
 export type AccountAction = 'FUND' | 'CLOSE' | 'REQUEST_PREMATURE';
 type Result =
@@ -26,7 +29,7 @@ type Result =
 @Component({
   selector: 'app-fd-account-detail',
   standalone: true,
-  imports: [CustomerProductWarning, TranslatePipe, CommonModule, RouterLink, WorkspaceShell],
+  imports: [CustomerProductWarning, TranslatePipe, CommonModule, RouterLink, WorkspaceShell, FormsModule, MpinInput],
   templateUrl: './fd-account-detail.html',
   styleUrl: './fd-account-detail.scss',
 })
@@ -53,9 +56,11 @@ export class FdAccountDetail implements OnInit {
   pendingConfirmation: AccountAction | null = null;
   errorMessage = '';
   successMessage = '';
+  mpin='';mpinNotSet=false;
 
   constructor(
     private readonly fdService: FdService,
+    private readonly mpinProof:MpinProofService,
     private readonly route: ActivatedRoute,
   ) {}
 
@@ -226,26 +231,32 @@ export class FdAccountDetail implements OnInit {
     if (this.productAccessBlocked) return;
     if (!this.account || !this.isAllowed('FUND')) return;
     const request = { amount: this.account.principal_amount, currency_code: this.account.currency_code, savings_account_id: this.account.funding_savings_account_id ?? undefined };
-    this.execute('FUND', () => this.fdService.fund(this.accountId, request), (value) => {
+    this.withMpin('FUND','FD_FUNDING',{fdId:this.accountId,principal:this.account.principal_amount},proof=>this.execute('FUND', () => this.fdService.fund(this.accountId, request,proof), (value) => {
       this.result = { kind: 'funding', value };
       this.successMessage = 'Funding was recorded in the demonstration. No external payment was processed.';
-    });
+    }));
   }
 
   private executeClose(): void {
     if (!this.isAllowed('CLOSE') || !this.canSettleAtMaturity) return;
-    this.execute('CLOSE', () => this.fdService.close(this.accountId), (value) => {
+    this.withMpin('CLOSE','FD_CLOSE',{fdId:this.accountId},proof=>this.execute('CLOSE', () => this.fdService.close(this.accountId,proof), (value) => {
       this.result = { kind: 'closure', value };
       this.successMessage = 'The closure was recorded in the demonstration. No external payment was processed.';
-    });
+    }));
   }
 
   private executePrematureRequest(): void {
     if (!this.isAllowed('REQUEST_PREMATURE')) return;
-    this.execute('REQUEST_PREMATURE', () => this.fdService.requestPrematureClosure(this.accountId), (value) => {
+    this.withMpin('REQUEST_PREMATURE','FD_PREMATURE_REQUEST',{fdId:this.accountId},proof=>this.execute('REQUEST_PREMATURE', () => this.fdService.requestPrematureClosure(this.accountId,undefined,proof), (value) => {
       this.result = { kind: 'premature', value };
       this.successMessage = 'Your premature-closure request was recorded.';
-    });
+    }));
+  }
+
+  private withMpin(action:AccountAction,purpose:MpinPurpose,fields:Record<string,unknown>,run:(proof:string)=>void):void {
+    if(this.mpin.length!==6||!/^\d{6}$/.test(this.mpin)){this.errorMessage='Enter a six digit MPIN.';return;}
+    this.mpinNotSet=false;this.errorMessage='';
+    this.mpinProof.requestProof(purpose,fields,this.mpin).subscribe({next:r=>{this.mpin='';run(r.proofToken);},error:e=>{this.mpin='';const code=e?.error?.code;this.mpinNotSet=code==='MPIN_NOT_SET';this.errorMessage=code==='MPIN_NOT_SET'?'Set up your MPIN before continuing.':code==='MPIN_INVALID'?`MPIN is incorrect. Attempts remaining: ${e?.error?.attemptsRemaining??''}.`:code==='MPIN_LOCKED'?`MPIN is locked until ${e?.error?.lockedUntil??''}.`:mpinErrorMessage(e);}});
   }
 
   private execute<T>(action: AccountAction, request: () => import('rxjs').Observable<T>, onSuccess: (value: T) => void): void {

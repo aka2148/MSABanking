@@ -8,10 +8,14 @@ import { SavingsAccount } from '../../core/models/fd.models';
 import { FdService, normalizeApiError } from '../../core/services/fd.service';
 import { CustomerOffer, LoanApplication, LoanEvent, LoanForexService } from '../../core/services/loan-forex.service';
 import { WorkspaceShell } from '../../shared/components/workspace-shell/workspace-shell';
+import { FormsModule } from '@angular/forms';
+import { MpinInput } from '../../shared/components/mpin-input';
+import { MpinProofService,mpinErrorMessage } from '../../core/services/mpin-proof.service';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
   selector: 'app-loan-page', standalone: true,
-  imports: [CustomerProductWarning, CommonModule, ReactiveFormsModule, RouterLink, WorkspaceShell],
+  imports: [CustomerProductWarning, CommonModule, ReactiveFormsModule,FormsModule,RouterLink, WorkspaceShell,MpinInput,TranslatePipe],
   templateUrl: './loan-page.html', styleUrl: './loan-page.scss',
 })
 export class LoanPage implements OnInit {
@@ -22,9 +26,10 @@ export class LoanPage implements OnInit {
   applications: LoanApplication[] = []; application: LoanApplication | null = null;
   history: LoanEvent[] = []; savings: SavingsAccount[] = [];
   private key: string | null = null;
+  mpin='';mpinNotSet=false;
   readonly form;
 
-  constructor(private readonly api: LoanForexService, private readonly fd: FdService,
+  constructor(private readonly api: LoanForexService, private readonly fd: FdService,private readonly mpinProof:MpinProofService,
       private readonly route: ActivatedRoute, private readonly router: Router, fb: FormBuilder) {
     this.mode = this.route.snapshot.data['mode'] as LoanPage['mode'];
     this.form = fb.nonNullable.group({
@@ -72,10 +77,11 @@ export class LoanPage implements OnInit {
     }
     this.busy = true; this.error = '';
     this.key ??= crypto.randomUUID();
-    this.api.apply({ productId: this.offer.productId, ...value, purpose: value.purpose.trim() }, this.key).subscribe({
-      next: application => { this.busy = false; this.key = null; void this.router.navigate(['/applications', application.id]); },
-      error: e => { this.busy = false; this.error = normalizeApiError(e).message; },
-    });
+    const body={ productId: this.offer.productId, ...value, purpose: value.purpose.trim() };
+    this.mpinProof.requestProof('LOAN_APPLICATION',{productId:body.productId,amount:body.amount,currencyCode:body.currencyCode,tenureMonths:body.tenureMonths,destinationSavingsAccountId:body.destinationSavingsAccountId},this.mpin).subscribe({next:proof=>this.api.apply(body,this.key!,proof.proofToken).subscribe({
+      next: application => { this.busy = false; this.key = null;this.mpin=''; void this.router.navigate(['/applications', application.id]); },
+      error: e => { this.busy = false;this.mpin='';this.mpinNotSet=e?.error?.code==='MPIN_NOT_SET'; this.error = mpinErrorMessage(e); },
+    }),error:e=>{this.busy=false;this.mpin='';this.mpinNotSet=e?.error?.code==='MPIN_NOT_SET';this.error=mpinErrorMessage(e);}});
   }
   private fail(error: HttpErrorResponse): void { this.loading = false; this.error = normalizeApiError(error).message; }
 }

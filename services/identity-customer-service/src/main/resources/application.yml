@@ -21,6 +21,12 @@ spring:
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 app:
+  customer:
+    default-risk-category: ${CUSTOMER_DEFAULT_RISK_CATEGORY:LOW}
+  mpin:
+    pepper: ${MPIN_PEPPER:}
+    max-attempts: ${MPIN_MAX_ATTEMPTS:5}
+    lock-minutes: ${MPIN_LOCK_MINUTES:30}
   security:
     mfa-encryption-key: ${MFA_ENCRYPTION_KEY:${JWT_SECRET}}
   kafka:

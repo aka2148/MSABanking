@@ -9,13 +9,17 @@ class KycValidationTest {
     @Test void validatesDatesAndEveryEnum() {
         for (String value : new String[]{"1899-12-31", LocalDate.now().minusYears(17).toString(), "2999-01-01", "2000-02-30", "bad"})
             assertNotNull(KycValidation.error("dateOfBirth", value, Map.of()));
-        assertNull(KycValidation.error("dateOfBirth", LocalDate.now().minusYears(18).toString(), Map.of()));
+        assertNull(KycValidation.error("dateOfBirth", LocalDate.now(java.time.ZoneOffset.UTC).minusYears(18).toString(), Map.of()));
         for (String field : new String[]{"gender", "relationship", "occupation", "countryOfOrigin", "proofOfIdType"})
             assertNotNull(KycValidation.error(field, "INVALID", Map.of()));
         assertEquals(249, KycValidation.COUNTRIES.size());
         for (String issue : new String[]{"1999-12-31", "2000-01-01", "2999-01-01", "bad"})
             assertNotNull(KycValidation.error("idIssueDate", issue, Map.of("dateOfBirth", "2000-01-01")));
         assertNull(KycValidation.error("idIssueDate", "2000-01-02", Map.of("dateOfBirth", "2000-01-01")));
+        assertEquals("Date of birth can't be in the future.",KycValidation.error("dateOfBirth",LocalDate.now(java.time.ZoneOffset.UTC).plusDays(1).toString(),Map.of()));
+        assertEquals("ID issue date can't be in the future.",KycValidation.error("idIssueDate",LocalDate.now(java.time.ZoneOffset.UTC).plusDays(1).toString(),Map.of("dateOfBirth","2000-01-01")));
+        assertNull(KycValidation.error("idIssueDate",LocalDate.now(java.time.ZoneOffset.UTC).toString(),Map.of("dateOfBirth","2000-01-01")));
+        assertNull(KycValidation.error("occupation","UNEMPLOYED",Map.of()));
     }
     @Test void validatesAllProofFormatsAndSafeText() {
         Map<String,String> examples = Map.of("AADHAAR", "234567890123", "PAN", "ABCDE1234F", "PASSPORT", "A1234567", "DRIVING_LICENSE", "KA-12345678", "VOTER_ID", "ABC1234567");

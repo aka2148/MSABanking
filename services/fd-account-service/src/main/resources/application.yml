@@ -29,6 +29,8 @@ app:
     opening-balance:
       enabled: ${APP_DEMO_OPENING_BALANCE_ENABLED:false}
     opening-max-amount: ${APP_DEMO_OPENING_MAX_AMOUNT:}
+  mpin:
+    required: ${APP_MPIN_REQUIRED:true}
   product:
     base-url: ${PRODUCT_SERVICE_URL:http://localhost:8082}
   kafka:
