@@ -90,7 +90,6 @@
                 <targetPath>db/service-migration/customer</targetPath>
                 <includes>
                     <include>V*.sql</include>
-                    <include>V4__kyc_profile.sql</include>
                 </includes>
             </resource>
         </resources>

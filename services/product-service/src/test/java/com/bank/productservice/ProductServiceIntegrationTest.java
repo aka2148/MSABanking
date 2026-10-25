@@ -36,7 +36,7 @@ class ProductServiceIntegrationTest {
     @Autowired MockMvc mvc; @Autowired JdbcTemplate jdbc;
 
     @Test void migrationsCreateOwnedSchemaAndLocalization(){
-        assertEquals(7,jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1",Integer.class));
+        assertEquals(8,jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1",Integer.class));
         assertEquals(2,jdbc.queryForObject("SELECT cur_decimal_places FROM currency WHERE cur_iso_code='INR' AND cur_is_active=1",Integer.class));
         assertEquals(2,jdbc.queryForObject("SELECT cur_decimal_places FROM currency WHERE cur_iso_code='USD' AND cur_is_active=1",Integer.class));
         assertEquals(0,jdbc.queryForObject("SELECT cur_decimal_places FROM currency WHERE cur_iso_code='JPY' AND cur_is_active=1",Integer.class));
