@@ -30,6 +30,26 @@ export class GlassSelect implements ControlValueAccessor {
 
   private onChange: (value: string) => void = () => {};
   private onTouched: () => void = () => {};
+  private search = '';
+  private lastKeyAt = 0;
+
+  @HostListener('keydown', ['$event'])
+  onKeydown(event: KeyboardEvent): void {
+    if (this.disabled) return;
+    if (event.key === 'Escape') { this.isOpen = false; return; }
+    if (event.key.length !== 1 || event.ctrlKey || event.altKey || event.metaKey || event.key === ' ') return;
+    event.preventDefault();
+    const now = Date.now();
+    this.search = (now - this.lastKeyAt < 700 ? this.search : '') + event.key.toLocaleLowerCase();
+    this.lastKeyAt = now;
+    const index = this.options.findIndex(o => !o.disabled && o.label.toLocaleLowerCase().startsWith(this.search));
+    if (index < 0) return;
+    this.isOpen = true;
+    setTimeout(() => {
+      const option = this.elRef.nativeElement.querySelectorAll<HTMLButtonElement>('.glass-select__option')[index];
+      option?.focus(); option?.scrollIntoView({ block: 'nearest' });
+    });
+  }
 
   constructor(private elRef: ElementRef<HTMLElement>) {}
 

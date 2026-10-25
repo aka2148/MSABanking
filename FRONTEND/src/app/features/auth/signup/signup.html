@@ -21,7 +21,7 @@
     <form [formGroup]="form" (ngSubmit)="next()" novalidate>
       <div [@stepTransition]="currentStep" [@.disabled]="reducedMotion">
 
-        <!-- Step 1: Personal details -->
+        <!-- Step 1: Basic details -->
         <ng-container *ngIf="currentStep === 0" [formGroup]="personalGroup">
           <label class="glass-field">
             <span class="glass-field__label"> {{ 'Full name' | translate }} </span>
@@ -29,73 +29,14 @@
             <span class="glass-field__error" *ngIf="showError(personalGroup,'fullName')"> {{ (errorText(personalGroup,'fullName','Full name')) | translate }} </span>
           </label>
 
-          <div class="glass-field-row">
-            <label class="glass-field">
-              <span class="glass-field__label"> {{ 'Date of birth' | translate }} </span>
-              <input type="date" formControlName="dateOfBirth" />
-              <span class="glass-field__error" *ngIf="showError(personalGroup,'dateOfBirth')"> {{ (errorText(personalGroup,'dateOfBirth','Date of birth')) | translate }} </span>
-            </label>
-            <label class="glass-field">
-              <span class="glass-field__label"> {{ 'Gender' | translate }} </span>
-              <app-glass-select formControlName="gender" [options]="genderOptions" [placeholder]="'Select' | translate"></app-glass-select>
-              <span class="glass-field__error" *ngIf="showError(personalGroup,'gender')"> {{ (errorText(personalGroup,'gender','Gender')) | translate }} </span>
-            </label>
-          </div>
-
-          <label class="glass-field">
-            <span class="glass-field__label"> {{ 'Father\'s / Spouse\'s name' | translate }} </span>
-            <input type="text" formControlName="fatherOrSpouseName" [placeholder]="'As per ID proof' | translate" />
-            <span class="glass-field__error" *ngIf="showError(personalGroup,'fatherOrSpouseName')"> {{ (errorText(personalGroup,'fatherOrSpouseName','This field')) | translate }} </span>
-          </label>
-
-          <div class="glass-field-row">
-            <label class="glass-field">
-              <span class="glass-field__label"> {{ 'Occupation' | translate }} </span>
-              <input type="text" formControlName="occupation" [placeholder]="'e.g. Student, Engineer' | translate" />
-              <span class="glass-field__error" *ngIf="showError(personalGroup,'occupation')"> {{ (errorText(personalGroup,'occupation','Occupation')) | translate }} </span>
-            </label>
-            <label class="glass-field">
-              <span class="glass-field__label"> {{ 'Country of origin' | translate }} </span>
-              <input type="text" formControlName="countryOfOrigin" [placeholder]="'India' | translate" />
-              <span class="glass-field__error" *ngIf="showError(personalGroup,'countryOfOrigin')"> {{ (errorText(personalGroup,'countryOfOrigin','Country of origin')) | translate }} </span>
-            </label>
-          </div>
-
           <label class="glass-field">
             <span class="glass-field__label"> {{ 'Preferred language' | translate }} </span>
             <app-glass-select formControlName="preferredLanguage" [options]="languageOptions"></app-glass-select>
           </label>
         </ng-container>
 
-        <!-- Step 2: Documents -->
-        <ng-container *ngIf="currentStep === 1" [formGroup]="documentsGroup">
-          <label class="glass-field">
-            <span class="glass-field__label"> {{ 'Proof of ID type' | translate }} </span>
-            <app-glass-select formControlName="proofOfIdType" [options]="proofTypeOptions" [placeholder]="'Select' | translate"></app-glass-select>
-            <span class="glass-field__error" *ngIf="showError(documentsGroup,'proofOfIdType')"> {{ (errorText(documentsGroup,'proofOfIdType','Proof of ID type')) | translate }} </span>
-          </label>
-
-          <label class="glass-field">
-            <span class="glass-field__label"> {{ 'ID number' | translate }} </span>
-            <input type="text" formControlName="proofOfIdValue" [placeholder]="'Document number' | translate" />
-            <span class="glass-field__error" *ngIf="showError(documentsGroup,'proofOfIdValue')"> {{ (errorText(documentsGroup,'proofOfIdValue','ID number')) | translate }} </span>
-          </label>
-
-          <label class="glass-field">
-            <span class="glass-field__label"> {{ 'Issue date' | translate }} </span>
-            <input type="date" formControlName="startDate" />
-            <span class="glass-field__error" *ngIf="showError(documentsGroup,'startDate')"> {{ (errorText(documentsGroup,'startDate','Issue date')) | translate }} </span>
-          </label>
-
-          <label class="glass-field">
-            <span class="glass-field__label"> {{ 'Upload scanned document' | translate }} <small> {{ '(optional for now)' | translate }} </small>
-            </span>
-            <input type="file" accept="image/*,.pdf" (change)="onFileSelected($event)" />
-          </label>
-        </ng-container>
-
-        <!-- Step 3: Account setup -->
-        <ng-container *ngIf="currentStep === 2" [formGroup]="accountGroup">
+        <!-- Step 2: Account setup -->
+        <ng-container *ngIf="currentStep === 1" [formGroup]="accountGroup">
           <div class="glass-field-row">
             <label class="glass-field">
               <span class="glass-field__label"> {{ 'Account type' | translate }} </span>

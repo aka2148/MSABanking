@@ -1,5 +1,63 @@
 // English | Hindi | Kannada | Japanese | Arabic | Spanish
 export const CUSTOMER_MESSAGES = `
+Basic details|बुनियादी जानकारी|ಮೂಲ ವಿವರಗಳು|基本情報|البيانات الأساسية|Datos básicos
+Aadhaar|आधार|ಆಧಾರ್|アーダール|آدهار|Aadhaar
+PAN|पैन|ಪ್ಯಾನ್|PAN番号|رقم PAN|PAN
+Passport|पासपोर्ट|ಪಾಸ್‌ಪೋರ್ಟ್|パスポート|جواز السفر|Pasaporte
+Driving Licence|ड्राइविंग लाइसेंस|ಚಾಲನಾ ಪರವಾನಗಿ|運転免許証|رخصة القيادة|Permiso de conducir
+KYC|केवाईसी|ಕೆವೈಸಿ|本人確認|اعرف عميلك|Verificación de identidad
+Account details|खाते का विवरण|ಖಾತೆ ವಿವರಗಳು|口座情報|تفاصيل الحساب|Datos de la cuenta
+Customer number|ग्राहक संख्या|ಗ್ರಾಹಕ ಸಂಖ್ಯೆ|顧客番号|رقم العميل|Número de cliente
+Loading...|लोड हो रहा है...|ಲೋಡ್ ಆಗುತ್ತಿದೆ...|読み込み中...|جارٍ التحميل...|Cargando...
+Relationship|संबंध|ಸಂಬಂಧ|続柄|صلة القرابة|Parentesco
+Father|पिता|ತಂದೆ|父|الأب|Padre
+Spouse|जीवनसाथी|ಸಂಗಾತಿ|配偶者|الزوج أو الزوجة|Cónyuge
+Student|विद्यार्थी|ವಿದ್ಯಾರ್ಥಿ|学生|طالب|Estudiante
+Salaried|वेतनभोगी|ವೇತನದಾರ|給与所得者|موظف بأجر|Asalariado
+Self-employed|स्वरोजगार|ಸ್ವಯಂ ಉದ್ಯೋಗಿ|自営業|عامل مستقل|Autónomo
+Business|व्यवसाय|ವ್ಯಾಪಾರ|事業経営|أعمال تجارية|Empresario
+Professional|पेशेवर|ವೃತ್ತಿಪರ|専門職|مهني|Profesional
+Homemaker|गृहस्थ|ಗೃಹ ನಿರ್ವಹಣೆ|家事専従|مدبر منزل|Trabajo del hogar
+Retired|सेवानिवृत्त|ನಿವೃತ್ತ|退職者|متقاعد|Jubilado
+Voter ID|मतदाता पहचान पत्र|ಮತದಾರರ ಗುರುತಿನ ಚೀಟಿ|有権者証|بطاقة الناخب|Identificación electoral
+Identity proof|पहचान प्रमाण|ಗುರುತಿನ ಪುರಾವೆ|本人確認書類|إثبات الهوية|Documento de identidad
+ID issue date|पहचान पत्र जारी करने की तारीख|ಗುರುತಿನ ಚೀಟಿ ನೀಡಿದ ದಿನಾಂಕ|身分証発行日|تاريخ إصدار الهوية|Fecha de expedición
+Document (optional)|दस्तावेज़ (वैकल्पिक)|ದಾಖಲೆ (ಐಚ್ಛಿಕ)|書類（任意）|مستند (اختياري)|Documento (opcional)
+bytes|बाइट|ಬೈಟ್‌ಗಳು|バイト|بايت|bytes
+Remove document|दस्तावेज़ हटाएँ|ದಾಖಲೆ ತೆಗೆದುಹಾಕಿ|書類を削除|إزالة المستند|Eliminar documento
+Save details|विवरण सहेजें|ವಿವರಗಳನ್ನು ಉಳಿಸಿ|情報を保存|حفظ التفاصيل|Guardar datos
+Draft saved|ड्राफ्ट सहेजा गया|ಕರಡು ಉಳಿಸಲಾಗಿದೆ|下書きを保存しました|تم حفظ المسودة|Borrador guardado
+KYC completion|केवाईसी पूर्णता|ಕೆವೈಸಿ ಪೂರ್ಣತೆ|本人確認の入力状況|اكتمال بيانات الهوية|Progreso de verificación
+KYC verified|केवाईसी सत्यापित|ಕೆವೈಸಿ ಪರಿಶೀಲಿಸಲಾಗಿದೆ|本人確認済み|تم التحقق من الهوية|Identidad verificada
+KYC rejected|केवाईसी अस्वीकृत|ಕೆವೈಸಿ ತಿರಸ್ಕೃತ|本人確認が却下されました|تم رفض التحقق|Verificación rechazada
+KYC in progress|केवाईसी जारी है|ಕೆವೈಸಿ ಪ್ರಗತಿಯಲ್ಲಿದೆ|本人確認の入力中|التحقق قيد الإكمال|Verificación en curso
+KYC verified successfully.|केवाईसी सफलतापूर्वक सत्यापित।|ಕೆವೈಸಿ ಯಶಸ್ವಿಯಾಗಿ ಪರಿಶೀಲಿಸಲಾಗಿದೆ.|本人確認が完了しました。|تم التحقق من الهوية بنجاح.|Identidad verificada correctamente.
+Verified on|सत्यापन की तारीख|ಪರಿಶೀಲಿಸಿದ ದಿನಾಂಕ|確認日時|تاريخ التحقق|Fecha de verificación
+Request re-KYC|पुनः केवाईसी का अनुरोध करें|ಮರು ಕೆವೈಸಿ ವಿನಂತಿಸಿ|本人確認の更新を申請|طلب تحديث بيانات الهوية|Solicitar nueva verificación
+Remarks|टिप्पणियाँ|ಟಿಪ್ಪಣಿಗಳು|備考|ملاحظات|Comentarios
+Reason for re-KYC (10–500 characters)|पुनः केवाईसी का कारण (10–500 अक्षर)|ಮರು ಕೆವೈಸಿ ಕಾರಣ (10–500 ಅಕ್ಷರಗಳು)|更新の理由（10～500文字）|سبب التحديث (10–500 حرف)|Motivo de nueva verificación (10–500 caracteres)
+FDs, loans and forex are unavailable until re-KYC is completed.|पुनः केवाईसी पूरा होने तक सावधि जमा, ऋण और विदेशी मुद्रा उपलब्ध नहीं होंगे।|ಮರು ಕೆವೈಸಿ ಪೂರ್ಣವಾಗುವವರೆಗೆ ನಿಶ್ಚಿತ ಠೇವಣಿ, ಸಾಲ ಮತ್ತು ವಿದೇಶಿ ವಿನಿಮಯ ಲಭ್ಯವಿರುವುದಿಲ್ಲ.|更新が完了するまで定期預金・ローン・外国為替は利用できません。|لن تتوفر الودائع والقروض والصرف الأجنبي حتى اكتمال التحديث.|Los depósitos, préstamos y divisas no estarán disponibles hasta completar la nueva verificación.
+Send|भेजें|ಕಳುಹಿಸಿ|送信|إرسال|Enviar
+Start KYC|केवाईसी शुरू करें|ಕೆವೈಸಿ ಪ್ರಾರಂಭಿಸಿ|本人確認を開始|بدء التحقق|Iniciar verificación
+Continue KYC|केवाईसी जारी रखें|ಕೆವೈಸಿ ಮುಂದುವರಿಸಿ|本人確認を続ける|متابعة التحقق|Continuar verificación
+View KYC|केवाईसी देखें|ಕೆವೈಸಿ ವೀಕ್ಷಿಸಿ|本人確認を表示|عرض بيانات الهوية|Ver verificación
+Go to KYC|केवाईसी पर जाएँ|ಕೆವೈಸಿಗೆ ಹೋಗಿ|本人確認へ|الانتقال للتحقق|Ir a verificación
+Loading KYC...|केवाईसी लोड हो रहा है...|ಕೆವೈಸಿ ಲೋಡ್ ಆಗುತ್ತಿದೆ...|本人確認情報を読み込み中...|جارٍ تحميل بيانات الهوية...|Cargando verificación...
+Please consult your bank officer about your rejected KYC.|अस्वीकृत केवाईसी के बारे में अपने बैंक अधिकारी से संपर्क करें।|ತಿರಸ್ಕೃತ ಕೆವೈಸಿ ಬಗ್ಗೆ ನಿಮ್ಮ ಬ್ಯಾಂಕ್ ಅಧಿಕಾರಿಯನ್ನು ಸಂಪರ್ಕಿಸಿ.|却下された本人確認について銀行担当者にご相談ください。|يرجى مراجعة موظف البنك بشأن رفض التحقق.|Consulta a tu asesor bancario sobre la verificación rechazada.
+Request re-KYC to update details.|विवरण बदलने के लिए पुनः केवाईसी का अनुरोध करें।|ವಿವರ ನವೀಕರಿಸಲು ಮರು ಕೆವೈಸಿ ವಿನಂತಿಸಿ.|情報を変更するには更新を申請してください。|اطلب تحديث بيانات الهوية لتعديل التفاصيل.|Solicita una nueva verificación para modificar los datos.
+Re-KYC can only be requested when KYC is verified.|पुनः केवाईसी केवल सत्यापित स्थिति में माँगा जा सकता है।|ಕೆವೈಸಿ ಪರಿಶೀಲಿತವಾಗಿದ್ದಾಗ ಮಾತ್ರ ಮರು ಕೆವೈಸಿ ವಿನಂತಿಸಬಹುದು.|本人確認済みの場合のみ更新を申請できます。|يمكن طلب التحديث فقط بعد التحقق من الهوية.|Solo puedes solicitar una nueva verificación si tu identidad está verificada.
+You must be at least 18.|आयु कम से कम 18 वर्ष होनी चाहिए।|ಕನಿಷ್ಠ 18 ವರ್ಷವಾಗಿರಬೇಕು.|1900年以降の生年月日を入力してください。18歳以上である必要があります。|أدخل تاريخ ميلاد من عام 1900؛ يجب أن يكون عمرك 18 سنة على الأقل.|Introduce una fecha desde 1900; debes tener al menos 18 años.
+Select a valid option.|मान्य विकल्प चुनें।|ಮಾನ್ಯ ಆಯ್ಕೆಯನ್ನು ಆರಿಸಿ.|有効な選択肢を選んでください。|اختر خيارًا صالحًا.|Selecciona una opción válida.
+Select a valid country.|मान्य देश चुनें।|ಮಾನ್ಯ ದೇಶ ಆರಿಸಿ.|有効な国を選んでください。|اختر بلدًا صالحًا.|Selecciona un país válido.
+Enter a name of 2–100 characters containing a letter, without markup or control characters.|2–100 अक्षरों का नाम दें, जिसमें एक अक्षर हो और मार्कअप या नियंत्रण चिह्न न हों।|ಅಕ್ಷರ ಹೊಂದಿರುವ 2–100 ಅಕ್ಷರಗಳ ಹೆಸರು ನಮೂದಿಸಿ; ಮಾರ್ಕಪ್ ಅಥವಾ ನಿಯಂತ್ರಣ ಚಿಹ್ನೆಗಳು ಬೇಡ.|文字を含む2～100文字の名前を入力してください。マークアップや制御文字は使えません。|أدخل اسمًا من 2–100 حرف يتضمن حرفًا أبجديًا دون وسوم أو محارف تحكم.|Introduce un nombre de 2–100 caracteres con una letra, sin etiquetas ni caracteres de control.
+Enter a valid ID number for the selected proof type.|चुने गए प्रमाण के लिए मान्य पहचान संख्या दें।|ಆಯ್ದ ಪುರಾವೆಗೆ ಮಾನ್ಯ ಗುರುತಿನ ಸಂಖ್ಯೆ ನಮೂದಿಸಿ.|選択した書類の形式に合う番号を入力してください。|أدخل رقم هوية صالحًا لنوع الإثبات المحدد.|Introduce un número válido para el documento seleccionado.
+Enter an issue date after birth and not in the future.|जारी करने की तारीख जन्म के बाद हो और भविष्य में न हो।|ನೀಡಿದ ದಿನಾಂಕ ಜನನದ ನಂತರ ಹಾಗೂ ಭವಿಷ್ಯದಲ್ಲಿರದಂತೆ ನಮೂದಿಸಿ.|発行日は生年月日より後で、未来でない日付にしてください。|أدخل تاريخ إصدار بعد الميلاد وليس في المستقبل.|La fecha de expedición debe ser posterior al nacimiento y no futura.
+Enter a valid value.|मान्य मान दें।|ಮಾನ್ಯ ಮೌಲ್ಯ ನಮೂದಿಸಿ.|有効な値を入力してください。|أدخل قيمة صالحة.|Introduce un valor válido.
+Enter remarks of 10–500 characters without markup or control characters.|10–500 अक्षरों की टिप्पणी दें, बिना मार्कअप या नियंत्रण चिह्नों के।|ಮಾರ್ಕಪ್ ಅಥವಾ ನಿಯಂತ್ರಣ ಚಿಹ್ನೆಗಳಿಲ್ಲದೆ 10–500 ಅಕ್ಷರಗಳ ಟಿಪ್ಪಣಿ ನಮೂದಿಸಿ.|マークアップや制御文字を使わず10～500文字で理由を入力してください。|أدخل ملاحظات من 10–500 حرف دون وسوم أو محارف تحكم.|Introduce comentarios de 10–500 caracteres sin etiquetas ni caracteres de control.
+Choose a non-empty document up to 5 MB.|5 एमबी तक का गैर-खाली दस्तावेज़ चुनें।|5 ಎಂಬಿ ವರೆಗಿನ ಖಾಲಿಯಲ್ಲದ ದಾಖಲೆ ಆರಿಸಿ.|空でない5MB以下の書類を選んでください。|اختر مستندًا غير فارغ بحجم أقصى 5 ميغابايت.|Elige un documento no vacío de hasta 5 MB.
+Choose a PDF, JPEG or PNG document.|पीडीएफ, जेपीईजी या पीएनजी दस्तावेज़ चुनें।|PDF, JPEG ಅಥವಾ PNG ದಾಖಲೆ ಆರಿಸಿ.|PDF・JPEG・PNGの書類を選んでください。|اختر مستند PDF أو JPEG أو PNG.|Elige un documento PDF, JPEG o PNG.
+Unable to read document.|दस्तावेज़ पढ़ा नहीं जा सका।|ದಾಖಲೆ ಓದಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.|書類を読み取れません。|تعذرت قراءة المستند.|No se pudo leer el documento.
+Unable to save KYC. Please try again.|केवाईसी सहेजा नहीं जा सका। फिर प्रयास करें।|ಕೆವೈಸಿ ಉಳಿಸಲಾಗಲಿಲ್ಲ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.|本人確認情報を保存できません。再試行してください。|تعذر حفظ بيانات الهوية. حاول مجددًا.|No se pudo guardar la verificación. Inténtalo de nuevo.
 Language|भाषा|ಭಾಷೆ|言語|اللغة|Idioma
 Sign in|साइन इन करें|ಲಾಗಿನ್ ಮಾಡಿ|ログイン|تسجيل الدخول|Iniciar sesión
 Sign out|साइन आउट करें|ಲಾಗ್ ಔಟ್ ಮಾಡಿ|ログアウト|تسجيل الخروج|Cerrar sesión

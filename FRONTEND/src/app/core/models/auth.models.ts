@@ -81,26 +81,10 @@ export interface AuthSession {
   role: string | null;
 }
 
-export interface KycDocument {
-  proofOfIdType: string;
-  proofOfIdValue: string;
-  startDate: string;
-  file?: File; // -> user_identity_proofs.documentRef once a real upload endpoint exists
-}
-
 export interface SignupRequest {
   // user_details
   fullName: string;
-  dateOfBirth: string;
-  gender: string;
-  countryOfOrigin: string;
   preferredLanguage: string;
-  fatherOrSpouseName: string;
-  occupation: string;
-  // user_identity_proofs
-  proofOfIdType: string;
-  proofOfIdValue: string;
-  startDate: string;
   // user_credentials
   username: string;
   password: string;

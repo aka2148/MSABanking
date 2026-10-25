@@ -4,6 +4,7 @@ import { staffGuard } from './core/guards/staff.guard';
 import { adminGuard } from './core/guards/admin.guard';
 
 export const routes: Routes = [
+  { path: 'kyc', canActivate: [authGuard], canDeactivate: [(component: { beforeLeave: () => Promise<boolean> }) => component.beforeLeave()], loadComponent: () => import('./features/kyc/kyc').then(m => m.Kyc) },
   {
     path: '',
     loadComponent: () => import('./features/landing/landing').then((m) => m.Landing),

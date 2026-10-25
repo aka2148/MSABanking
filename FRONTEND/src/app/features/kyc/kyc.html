@@ -1,0 +1,70 @@
+<app-workspace-shell>
+  <main class="glass-card glass-card--wide kyc-card">
+    <h1>{{ 'KYC' | translate }}</h1>
+    <p *ngIf="loading" role="status">{{ 'Loading...' | translate }}</p>
+    <p *ngIf="error" class="glass-error" role="alert">{{ error | translate }}</p>
+    <ng-container *ngIf="profile as p">
+      <p *ngIf="verified" role="status" class="kyc-success">{{ 'KYC verified successfully.' | translate }}</p>
+      <section>
+        <h2>{{ 'Account details' | translate }}</h2>
+        <div class="kyc-grid">
+          <label class="glass-field" *ngFor="let field of accountFields">
+            <span class="glass-field__label">{{ field.label | translate }}</span>
+            <input [value]="p.accountDetails[field.key] || ''" disabled />
+          </label>
+        </div>
+      </section>
+      <p *ngIf="p.kycStatus === 'REJECTED'" class="glass-error">{{ 'Please consult your bank officer about your rejected KYC.' | translate }}</p>
+      <ng-container *ngIf="!p.editingAllowed">
+        <h2>{{ (p.kycStatus === 'VERIFIED' ? 'KYC verified' : 'KYC rejected') | translate }}</h2>
+        <p>{{ 'Proof of ID type' | translate }}: {{ proofLabel() | translate }}</p>
+        <p>{{ 'ID number' | translate }}: {{ p.proofNumberMasked || '—' }}</p>
+        <p *ngIf="p.verifiedAt && p.kycStatus === 'VERIFIED'">{{ 'Verified on' | translate }}: {{ p.verifiedAt | date:'medium' }}</p>
+        <button *ngIf="p.kycStatus === 'VERIFIED' && !requesting" class="glass-btn" (click)="requesting = true">{{ 'Request re-KYC' | translate }}</button>
+      </ng-container>
+      <form *ngIf="p.editingAllowed" (ngSubmit)="saveAll()" (focusout)="flush()">
+        <p>{{ 'KYC completion' | translate }}: {{ p.completionPercent }}%</p>
+        <section *ngFor="let section of sections">
+          <h2>{{ section.label | translate }}</h2>
+          <div class="kyc-grid">
+            <label class="glass-field" *ngFor="let field of section.fields">
+              <span class="glass-field__label">{{ labels[field] | translate }}</span>
+              <app-glass-select *ngIf="options[field] || field === 'countryOfOrigin'; else textField"
+                [options]="field === 'countryOfOrigin' ? countries() : options[field]!" [translateOptions]="field !== 'countryOfOrigin'"
+                [ngModel]="form[field]" [name]="field" (ngModelChange)="changed(field, $event); flush()" [placeholder]="'Select' | translate"></app-glass-select>
+              <ng-template #textField>
+                <input [type]="field === 'dateOfBirth' || field === 'idIssueDate' ? 'date' : 'text'"
+                  [ngModel]="form[field]" [name]="field" (ngModelChange)="changed(field, $event)"
+                  [placeholder]="field === 'proofOfIdValue' ? (p.proofNumberMasked || '') : ''" autocomplete="off" />
+              </ng-template>
+              <span class="glass-field__error" *ngIf="errors[field]">{{ errors[field] | translate }}</span>
+            </label>
+          </div>
+        </section>
+        <label class="glass-field">
+          <span class="glass-field__label">{{ 'Document (optional)' | translate }}</span>
+          <input type="file" accept="application/pdf,image/jpeg,image/png" (change)="upload($event)" [disabled]="busy" />
+          <span *ngIf="p.document">{{ p.document.name }} ({{ p.document.size }} {{ 'bytes' | translate }})</span>
+          <span *ngIf="documentError" class="glass-field__error">{{ documentError | translate }}</span>
+        </label>
+        <button *ngIf="p.document" type="button" class="glass-btn glass-btn--ghost" (click)="removeDocument()" [disabled]="busy">{{ 'Remove document' | translate }}</button>
+        <div class="kyc-actions">
+          <button type="submit" class="glass-btn">{{ 'Save details' | translate }}</button>
+          <span *ngIf="saved" role="status">{{ 'Draft saved' | translate }}</span>
+        </div>
+      </form>
+      <form *ngIf="requesting && p.kycStatus === 'VERIFIED'" (ngSubmit)="requestRekyc()">
+        <p>{{ 'FDs, loans and forex are unavailable until re-KYC is completed.' | translate }}</p>
+        <label class="glass-field">
+          <span class="glass-field__label">{{ 'Remarks' | translate }}</span>
+          <textarea name="remarks" [(ngModel)]="remarks" [placeholder]="'Reason for re-KYC (10–500 characters)' | translate"></textarea>
+          <span class="glass-field__error" *ngIf="remarksError">{{ remarksError | translate }}</span>
+        </label>
+        <div class="kyc-actions">
+          <button class="glass-btn" type="submit" [disabled]="busy">{{ 'Send' | translate }}</button>
+          <button class="glass-btn glass-btn--ghost" type="button" (click)="requesting = false" [disabled]="busy">{{ 'Cancel' | translate }}</button>
+        </div>
+      </form>
+    </ng-container>
+  </main>
+</app-workspace-shell>

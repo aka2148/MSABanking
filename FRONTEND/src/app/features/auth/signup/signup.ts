@@ -88,31 +88,16 @@ export class Signup {
   errorMessage = '';
   currentStep = 0;
 
-  readonly stepKeys = ['personal', 'documents', 'account'];
+  readonly stepKeys = ['personal', 'account'];
 
   readonly stepLabels = [
-    'Personal details',
-    'Documents',
+    'Basic details',
     'Account setup',
-  ];
-
-  genderOptions: GlassSelectOption[] = [
-    { label: 'Female', value: 'Female' },
-    { label: 'Male', value: 'Male' },
-    { label: 'Other', value: 'Other' },
-    { label: 'Prefer not to say', value: 'Prefer not to say' },
   ];
 
   languageOptions: GlassSelectOption[] = [
     ...LANGUAGES.map(language => ({ label: language.name, value: language.profileName })),
     { label: 'தமிழ்', value: 'Tamil' },
-  ];
-
-  proofTypeOptions: GlassSelectOption[] = [
-    { label: 'Aadhaar', value: 'AADHAAR' },
-    { label: 'PAN', value: 'PAN' },
-    { label: 'Passport', value: 'PASSPORT' },
-    { label: 'Driving Licence', value: 'DRIVING_LICENSE' },
   ];
 
   currencyOptions: GlassSelectOption[] = [
@@ -153,8 +138,6 @@ export class Signup {
     },
   ];
 
-  selectedFile: File | null = null;
-
   focalX = CURRENCY_FOCAL_POINTS['INR'].x;
   focalY = CURRENCY_FOCAL_POINTS['INR'].y;
 
@@ -168,18 +151,7 @@ export class Signup {
     this.form = this.fb.group({
       personal: this.fb.group({
         fullName: ['', Validators.required],
-        dateOfBirth: ['', Validators.required],
-        gender: ['', Validators.required],
-        fatherOrSpouseName: ['', Validators.required],
-        occupation: ['', Validators.required],
-        countryOfOrigin: ['', Validators.required],
         preferredLanguage: [LANGUAGES.find(language => language.code === this.translations.language())!.profileName, Validators.required],
-      }),
-
-      documents: this.fb.group({
-        proofOfIdType: ['', Validators.required],
-        proofOfIdValue: ['', Validators.required],
-        startDate: ['', Validators.required],
       }),
 
       account: this.fb.group({
@@ -239,65 +211,10 @@ export class Signup {
       }),
     });
 
-    /*
-     * Dynamic document validation
-     *
-     * The validation rules for proofOfIdValue change
-     * depending on the selected proofOfIdType.
-     */
     this.personalGroup.get('preferredLanguage')!.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef)).subscribe((name: string) => {
         const language = LANGUAGES.find(option => option.profileName === name);
         if (language) this.translations.setLanguage(language.code);
-      });
-
-    this.documentsGroup
-      .get('proofOfIdType')!
-      .valueChanges.subscribe((type: string) => {
-        const valueControl =
-          this.documentsGroup.get('proofOfIdValue')!;
-
-        // Remove the previous document-specific validators.
-        valueControl.clearValidators();
-
-        switch (type) {
-          case 'AADHAAR':
-            valueControl.setValidators([
-              Validators.required,
-              Validators.pattern(/^[2-9][0-9]{11}$/),
-            ]);
-            break;
-
-          case 'PAN':
-            valueControl.setValidators([
-              Validators.required,
-              Validators.pattern(/^[A-Z]{5}[0-9]{4}[A-Z]$/),
-            ]);
-            break;
-
-          case 'PASSPORT':
-            valueControl.setValidators([
-              Validators.required,
-              Validators.pattern(/^[A-Z][0-9]{7}$/),
-            ]);
-            break;
-
-          case 'DRIVING_LICENSE':
-            valueControl.setValidators([
-              Validators.required,
-              Validators.pattern(/^[A-Z0-9-]{8,20}$/),
-            ]);
-            break;
-
-          default:
-            valueControl.setValidators([
-              Validators.required,
-            ]);
-            break;
-        }
-
-        // Force Angular to immediately recalculate validity.
-        valueControl.updateValueAndValidity();
       });
 
     /*
@@ -319,10 +236,6 @@ export class Signup {
 
   get personalGroup(): FormGroup {
     return this.form.get('personal') as FormGroup;
-  }
-
-  get documentsGroup(): FormGroup {
-    return this.form.get('documents') as FormGroup;
   }
 
   get accountGroup(): FormGroup {
@@ -377,27 +290,6 @@ export class Signup {
     }
 
     if (c.errors['pattern']) {
-      /*
-       * Specific error messages for document numbers.
-       */
-      if (controlName === 'proofOfIdValue') {
-        switch (
-          this.documentsGroup.get('proofOfIdType')?.value
-        ) {
-          case 'AADHAAR':
-            return 'Aadhaar must contain exactly 12 digits.';
-
-          case 'PAN':
-            return 'PAN must be in the format ABCDE1234F.';
-
-          case 'PASSPORT':
-            return 'Passport must contain 1 letter followed by 7 digits.';
-
-          case 'DRIVING_LICENSE':
-            return 'Enter a valid driving licence number.';
-        }
-      }
-
       return this.translations.translate('Enter a valid value for {0}.', [this.translations.translate(label)]);
     }
 
@@ -406,12 +298,6 @@ export class Signup {
     }
 
     return 'Invalid value.';
-  }
-
-  onFileSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
-
-    this.selectedFile = input.files?.[0] ?? null;
   }
 
   next(): void {
@@ -457,7 +343,6 @@ export class Signup {
 
     const {
       personal,
-      documents,
       account,
     } = this.form.getRawValue();
 
@@ -473,7 +358,6 @@ export class Signup {
     this.authService
       .signup({
         ...personal,
-        ...documents,
         ...accountRest,
         firstName,
         lastName,

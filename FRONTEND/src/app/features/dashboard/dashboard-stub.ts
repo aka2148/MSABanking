@@ -1,4 +1,5 @@
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { KycProgressRing } from '../../shared/components/kyc-progress-ring/kyc-progress-ring';
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
@@ -8,7 +9,7 @@ import { WorkspaceShell } from '../../shared/components/workspace-shell/workspac
 @Component({
   selector: 'app-dashboard-stub',
   standalone: true,
-  imports: [TranslatePipe, CommonModule, RouterLink, WorkspaceShell],
+  imports: [TranslatePipe, CommonModule, RouterLink, WorkspaceShell, KycProgressRing],
   template: `
     <app-workspace-shell>
       <main class="workspace-home">
@@ -17,6 +18,7 @@ import { WorkspaceShell } from '../../shared/components/workspace-shell/workspac
           <h1> {{ (canManageProducts ? 'Staff workspace' : 'Welcome back') | translate }} </h1>
           <p> {{ (canManageProducts ? 'Choose an area to continue.' : 'Manage savings and fixed deposits.') | translate }} </p>
         </header>
+        <app-kyc-progress-ring *ngIf="!canManageProducts"></app-kyc-progress-ring>
 
         <nav class="workspace-home__links" [attr.aria-label]="'Workspace shortcuts' | translate">
           <a *ngIf="!canManageProducts" routerLink="/savings"><span> {{ 'Savings accounts' | translate }} </span><small> {{ 'Open and manage savings' | translate }} </small></a>

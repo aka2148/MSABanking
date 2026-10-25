@@ -1,0 +1,6 @@
+.kyc-card { width: min(100%, 860px); margin: 0 auto; }
+.kyc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 16px; }
+section { margin-bottom: 24px; }
+.kyc-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; margin-top: 20px; }
+.kyc-actions span { color: var(--ws-muted); }
+.kyc-success { color: var(--mint-500); }
