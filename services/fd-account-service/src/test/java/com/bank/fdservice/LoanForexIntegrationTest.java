@@ -78,9 +78,10 @@ class LoanForexIntegrationTest {
         mvc.perform(post("/api/v1/loans").header("Authorization",applicant).header("Idempotency-Key","loan-1").contentType(MediaType.APPLICATION_JSON).content(body.replace("\"amount\":1000","\"amount\":2000"))).andExpect(status().isConflict());
         mvc.perform(post("/api/v1/admin/loans/{id}/approve",id).header("Authorization",applicant)).andExpect(status().isForbidden());
         mvc.perform(post("/api/v1/admin/loans/{id}/approve",id).header("Authorization",administrator)).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("APPROVED"));
-        mvc.perform(post("/api/v1/admin/loans/{id}/disburse",id).header("Authorization",administrator)).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("DISBURSED"));
-        mvc.perform(post("/api/v1/admin/loans/{id}/disburse",id).header("Authorization",administrator)).andExpect(status().isOk());
-        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM savings_transactions WHERE st_reference_id=?",Integer.class,"LOAN:"+id));
+        mvc.perform(post("/api/v1/admin/loans/{id}/disburse",id).header("Authorization",administrator)).andExpect(status().isConflict()).andExpect(jsonPath("$.message").value("Loan disbursement is unavailable until loan receivable accounting is implemented."));
+        mvc.perform(get("/api/v1/admin/loans/{id}",id).header("Authorization",administrator)).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("APPROVED"));
+        mvc.perform(post("/api/v1/admin/loans/{id}/disburse",id).header("Authorization",administrator)).andExpect(status().isConflict());
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM savings_transactions WHERE st_reference_id=?",Integer.class,"LOAN:"+id));
         assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM savings_transactions WHERE st_account_id=?",Integer.class,otherAccount));
         assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM loan_applications WHERE la_id=? AND la_destination_savings_id<>?",Integer.class,id,destination));
         String rejected=mvc.perform(post("/api/v1/loans").header("Authorization",applicant).header("Idempotency-Key","loan-2").contentType(MediaType.APPLICATION_JSON).content(body))

@@ -22,6 +22,26 @@
       </div>
       <button class="glass-btn" type="submit" [disabled]="submitting || currenciesLoading || currencies.length === 0"> {{ (submitting ? 'Creating…' : 'Create savings account') | translate }} </button>
     </form>
+    <form [formGroup]="transferForm" (ngSubmit)="transfer()" class="savings-page__form" aria-labelledby="transfer-heading">
+      <div class="savings-page__section-heading"><div><p class="fd-eyebrow"> {{ 'Savings transfer' | translate }} </p><h3 id="transfer-heading"> {{ 'Transfer money' | translate }} </h3></div></div>
+      <p class="glass-error" *ngIf="transferError" role="alert">{{ transferError | translate }}</p>
+      <p class="fd-step-copy" *ngIf="transferMessage" role="status">{{ transferMessage | translate: [transferReference] }}</p>
+      <div class="glass-field-row">
+        <label class="glass-field"><span class="glass-field__label"> {{ 'From account' | translate }} </span>
+          <app-glass-select formControlName="fromAccountId" [options]="transferOptions" [translateOptions]="false" [placeholder]="'Choose savings account' | translate"></app-glass-select>
+        </label>
+        <label class="glass-field"><span class="glass-field__label"> {{ 'Destination account number' | translate }} </span>
+          <input formControlName="toAccountNumber" maxlength="64" autocomplete="off" />
+        </label>
+        <label class="glass-field"><span class="glass-field__label"> {{ 'Amount' | translate }} </span>
+          <input formControlName="amount" type="number" min="0.00000001" step="any" />
+        </label>
+        <label class="glass-field"><span class="glass-field__label"> {{ 'Remark (optional)' | translate }} </span>
+          <input formControlName="remark" maxlength="140" />
+        </label>
+      </div>
+      <button class="glass-btn" type="submit" [disabled]="transferBusy || transferOptions.length === 0"> {{ (transferBusy ? 'Transfer pending…' : 'Transfer money') | translate }} </button>
+    </form>
     <section class="savings-page__list" aria-labelledby="savings-list">
       <div class="savings-page__section-heading"><div><p class="fd-eyebrow"> {{ 'Accounts' | translate }} </p><h3 id="savings-list"> {{ 'Your savings accounts' | translate }} </h3></div><span *ngIf="!loading"> {{ '{0} shown' | translate: [(accounts.length)] }} </span></div>
       <p *ngIf="loading" role="status"> {{ 'Loading accounts…' | translate }} </p>
@@ -32,6 +52,15 @@
         <div><dt> {{ 'Status' | translate }} </dt><dd> {{ (statusLabel(account.status)) | translate }} </dd></div>
         <div *ngIf="demoEnabled"><dt> {{ 'Demo only' | translate }} </dt><dd><button type="button" class="glass-btn glass-btn--ghost" [disabled]="demoBusy" (click)="demoOpening(account)"> {{ 'Add demo opening funds' | translate }} </button></dd></div>
       </dl>
+      <section *ngIf="historyAccountId !== null" aria-labelledby="transfer-history-heading" class="savings-page__list">
+        <h3 id="transfer-history-heading"> {{ 'Recent savings history' | translate }} </h3>
+        <p *ngIf="transferHistory.length === 0"> {{ 'No transactions to show.' | translate }} </p>
+        <dl class="fd-review-list savings-page__account" *ngFor="let item of transferHistory">
+          <div><dt>{{ item.st_entry_type | titlecase }}</dt><dd>{{ item.st_amount | number:'1.0-4' }} · {{ item.st_reference_id }}</dd></div>
+          <div><dt>{{ 'Balance after' | translate }}</dt><dd>{{ item.st_balance_after | number:'1.0-4' }}</dd></div>
+          <div><dt>{{ 'Posted' | translate }}</dt><dd>{{ item.st_posted_at | date:'medium' }}</dd></div>
+        </dl>
+      </section>
     </section>
   </main>
 </app-workspace-shell>

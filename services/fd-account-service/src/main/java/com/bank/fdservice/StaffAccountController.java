@@ -28,8 +28,9 @@ import java.util.UUID;
 @PreAuthorize("hasAnyRole('BANK_OFFICER','ADMIN')")
 public class StaffAccountController {
     private final JdbcTemplate jdbc;
+    private final PostingService postings;
 
-    public StaffAccountController(JdbcTemplate jdbc) { this.jdbc = jdbc; }
+    public StaffAccountController(JdbcTemplate jdbc, PostingService postings) { this.jdbc = jdbc; this.postings = postings; }
 
     @GetMapping("/accounts")
     public Page<FdRow> fixedDeposits(@RequestParam(defaultValue = "0") int page,
@@ -100,12 +101,11 @@ public class StaffAccountController {
         BigDecimal amount;
         try { amount = request.amount.setScale(decimals, RoundingMode.UNNECESSARY); }
         catch (ArithmeticException e) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Amount exceeds the currency decimal scale"); }
-        BigDecimal prior = (BigDecimal) account.get("balance");
-        BigDecimal balance = credit ? prior.add(amount) : prior.subtract(amount);
-        if (balance.signum() < 0) throw new ResponseStatusException(HttpStatus.CONFLICT, "Insufficient funds");
-        jdbc.update("UPDATE savings_accounts SET sa_balance=?,sa_row_version=sa_row_version+1 WHERE sa_account_id=?", balance, id);
         String reference = "STAFF-" + UUID.randomUUID();
-        jdbc.update("INSERT INTO savings_transactions(st_reference_id,st_account_id,st_entry_type,st_amount,st_currency_id,st_balance_after,st_remarks,st_posted_at) VALUES(?,?,?,?,?,?,?,UTC_TIMESTAMP(6))", reference, id, credit ? "CREDIT" : "DEBIT", amount, currencyId, balance, request.remarks == null ? "Staff teller transaction" : request.remarks.trim());
+        PostingService.MovementResult movement = postings.postSavingsMovement(id,currencyId,amount,credit?"CREDIT":"DEBIT",reference,
+                request.remarks == null ? "Staff teller transaction" : request.remarks.trim(),actorKey,
+                (credit?"TELLER_DEPOSIT:":"TELLER_WITHDRAWAL:")+reference,credit?"TELLER_DEPOSIT":"TELLER_WITHDRAWAL",
+                credit?"CASH_TELLER":"SAVINGS",credit?"SAVINGS":"CASH_TELLER");
         jdbc.update("UPDATE fd_operation_idempotency SET foi_status='COMPLETED',foi_aggregate_id=?,foi_response_reference=?,foi_completed_at=UTC_TIMESTAMP(6) WHERE foi_operation_scope=? AND foi_actor_key=? AND foi_idempotency_key=?", id, reference, scope, actorKey, key);
         return savingsRow(id);
     }

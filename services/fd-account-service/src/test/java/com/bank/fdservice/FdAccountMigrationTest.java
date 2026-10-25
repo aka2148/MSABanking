@@ -46,6 +46,7 @@ class FdAccountMigrationTest {
         properties.add("app.jwt.secret", () -> JWT_SECRET);
         properties.add("app.kafka.enabled", () -> false);
         properties.add("app.demo.opening-balance.enabled", () -> true);
+        properties.add("app.demo.opening-max-amount", () -> "5000.00");
     }
 
     @Autowired
@@ -56,8 +57,8 @@ class FdAccountMigrationTest {
 
     @Test
     void appliesAllFdMigrationsAndCreatesWorkflowSchema() {
-        assertEquals(12, jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1", Integer.class));
-        assertEquals(12, jdbc.queryForObject("SELECT MAX(CAST(version AS UNSIGNED)) FROM flyway_schema_history WHERE success=1", Integer.class));
+        assertEquals(13, jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1", Integer.class));
+        assertEquals(13, jdbc.queryForObject("SELECT MAX(CAST(version AS UNSIGNED)) FROM flyway_schema_history WHERE success=1", Integer.class));
 
         assertTrue(table("fd_accounts"));
         assertTrue(table("savings_accounts"));
@@ -72,6 +73,8 @@ class FdAccountMigrationTest {
         assertTrue(table("loan_applications"));
         assertTrue(table("loan_application_events"));
         assertTrue(table("forex_requests"));
+        assertTrue(table("chart_of_accounts"));
+        assertTrue(table("fd_ledger_cutover"));
 
         assertEquals(8, decimalScale("fd_accounts", "fa_principal_amount"));
         assertEquals(8, decimalScale("savings_accounts", "sa_balance"));
@@ -101,6 +104,10 @@ class FdAccountMigrationTest {
                         .contentType(MediaType.APPLICATION_JSON).content("{\"amount\":123.456}"))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isBadRequest());
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/savings-accounts/{id}/demo-opening", openingSavingsId)
+                        .header("Authorization", "Bearer " + customerToken).header("Idempotency-Key", "opening-cap")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"amount\":5000.01}"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isBadRequest());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/savings-accounts/{id}/demo-opening", openingSavingsId)
                         .header("Authorization", "Bearer " + customerToken).header("Idempotency-Key", "opening-valid")
                         .contentType(MediaType.APPLICATION_JSON).content("{\"amount\":123.45}"))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
@@ -113,6 +120,8 @@ class FdAccountMigrationTest {
                         .header("Authorization", "Bearer " + token(799, "ROLE_CUSTOMER")))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isNotFound());
         assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM savings_transactions WHERE st_account_id=?", Integer.class, openingSavingsId));
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM fd_journals WHERE fj_key=? AND fj_operation='DEMO_OPENING' AND fj_created_by=?", Integer.class, "DEMO_OPENING:"+openingSavingsId, "701"));
+        assertEquals(2, jdbc.queryForObject("SELECT COUNT(*) FROM fd_journal_lines WHERE jl_journal_id=(SELECT fj_id FROM fd_journals WHERE fj_key=?)", Integer.class, "DEMO_OPENING:"+openingSavingsId));
 
         String booking = """
                 {"productId":11,"savingsAccountId":1,"principal":100.00,"currencyCode":"USD","tenureMonths":1}

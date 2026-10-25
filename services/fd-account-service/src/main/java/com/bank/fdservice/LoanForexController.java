@@ -121,25 +121,12 @@ public class LoanForexController {
     }
 
     @PostMapping("/api/v1/admin/loans/{id}/disburse") @PreAuthorize("hasRole('ADMIN')") @Transactional
-    public Map<String,Object> disburse(Authentication actor,HttpServletRequest http,@PathVariable long id) {
+    public Object disburse(Authentication actor,HttpServletRequest http,@PathVariable long id) {
         Map<String,Object> row=lockedLoan(id);
         if ("DISBURSED".equals(row.get("la_status"))) return loan(id,null);
         if (!"APPROVED".equals(row.get("la_status"))) throw conflict("Only approved applications can be disbursed");
-        revalidate(row,http);
-        long customer=((Number)row.get("la_customer_id")).longValue(),currency=((Number)row.get("la_currency_id")).longValue();
-        long savingsId=((Number)row.get("la_destination_savings_id")).longValue();
-        BigDecimal balance=requireSavings(savingsId,customer,currency,true);
-        BigDecimal amount=(BigDecimal)row.get("la_approved_amount");
-        if (amount==null) throw conflict("Approved amount is missing");
-        int scale=scale(currency);
-        BigDecimal after=balance.add(amount).setScale(scale,RoundingMode.HALF_UP);
-        jdbc.update("UPDATE savings_accounts SET sa_balance=?,sa_row_version=sa_row_version+1 WHERE sa_account_id=?",after,savingsId);
-        jdbc.update("INSERT INTO savings_transactions(st_reference_id,st_account_id,st_entry_type,st_amount,st_currency_id,st_balance_after,st_remarks,st_posted_at) VALUES(?,?,'CREDIT',?,?,?,?,UTC_TIMESTAMP(6))",
-                "LOAN:"+id,savingsId,amount,currency,after,"Internal loan disbursement #"+id);
-        long transaction=jdbc.queryForObject("SELECT LAST_INSERT_ID()",Long.class);
-        jdbc.update("UPDATE loan_applications SET la_status='DISBURSED',la_disbursement_transaction_id=?,la_updated_at=UTC_TIMESTAMP(6) WHERE la_id=?",transaction,id);
-        event(id,"DISBURSED",userId(actor),null);
-        return loan(id,null);
+        return org.springframework.http.ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("message","Loan disbursement is unavailable until loan receivable accounting is implemented."));
     }
 
     @GetMapping("/api/v1/forex-requests")

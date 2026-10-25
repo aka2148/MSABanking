@@ -78,6 +78,14 @@ export class FdService {
     });
   }
 
+  transferSavings(request: { fromAccountId: number; toAccountNumber: string; amount: number; remark?: string }, idempotencyKey: string): Observable<SavingsTransferResponse> {
+    return this.http.post<SavingsTransferResponse>(this.path('/savings-accounts/transfers'), request, { headers: { 'Idempotency-Key': idempotencyKey } });
+  }
+
+  savingsTransactions(id: number): Observable<SavingsHistory[]> {
+    return this.http.get<SavingsHistory[]>(this.path(`/savings-accounts/${id}/transactions`));
+  }
+
   listSavings(): Observable<SavingsAccount[]> {
     return this.http.get<SavingsAccount[]>(this.path('/savings-accounts'));
   }
@@ -259,6 +267,27 @@ export class FdService {
   private path(path: string): string {
     return `${this.baseUrl.replace(/\/$/, '')}${path}`;
   }
+}
+
+export interface SavingsTransferResponse {
+  reference: string;
+  fromAccountId: number;
+  toAccountNumber: string;
+  amount: number;
+  currency: string;
+  fromBalanceAfter: number;
+  postedAt: string;
+}
+
+export interface SavingsHistory {
+  st_id: number;
+  st_reference_id: string;
+  st_entry_type: 'DEBIT' | 'CREDIT';
+  st_amount: number;
+  st_currency_id: number;
+  st_balance_after: number;
+  st_remarks: string;
+  st_posted_at: string;
 }
 
 interface PendingSubmission {

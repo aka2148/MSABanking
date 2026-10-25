@@ -27,8 +27,10 @@ import java.util.UUID;
 @RequestMapping("/api/v1/savings-accounts")
 public class SavingsAccountController {
     private final JdbcTemplate jdbc;
+    private final PostingService postings;
     private final boolean demoOpeningEnabled;
-    public SavingsAccountController(JdbcTemplate jdbc,@Value("${app.demo.opening-balance.enabled:false}") boolean demoOpeningEnabled){this.jdbc=jdbc;this.demoOpeningEnabled=demoOpeningEnabled;}
+    private final BigDecimal demoOpeningMaximum;
+    public SavingsAccountController(JdbcTemplate jdbc,PostingService postings,@Value("${app.demo.opening-balance.enabled:false}") boolean demoOpeningEnabled,@Value("${app.demo.opening-max-amount:}") String demoOpeningMaximum){this.jdbc=jdbc;this.postings=postings;this.demoOpeningEnabled=demoOpeningEnabled;this.demoOpeningMaximum=demoOpeningMaximum==null||demoOpeningMaximum.isBlank()?null:new BigDecimal(demoOpeningMaximum);}
 
     @GetMapping("/currencies")
     public List<SavingsCurrencyView> currencies(){
@@ -54,7 +56,7 @@ public class SavingsAccountController {
             @RequestHeader("Idempotency-Key") @NotBlank @Size(max=255) String key,
             @Valid @RequestBody DemoOpeningRequest request){
         long user=userId(actor);
-        if(!demoOpeningEnabled)throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Demo opening credits are disabled");
+        requireDemoOpeningAuthorization(user,id);
         String requestHash=hash(id+"|"+request.amount.toPlainString());
         try{jdbc.update("INSERT INTO fd_operation_idempotency(foi_operation_scope,foi_actor_key,foi_idempotency_key,foi_request_hash,foi_status) VALUES('SAVINGS_DEMO_OPENING',?,?,?,'PENDING')",Long.toString(user),key,requestHash);}
         catch(DuplicateKeyException e){Map<String,Object> existing=jdbc.queryForMap("SELECT foi_request_hash,foi_status,foi_aggregate_id FROM fd_operation_idempotency WHERE foi_operation_scope='SAVINGS_DEMO_OPENING' AND foi_actor_key=? AND foi_idempotency_key=?",Long.toString(user),key);if(!requestHash.equals(existing.get("foi_request_hash")))throw new ResponseStatusException(HttpStatus.CONFLICT,"Idempotency key was already used for a different opening-credit request");if("COMPLETED".equals(existing.get("foi_status"))&&existing.get("foi_aggregate_id")!=null)return find(((Number)existing.get("foi_aggregate_id")).longValue(),user);throw new ResponseStatusException(HttpStatus.CONFLICT,"Opening-credit request is already in progress");}
@@ -64,10 +66,16 @@ public class SavingsAccountController {
         if(((BigDecimal)account.get("balance")).signum()!=0||jdbc.queryForObject("SELECT COUNT(*) FROM savings_transactions WHERE st_account_id=?",Integer.class,id)>0)throw new ResponseStatusException(HttpStatus.CONFLICT,"A demo opening credit can be recorded only once on an unused savings account");
         long currency=((Number)account.get("currency")).longValue();Integer scale=jdbc.queryForObject("SELECT fcr_decimal_places FROM fd_currency_ref WHERE fcr_currency_id=?",Integer.class,currency);int decimals=scale==null?2:scale;
         BigDecimal amount;try{amount=request.amount.setScale(decimals,RoundingMode.UNNECESSARY);}catch(ArithmeticException e){throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Opening credit exceeds the currency decimal scale");}
-        jdbc.update("UPDATE savings_accounts SET sa_balance=?,sa_row_version=sa_row_version+1 WHERE sa_account_id=?",amount,id);
-        jdbc.update("INSERT INTO savings_transactions(st_reference_id,st_account_id,st_entry_type,st_amount,st_currency_id,st_balance_after,st_remarks,st_posted_at) VALUES(?,?,'CREDIT',?,?,?,?,UTC_TIMESTAMP(6))","DEMO-OPENING:"+UUID.randomUUID(),id,amount,currency,amount,"Demo opening credit only; no external payment was processed");
+        if(demoOpeningMaximum!=null&&amount.compareTo(demoOpeningMaximum)>0)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Opening credit exceeds the configured demonstration maximum");
+        postings.postSavingsMovement(id,currency,amount,"CREDIT","DEMO_OPENING:"+id,"Demo opening credit only; no external payment was processed",actor.getName(),"DEMO_OPENING:"+id,"DEMO_OPENING","DEMO_SUSPENSE","SAVINGS");
         jdbc.update("UPDATE fd_operation_idempotency SET foi_status='COMPLETED',foi_aggregate_id=?,foi_response_reference=?,foi_completed_at=UTC_TIMESTAMP(6) WHERE foi_operation_scope='SAVINGS_DEMO_OPENING' AND foi_actor_key=? AND foi_idempotency_key=?",id,Long.toString(id),Long.toString(user),key);
         return find(id,user);
+    }
+
+    private void requireDemoOpeningAuthorization(long user,long accountId){
+        if(!demoOpeningEnabled)throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Demo opening credits are disabled");
+        Integer owned=jdbc.query("SELECT 1 FROM savings_accounts WHERE sa_account_id=? AND sa_holder_id=?",rs->rs.next()?1:null,accountId,user);
+        if(owned==null)throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Savings account not found");
     }
 
     @GetMapping("/{id}/transactions")

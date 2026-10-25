@@ -5,7 +5,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { SavingsAccount } from '../../core/models/fd.models';
-import { FdService, normalizeApiError } from '../../core/services/fd.service';
+import { FdService, normalizeApiError, SavingsHistory, SavingsTransferResponse } from '../../core/services/fd.service';
 import { WorkspaceShell } from '../../shared/components/workspace-shell/workspace-shell';
 import { GlassSelect } from '../../shared/components/glass-select/glass-select';
 
@@ -19,15 +19,31 @@ export class SavingsAccounts implements OnInit {
   loading = false; submitting = false; error = ''; message = '';
   messageParameters: readonly unknown[] = [];
   demoEnabled = false; demoBusy = false;
+  transferBusy = false;
+  transferError = '';
+  transferMessage = '';
+  transferReference = '';
+  transferOptions: Array<{ label: string; value: string }> = [];
+  transferHistory: SavingsHistory[] = [];
+  historyAccountId: number | null = null;
   currenciesLoading = true;
   private submission: { body: string; key: string } | null = null;
   currencies: Array<{ label: string; value: string }> = [];
   readonly form;
+  readonly transferForm;
+  private transferSubmission: { signature: string; key: string } | null = null;
   constructor(private readonly fd: FdService, fb: FormBuilder) {
     this.form = fb.nonNullable.group({
       displayName: ['', [Validators.required, Validators.maxLength(80), Validators.pattern(/.*\S.*/)]],
       currencyCode: ['INR', Validators.required],
     });
+    this.transferForm = fb.group({
+      fromAccountId: ['', Validators.required],
+      toAccountNumber: ['', [Validators.required, Validators.maxLength(64)]],
+      amount: [null as number | null, [Validators.required, Validators.min(0.00000001)]],
+      remark: ['', Validators.maxLength(140)],
+    });
+    this.transferForm.valueChanges.subscribe(() => { this.transferSubmission = null; });
   }
   ngOnInit(): void {
     this.load();
@@ -65,9 +81,40 @@ export class SavingsAccounts implements OnInit {
   load(): void {
     this.loading = true;
     this.fd.listSavings().subscribe({
-      next: accounts => { this.accounts = accounts; this.loading = false; },
+      next: accounts => {
+        this.accounts = accounts; this.loading = false;
+        const active = accounts.filter(account => account.status === 'ACTIVE');
+        this.transferOptions = active.map(account => ({ label: `${account.display_name} (••••${account.account_number.slice(-4)})`, value: String(account.account_id) }));
+        if (!active.some(account => account.account_id === Number(this.transferForm.controls.fromAccountId.value)))
+          this.transferForm.controls.fromAccountId.setValue(active[0] ? String(active[0].account_id) : '');
+      },
       error: (e: HttpErrorResponse) => { this.error = normalizeApiError(e).message; this.loading = false; },
     });
+  }
+  transfer(): void {
+    if (this.transferBusy) return;
+    if (this.transferForm.invalid) { this.transferForm.markAllAsTouched(); return; }
+    const raw = this.transferForm.getRawValue();
+    const fromAccountId = Number(raw.fromAccountId);
+    const toAccountNumber = (raw.toAccountNumber ?? '').trim();
+    const amount = Number(raw.amount);
+    const remark = (raw.remark ?? '').trim();
+    const signature = `${fromAccountId}|${toAccountNumber}|${String(amount)}|${remark}`;
+    if (this.transferSubmission?.signature !== signature) this.transferSubmission = { signature, key: crypto.randomUUID() };
+    const key = this.transferSubmission.key;
+    this.transferBusy = true; this.transferError = ''; this.transferMessage = '';
+    this.fd.transferSavings({ fromAccountId, toAccountNumber, amount, ...(remark ? { remark } : {}) }, key).subscribe({
+      next: (result: SavingsTransferResponse) => {
+        this.transferBusy = false; this.transferSubmission = null; this.transferReference = result.reference;
+        this.transferMessage = 'Transfer completed. Reference: {0}';
+        this.load(); this.loadHistory(fromAccountId);
+      },
+      error: error => { this.transferBusy = false; this.transferError = normalizeApiError(error).message; },
+    });
+  }
+  private loadHistory(accountId: number): void {
+    this.historyAccountId = accountId;
+    this.fd.savingsTransactions(accountId).subscribe({ next: rows => this.transferHistory = rows, error: () => this.transferHistory = [] });
   }
   create(): void {
     if (this.submitting) return;
