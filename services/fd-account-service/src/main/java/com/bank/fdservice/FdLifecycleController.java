@@ -17,6 +17,7 @@ import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
@@ -48,9 +49,25 @@ public class FdLifecycleController {
         long user=userId(actor);String reason=request.reason==null?"":request.reason.trim();String hash=hash(id+"|"+reason);Long replay=claim("PREMATURE_REQUEST",user,key,hash);if(replay!=null)return quote(replay,user);
         Map<String,Object> fd=fd(id);if(((Number)fd.get("owner")).longValue()!=user)throw notFound();if(!"ACTIVE".equals(fd.get("status")))throw conflict("Only an active FD can request premature closure");
         if(jdbc.queryForObject("SELECT COUNT(*) FROM fd_premature_closure WHERE fpc_account_id=? AND fpc_status='PENDING'",Integer.class,id)>0)throw conflict("A premature closure request is already pending");
-        long currency=((Number)fd.get("currency")).longValue();Map<String,Object> terms=jdbc.query("SELECT premature_penalty_points FROM fd_product_currency_ref WHERE product_id=? AND currency_id=?",r->r.next()?Map.of("points",r.getBigDecimal(1)==null?"":r.getBigDecimal(1).toPlainString()):null,fd.get("product"),currency);
-        if(terms==null||terms.get("points")==null||terms.get("points").toString().isBlank())throw conflict("Premature closure is not configured for this product");
-        BigDecimal points=new BigDecimal(terms.get("points").toString()),rate=(BigDecimal)fd.get("rate"),principal=(BigDecimal)fd.get("principal");
+        long currency=((Number)fd.get("currency")).longValue();
+        BigDecimal points = null;
+        String snapshotJson = (String) fd.get("termsSnapshot");
+        if (snapshotJson != null && !snapshotJson.isBlank()) {
+            try {
+                com.fasterxml.jackson.databind.JsonNode root = json.readTree(snapshotJson);
+                if (root.hasNonNull("prematurePenaltyPoints") && !root.path("prematurePenaltyPoints").asText().isBlank()) {
+                    points = new BigDecimal(root.path("prematurePenaltyPoints").asText());
+                }
+            } catch (Exception ignored) {}
+        }
+        if (points == null) {
+            Map<String,Object> terms=jdbc.query("SELECT premature_penalty_points FROM fd_product_currency_ref WHERE product_id=? AND currency_id=?",r->r.next()?Map.of("points",r.getBigDecimal(1)==null?"":r.getBigDecimal(1).toPlainString()):null,fd.get("product"),currency);
+            if(terms!=null && terms.get("points")!=null && !terms.get("points").toString().isBlank()) {
+                points = new BigDecimal(terms.get("points").toString());
+            }
+        }
+        if(points==null)throw conflict("Premature closure is not configured for this product");
+        BigDecimal rate=(BigDecimal)fd.get("rate"),principal=(BigDecimal)fd.get("principal");
         BigDecimal penalized=rate.subtract(points.divide(new BigDecimal("100"),12,RoundingMode.HALF_UP)).max(BigDecimal.ZERO);
         LocalDate start=((java.sql.Timestamp)fd.get("opened")).toLocalDateTime().toLocalDate();LocalDate maturity=((java.sql.Date)fd.get("maturity")).toLocalDate();LocalDate today=clock.businessDate();LocalDate end=today.isAfter(maturity)?maturity:today;if(end.isBefore(start))end=start;
         int scale=currencyScale(currency);BigDecimal paidInterest=principal.multiply(penalized).multiply(BigDecimal.valueOf(java.time.temporal.ChronoUnit.DAYS.between(start,end))).divide(BigDecimal.valueOf(365),12,RoundingMode.HALF_UP).setScale(scale,RoundingMode.HALF_UP);
@@ -133,7 +150,26 @@ public class FdLifecycleController {
         event(id,nextStatus,Map.of("status",nextStatus,"settlementAmount",amount,"settledAt",clock.businessDate().toString()));complete(scope,idempotencyActor,key,id);return new FdCloseResponse(id,nextStatus,amount,after);
     }
 
-    private Map<String,Object> fd(long id){Map<String,Object> row=jdbc.query("SELECT fa_primary_holder_id,fa_product_id,fa_principal_amount,fa_currency_id,fa_status,fa_funding_savings_account_id,fa_maturity_amount,fa_interest_rate,fa_open_date,fa_maturity_date FROM fd_accounts WHERE fa_account_id=? FOR UPDATE",r->r.next()?Map.of("owner",r.getLong(1),"product",r.getLong(2),"principal",r.getBigDecimal(3),"currency",r.getLong(4),"status",r.getString(5),"savings",r.getLong(6),"maturityAmount",r.getBigDecimal(7)==null?BigDecimal.ZERO:r.getBigDecimal(7),"rate",r.getBigDecimal(8),"opened",r.getTimestamp(9),"maturity",r.getDate(10)):null,id);if(row==null)throw notFound();return row;}
+    private Map<String,Object> fd(long id){
+        Map<String,Object> row=jdbc.query("SELECT fa_primary_holder_id,fa_product_id,fa_principal_amount,fa_currency_id,fa_status,fa_funding_savings_account_id,fa_maturity_amount,fa_interest_rate,fa_open_date,fa_maturity_date,fa_terms_snapshot FROM fd_accounts WHERE fa_account_id=? FOR UPDATE",r->{
+            if(!r.next())return null;
+            Map<String,Object> m=new HashMap<>();
+            m.put("owner",r.getLong(1));
+            m.put("product",r.getLong(2));
+            m.put("principal",r.getBigDecimal(3));
+            m.put("currency",r.getLong(4));
+            m.put("status",r.getString(5));
+            m.put("savings",r.getLong(6));
+            m.put("maturityAmount",r.getBigDecimal(7)==null?BigDecimal.ZERO:r.getBigDecimal(7));
+            m.put("rate",r.getBigDecimal(8));
+            m.put("opened",r.getTimestamp(9));
+            m.put("maturity",r.getDate(10));
+            m.put("termsSnapshot",r.getString(11)==null?"":r.getString(11));
+            return m;
+        },id);
+        if(row==null)throw notFound();
+        return row;
+    }
     private PrematureQuote quote(long closure,long user){return jdbc.query("SELECT c.fpc_account_id,c.fpc_penalty_pct_applied,c.fpc_penalty_amount,c.fpc_net_payable_amount,c.fpc_status,c.fpc_closure_date,c.fpc_approved_by,a.fa_interest_rate-c.fpc_penalty_pct_applied/100,cr.fcr_iso_code FROM fd_premature_closure c JOIN fd_accounts a ON a.fa_account_id=c.fpc_account_id JOIN fd_currency_ref cr ON cr.fcr_currency_id=c.fpc_currency_id WHERE c.fpc_closure_id=? AND a.fa_primary_holder_id=?",r->{if(!r.next())throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Premature closure request not found");return new PrematureQuote(closure,r.getLong(1),r.getBigDecimal(2),r.getBigDecimal(3),r.getBigDecimal(4),r.getString(5),r.getTimestamp(6).toInstant().toString(),r.getObject(7)==null?null:((Number)r.getObject(7)).longValue(),r.getBigDecimal(8),r.getString(9));},closure,user);}
     private FdCloseResponse closeResponse(long id,long user){return closeResponse(id,user,true);}
     private FdCloseResponse closeResponse(long id,long user,boolean enforceOwner){String sql="SELECT fa_status,fa_maturity_amount,sa_balance FROM fd_accounts a JOIN savings_accounts s ON s.sa_account_id=a.fa_funding_savings_account_id WHERE a.fa_account_id=?"+(enforceOwner?" AND a.fa_primary_holder_id=?":"");Map<String,Object> r=enforceOwner?jdbc.query(sql,rs->rs.next()?Map.of("status",rs.getString(1),"amount",rs.getBigDecimal(2),"balance",rs.getBigDecimal(3)):null,id,user):jdbc.query(sql,rs->rs.next()?Map.of("status",rs.getString(1),"amount",rs.getBigDecimal(2),"balance",rs.getBigDecimal(3)):null,id);if(r==null)throw notFound();return new FdCloseResponse(id,(String)r.get("status"),(BigDecimal)r.get("amount"),(BigDecimal)r.get("balance"));}

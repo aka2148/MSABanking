@@ -41,19 +41,30 @@ public class FixedDepositController {
     public FdView book(Authentication actor,@RequestHeader("Idempotency-Key") @NotBlank @Size(max=255) String key,@Valid @RequestBody BookingRequest request){
         long userId=userId(actor);CustomerProductAccess.requireVerified(jdbc,userId);String hash=hash(request.productId+"|"+request.savingsAccountId+"|"+request.principal+"|"+request.currencyCode+"|"+request.tenureMonths);
         Long replay=claim("FD_BOOKING",userId,key,hash);if(replay!=null)return find(replay,userId);
+        Map<String,Object> product=jdbc.query("SELECT fpr_product_code,fpr_product_name,fpr_status FROM fd_product_ref WHERE fpr_product_id=?",r->r.next()?Map.of("code",r.getString(1),"name",r.getString(2),"status",r.getString(3)):null,request.productId);
+        if(product==null)throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Fixed deposit product not found");
+        if(!"ACTIVE".equalsIgnoreCase((String)product.get("status")))throw bad("Fixed deposit product is not active");
         Map<String,Object> currency=jdbc.query("SELECT fcr_currency_id,fcr_decimal_places FROM fd_currency_ref WHERE UPPER(fcr_iso_code)=UPPER(?)",r->r.next()?Map.of("id",r.getLong(1),"scale",r.getInt(2)):null,request.currencyCode);
         if(currency==null)throw bad("Currency reference has not arrived from the Product service");
         long currencyId=((Number)currency.get("id")).longValue();int scale=((Number)currency.get("scale")).intValue();
         if(scale<0||scale>8)throw bad("Currency decimal scale is invalid");
+        if(request.principal.compareTo(BigDecimal.ZERO)<=0)throw bad("Principal amount must be positive");
         BigDecimal principal;try{principal=request.principal.setScale(scale,RoundingMode.UNNECESSARY);}catch(ArithmeticException e){throw bad("Principal exceeds the currency decimal scale");}
+        if(request.tenureMonths<1)throw bad("Tenure months must be at least 1");
         Map<String,Object> ownerAccount=jdbc.query("SELECT sa_account_id FROM savings_accounts WHERE sa_account_id=? AND sa_holder_id=? AND sa_currency_id=? AND sa_status='ACTIVE'",r->r.next()?Map.of("id",r.getLong(1)):null,request.savingsAccountId,userId,currencyId);
         if(ownerAccount==null)throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Eligible owned savings account not found");
-        List<Map<String,Object>> offers=jdbc.queryForList("SELECT pc.minimum_amount,pc.maximum_amount,rr.annual_rate,rr.compounding_basis,rr.payout_frequency FROM fd_product_currency_ref pc JOIN fd_product_rate_ref rr ON rr.product_id=pc.product_id AND rr.currency_id=pc.currency_id JOIN fd_product_ref p ON p.fpr_product_id=pc.product_id WHERE pc.product_id=? AND pc.currency_id=? AND rr.minimum_tenure_months<=? AND rr.maximum_tenure_months>=? AND pc.minimum_amount<=? AND pc.maximum_amount>=? AND p.fpr_status='ACTIVE' ORDER BY rr.annual_rate DESC LIMIT 1",request.productId,currencyId,request.tenureMonths,request.tenureMonths,principal,principal);
-        if(offers.isEmpty())throw bad("No active product terms match the requested amount, currency, and term");
-        Map<String,Object> offer=offers.get(0);BigDecimal rate=(BigDecimal)offer.get("annual_rate");String compounding=(String)offer.get("compounding_basis");String payout=(String)offer.get("payout_frequency");
+        Map<String,Object> pcc=jdbc.query("SELECT minimum_amount,maximum_amount,premature_penalty_points FROM fd_product_currency_ref WHERE product_id=? AND currency_id=?",r->r.next()?Map.of("min",r.getBigDecimal(1),"max",r.getBigDecimal(2),"penalty",r.getBigDecimal(3)==null?"":r.getBigDecimal(3).toPlainString()):null,request.productId,currencyId);
+        if(pcc==null)throw bad("Currency "+request.currencyCode+" is not supported for this product");
+        BigDecimal minAmount=(BigDecimal)pcc.get("min");BigDecimal maxAmount=(BigDecimal)pcc.get("max");
+        if(principal.compareTo(minAmount)<0||principal.compareTo(maxAmount)>0)throw bad("Principal amount "+principal+" is outside permitted bounds ["+minAmount+", "+maxAmount+"]");
+        List<Map<String,Object>> rateRows=jdbc.queryForList("SELECT annual_rate,compounding_basis,payout_frequency FROM fd_product_rate_ref WHERE product_id=? AND currency_id=? AND minimum_tenure_months<=? AND maximum_tenure_months>=? ORDER BY annual_rate DESC LIMIT 1",request.productId,currencyId,request.tenureMonths,request.tenureMonths);
+        if(rateRows.isEmpty())throw bad("Requested tenure of "+request.tenureMonths+" months does not match any configured tenure rate band");
+        Map<String,Object> rateBand=rateRows.get(0);
+        BigDecimal rate=(BigDecimal)rateBand.get("annual_rate");String compounding=(String)rateBand.get("compounding_basis");String payout=(String)rateBand.get("payout_frequency");
+        String penaltyStr=(String)pcc.get("penalty");
         LocalDate open=clock.businessDate();LocalDate maturity=open.plusMonths(request.tenureMonths);BigDecimal estimate=FdCompounding.maturity(principal,rate,open,maturity,scale,compounding);
         String policy="academic-v2-"+FdCompounding.basis(compounding).toLowerCase(java.util.Locale.ROOT);
-        String terms=json(mapOf("productId",request.productId,"currencyCode",request.currencyCode,"currencyScale",scale,"principal",principal,"annualRate",rate,"tenureMonths",request.tenureMonths,"compoundingBasis",compounding,"payoutFrequency",payout,"policyVersion",policy));
+        String terms=json(mapOf("productId",request.productId,"productCode",product.get("code"),"productName",product.get("name"),"currencyCode",request.currencyCode,"currencyScale",scale,"principal",principal,"annualRate",rate,"tenureMonths",request.tenureMonths,"compoundingBasis",compounding,"payoutFrequency",payout,"prematurePenaltyPoints",penaltyStr==null||penaltyStr.isBlank()?null:penaltyStr,"policyVersion",policy));
         String accountNumber="FD-"+UUID.randomUUID().toString().replace("-","").substring(0,16).toUpperCase();
         jdbc.update("INSERT INTO fd_accounts(fa_account_number,fa_primary_holder_id,fa_product_id,fa_principal_amount,fa_currency_id,fa_tenure_months,fa_interest_rate,fa_compounding_frequency,fa_payout_frequency,fa_open_date,fa_maturity_date,fa_maturity_amount,fa_status,fa_funding_savings_account_id,fa_terms_snapshot,fa_policy_version) VALUES(?,?,?,?,?,?,?,?,?, ?,?,?,'PENDING',?,CAST(? AS JSON),?)",accountNumber,userId,request.productId,principal.setScale(scale,RoundingMode.HALF_UP),currencyId,request.tenureMonths,rate,compounding,payout,java.sql.Timestamp.valueOf(open.atStartOfDay()),java.sql.Date.valueOf(maturity),estimate.setScale(scale,RoundingMode.HALF_UP),request.savingsAccountId,terms,policy);
         long id=jdbc.queryForObject("SELECT LAST_INSERT_ID()",Long.class);

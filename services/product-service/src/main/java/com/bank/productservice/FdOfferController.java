@@ -17,10 +17,14 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.*;
 
 @RestController @RequestMapping("/api/v1/fd-products") @PreAuthorize("hasAnyRole('BANK_OFFICER','ADMIN')")
 public class FdOfferController {
+    private static final Set<String> ALLOWED_COMPOUNDING = Set.of("MONTHLY", "QUARTERLY", "YEARLY");
+    private static final Set<String> ALLOWED_PAYOUT = Set.of("AT_MATURITY");
+
     private final JdbcTemplate jdbc; private final ObjectMapper json; private final FixedDepositCategories fdCategories;
     public FdOfferController(JdbcTemplate jdbc,ObjectMapper json,FixedDepositCategories fdCategories){this.jdbc=jdbc;this.json=json;this.fdCategories=fdCategories;}
 
@@ -34,7 +38,9 @@ public class FdOfferController {
         final String base=(request.baseCurrencyCode==null?request.currencies.get(0).currencyCode:request.baseCurrencyCode).toUpperCase(Locale.ROOT);
         if(request.currencies.stream().noneMatch(c->c.currencyCode.equalsIgnoreCase(base)))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Base currency must be in the configured currency schedules");
         if(jdbc.queryForList("SELECT cur_currency_id FROM currency WHERE UPPER(cur_iso_code)=UPPER(?) AND cur_is_active=1",Long.class,base).isEmpty())throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Base currency is not configured and active");
-        jdbc.update("INSERT INTO product(pro_product_code,pro_product_name,pro_category_id,pro_base_currency_code,pro_status,pro_description,pro_created_by) VALUES(?,?,?,?,?,?,?)",request.productCode.trim().toUpperCase(Locale.ROOT),ProductTextRules.name(request.productName),request.categoryId,base,"DRAFT",request.description==null?null:request.description.trim(),"API");
+        String fromDate = request.effectiveFrom() == null ? null : request.effectiveFrom().toString();
+        String toDate = request.effectiveTo() == null ? null : request.effectiveTo().toString();
+        jdbc.update("INSERT INTO product(pro_product_code,pro_product_name,pro_category_id,pro_base_currency_code,pro_status,pro_effective_from,pro_effective_to,pro_description,pro_created_by) VALUES(?,?,?,?,?,?,?,?,?)",request.productCode.trim().toUpperCase(Locale.ROOT),ProductTextRules.name(request.productName),request.categoryId,base,"DRAFT",fromDate,toDate,request.description==null?null:request.description.trim(),"API");
         long productId=jdbc.queryForObject("SELECT LAST_INSERT_ID()",Long.class);
         jdbc.update("INSERT INTO product_translation(pt_product_id,pt_locale_tag,pt_product_name,pt_description) VALUES(?,?,?,?)",productId,"en",ProductTextRules.name(request.productName),request.description==null?null:request.description.trim());
         long ruleType=jdbc.queryForObject("SELECT rut_rule_type_id FROM rule_type WHERE rut_rule_type_code='FD_TENURE_RATE'",Long.class);
@@ -56,7 +62,9 @@ public class FdOfferController {
                 long ruleId=jdbc.queryForObject("SELECT LAST_INSERT_ID()",Long.class);
                 jdbc.update("INSERT INTO rule_condition(rc_rule_id,rc_condition_attribute,rc_operator,rc_value_from,rc_value_to,rc_created_by) VALUES(?,?,?,?,?,?)",ruleId,"TENURE_MONTHS","BETWEEN_INCLUSIVE",band.minimumTenureMonths.toString(),band.maximumTenureMonths.toString(),"API");
                 jdbc.update("INSERT INTO rule_condition(rc_rule_id,rc_condition_attribute,rc_operator,rc_value_from,rc_value_to,rc_created_by) VALUES(?,?,?,?,?,?)",ruleId,"AMOUNT_RANGE","BETWEEN_INCLUSIVE",schedule.minimumAmount.toPlainString(),schedule.maximumAmount.toPlainString(),"API");
-                jdbc.update("INSERT INTO rule_outcome(ro_rule_id,ro_outcome_type,ro_outcome_value,ro_unit,ro_compounding_basis,ro_payout_frequency,ro_currency_id,ro_created_by) VALUES(?,?,?,?,?,?,?,?)",ruleId,"INTEREST_RATE",band.annualRate,"DECIMAL_FRACTION","QUARTERLY","AT_MATURITY",currencyId,"API");
+                String compounding = band.compoundingBasis() == null || band.compoundingBasis().isBlank() ? "QUARTERLY" : band.compoundingBasis().toUpperCase(Locale.ROOT);
+                String payout = band.payoutFrequency() == null || band.payoutFrequency().isBlank() ? "AT_MATURITY" : band.payoutFrequency().toUpperCase(Locale.ROOT);
+                jdbc.update("INSERT INTO rule_outcome(ro_rule_id,ro_outcome_type,ro_outcome_value,ro_unit,ro_compounding_basis,ro_payout_frequency,ro_currency_id,ro_created_by) VALUES(?,?,?,?,?,?,?,?)",ruleId,"INTEREST_RATE",band.annualRate,"DECIMAL_FRACTION",compounding,payout,currencyId,"API");
             }
         }
         return response(productId);
@@ -78,7 +86,20 @@ public class FdOfferController {
     @PostMapping("/{productId}/activate") @Transactional
     public OfferResponse activate(@PathVariable long productId){
         OfferResponse offer=response(productId);
+        if("ACTIVE".equals(offer.status()))throw new ResponseStatusException(HttpStatus.CONFLICT,"Product is already active");
         if(!"DRAFT".equals(offer.status()) && !"INACTIVE".equals(offer.status()))throw new ResponseStatusException(HttpStatus.CONFLICT,"Only a draft or inactive FD product can be activated");
+        List<Map<String,Object>> dates=jdbc.queryForList("SELECT pro_effective_from,pro_effective_to FROM product WHERE pro_product_id=?",productId);
+        if(!dates.isEmpty()){
+            Object toObj=dates.get(0).get("pro_effective_to");
+            if(toObj!=null&&!toObj.toString().isBlank()){
+                try{
+                    LocalDate toDate=LocalDate.parse(toObj.toString().trim());
+                    if(toDate.isBefore(LocalDate.now())){
+                        throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Product effective period has already expired");
+                    }
+                }catch(Exception ignored){}
+            }
+        }
         List<Map<String,Object>> configs=jdbc.queryForList("SELECT p.pcc_currency_id,p.pcc_is_base_currency,c.cur_iso_code,c.cur_decimal_places,p.pcc_minimum_amount,p.pcc_maximum_amount FROM product_currency_config p JOIN currency c ON c.cur_currency_id=p.pcc_currency_id WHERE p.pcc_product_id=? AND c.cur_is_active=1",productId);
         if(configs.isEmpty())throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"FD offer needs an active currency configuration");
         long baseCount=configs.stream().filter(c->Boolean.TRUE.equals(c.get("pcc_is_base_currency"))).count();
@@ -110,9 +131,37 @@ public class FdOfferController {
     }
     private void requireCategory(long id){if(jdbc.queryForList("SELECT pc_category_id FROM product_category WHERE pc_category_id=?",Long.class,id).isEmpty())throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Product category does not exist");}
     private void validateBands(OfferRequest r){
+        if(r.effectiveFrom()!=null && r.effectiveTo()!=null && r.effectiveFrom().isAfter(r.effectiveTo())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Effective-to date must be on or after effective-from date.");
+        }
         if(r.currencies==null||r.currencies.isEmpty())throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Configure at least one currency schedule");Set<String> seen=new HashSet<>();
-        for(CurrencySchedule c:r.currencies){if(!seen.add(c.currencyCode.toUpperCase(Locale.ROOT)))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Currency schedule is duplicated");if(c.minimumAmount.compareTo(c.maximumAmount)>0)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Minimum amount exceeds maximum amount");if(c.prematurePenaltyPoints!=null&&(c.prematurePenaltyPoints.signum()<0||c.prematurePenaltyPoints.compareTo(new BigDecimal("100"))>0))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Premature penalty must be between 0 and 100 percentage points");
-            List<RateBand> bands=c.rateBands.stream().sorted(Comparator.comparing(RateBand::minimumTenureMonths)).toList();for(int i=0;i<bands.size();i++){RateBand b=bands.get(i);if(b.minimumTenureMonths>b.maximumTenureMonths)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Tenure range is inverted");if(b.annualRate.scale()>4)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Rate supports at most four decimal places");if(i>0&&b.minimumTenureMonths!=bands.get(i-1).maximumTenureMonths+1)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Tenure bands must be contiguous and non-overlapping");}}
+        for(CurrencySchedule c:r.currencies){
+            if(!seen.add(c.currencyCode.toUpperCase(Locale.ROOT)))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Currency schedule is duplicated");
+            if(c.minimumAmount.compareTo(c.maximumAmount)>0)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Minimum amount exceeds maximum amount");
+            if(c.prematurePenaltyPoints!=null){
+                if(c.prematurePenaltyPoints.signum()<0||c.prematurePenaltyPoints.compareTo(new BigDecimal("100"))>0) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Premature penalty must be between 0 and 100 percentage points");
+                }
+                if(c.prematurePenaltyPoints.scale()>4) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Premature penalty supports at most four decimal places");
+                }
+            }
+            if(c.rateBands==null||c.rateBands.isEmpty())throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Configure at least one rate band");
+            List<RateBand> bands=c.rateBands.stream().sorted(Comparator.comparing(RateBand::minimumTenureMonths)).toList();
+            for(int i=0;i<bands.size();i++){
+                RateBand b=bands.get(i);
+                if(b.minimumTenureMonths>b.maximumTenureMonths)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Tenure range is inverted");
+                if(b.annualRate.scale()>4)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Rate supports at most four decimal places");
+                if(b.annualRate.signum()<0||b.annualRate.compareTo(BigDecimal.ONE)>0)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Annual rate must be between 0.0000 and 1.0000");
+                if(i>0&&b.minimumTenureMonths!=bands.get(i-1).maximumTenureMonths+1)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Tenure bands must be contiguous and non-overlapping");
+                if(b.compoundingBasis()!=null&&!b.compoundingBasis().isBlank()&&!ALLOWED_COMPOUNDING.contains(b.compoundingBasis().toUpperCase(Locale.ROOT))){
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Compounding basis must be one of: "+ALLOWED_COMPOUNDING);
+                }
+                if(b.payoutFrequency()!=null&&!b.payoutFrequency().isBlank()&&!ALLOWED_PAYOUT.contains(b.payoutFrequency().toUpperCase(Locale.ROOT))){
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Payout frequency must be one of: "+ALLOWED_PAYOUT);
+                }
+            }
+        }
     }
     private void writeOutbox(long id){
         Map<String,Object> product=jdbc.queryForMap("SELECT pro_product_code,pro_product_name,pro_description,pro_base_currency_code,pro_status,pro_event_version FROM product WHERE pro_product_id=?",id);
@@ -122,9 +171,17 @@ public class FdOfferController {
         try{jdbc.update("INSERT INTO outbox_event(event_key,event_type,topic,source_version,payload) VALUES(?,?,?,?,CAST(? AS JSON))",Long.toString(id),"PRODUCT_CATALOG","product.catalog",product.get("pro_event_version"),json.writeValueAsString(payload));}catch(Exception e){throw new IllegalStateException("Unable to write catalog event",e);}
     }
 
-    public record OfferRequest(@NotBlank @Size(max=50) String productCode,@NotBlank @Size(max=255) String productName,@NotNull @Min(1) Long categoryId,@Size(max=1000) String description,String baseCurrencyCode,@NotEmpty @Valid List<CurrencySchedule> currencies){}
+    public record OfferRequest(@NotBlank @Size(max=50) String productCode,@NotBlank @Size(max=255) String productName,@NotNull @Min(1) Long categoryId,@Size(max=1000) String description,String baseCurrencyCode,@NotEmpty @Valid List<CurrencySchedule> currencies,LocalDate effectiveFrom,LocalDate effectiveTo){
+        public OfferRequest(String productCode, String productName, Long categoryId, String description, String baseCurrencyCode, List<CurrencySchedule> currencies) {
+            this(productCode, productName, categoryId, description, baseCurrencyCode, currencies, null, null);
+        }
+    }
     public record ProductUpdateRequest(@NotBlank @Size(max=255) String productName,@Size(max=1000) String description){}
     public record CurrencySchedule(@NotBlank String currencyCode,@NotNull @DecimalMin("0.01") BigDecimal minimumAmount,@NotNull @DecimalMin("0.01") BigDecimal maximumAmount,@NotEmpty @Valid List<RateBand> rateBands,BigDecimal prematurePenaltyPoints){}
-    public record RateBand(@NotNull @Min(1) Integer minimumTenureMonths,@NotNull @Min(1) Integer maximumTenureMonths,@NotNull @DecimalMin("0.0000") @DecimalMax("1.0000") BigDecimal annualRate){}
+    public record RateBand(@NotNull @Min(1) Integer minimumTenureMonths,@NotNull @Min(1) Integer maximumTenureMonths,@NotNull @DecimalMin("0.0000") @DecimalMax("1.0000") BigDecimal annualRate,String compoundingBasis,String payoutFrequency){
+        public RateBand(Integer minimumTenureMonths, Integer maximumTenureMonths, BigDecimal annualRate) {
+            this(minimumTenureMonths, maximumTenureMonths, annualRate, "QUARTERLY", "AT_MATURITY");
+        }
+    }
     public record OfferResponse(@JsonProperty("fd_product_id") Long fdProductId,@JsonProperty("catalog_product_id") Long catalogProductId,@JsonProperty("product_code") String productCode,@JsonProperty("product_name") String productName,String status,@JsonProperty("currency_codes") List<String> currencyCodes){}
 }
