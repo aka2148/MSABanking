@@ -50,6 +50,7 @@
         <button *ngIf="p.document" type="button" class="glass-btn glass-btn--ghost" (click)="removeDocument()" [disabled]="busy">{{ 'Remove document' | translate }}</button>
         <div class="kyc-actions">
           <button type="submit" class="glass-btn">{{ 'Save details' | translate }}</button>
+          <button type="button" class="glass-btn" (click)="submitKyc()" [disabled]="p.completionPercent !== 100 || busy">{{ 'Submit KYC' | translate }}</button>
           <span *ngIf="saved" role="status">{{ 'Draft saved' | translate }}</span>
         </div>
       </form>

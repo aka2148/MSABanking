@@ -1,5 +1,6 @@
 // English | Hindi | Kannada | Japanese | Arabic | Spanish
 export const CUSTOMER_MESSAGES = `
+Submit KYC|केवाईसी जमा करें|ಕೆವೈಸಿ ಸಲ್ಲಿಸಿ|本人確認を送信|إرسال التحقق|Enviar KYC
 Basic details|बुनियादी जानकारी|ಮೂಲ ವಿವರಗಳು|基本情報|البيانات الأساسية|Datos básicos
 Aadhaar|आधार|ಆಧಾರ್|アーダール|آدهار|Aadhaar
 PAN|पैन|ಪ್ಯಾನ್|PAN番号|رقم PAN|PAN

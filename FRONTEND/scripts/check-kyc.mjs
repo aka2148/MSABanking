@@ -32,10 +32,11 @@ try {
   for (const percent of [0, 11, 22, 88, 100]) assert.equal(ringOffset(percent), 100 - percent);
   const base = { kycStatus: 'PENDING', cycleNumber: 1, cycleStatus: 'OPEN', completionPercent: 0, completedFields: {}, values: {}, fieldErrors: {}, editingAllowed: true, proofNumberMasked: null, accountDetails: {}, document: null };
   const calls = [], responses = [], nav = [];
+  let submitCalls = 0, submittedProfile;
   let current = structuredClone(base);
   let role = 'ROLE_CUSTOMER';
   let rekycRemarks;
-  const api = { get: () => of(current), save: draft => { calls.push(draft); const response = new Subject(); responses.push(response); return response; }, rekyc: remarks => { rekycRemarks = remarks; return of({ ...base, cycleNumber: 2, values: { gender: 'FEMALE' }, proofNumberMasked: '****234F' }); } };
+  const api = { get: () => of(current), save: draft => { calls.push(draft); const response = new Subject(); responses.push(response); return response; }, submit: () => { submitCalls++; return of(submittedProfile); }, rekyc: remarks => { rekycRemarks = remarks; return of({ ...base, cycleNumber: 2, values: { gender: 'FEMALE' }, proofNumberMasked: '****234F' }); } };
   const auth = { currentRole: () => role, signup: value => { calls.push(value); return of({ success: true }); } };
   const router = { navigate: value => { nav.push(value); return Promise.resolve(true); } };
   const translations = { language: signal('en'), translate: value => value, setLanguage: () => {} };
@@ -51,7 +52,7 @@ try {
   p.changed('gender', 'FEMALE');
   await new Promise(resolve => setTimeout(resolve, 300)); assert.equal(calls.length, 0);
   p.changed('gender', 'MALE');
-  await new Promise(resolve => setTimeout(resolve, 850)); assert.deepEqual(calls.shift(), { gender: 'MALE' });
+  await new Promise(resolve => setTimeout(resolve, 850)); assert.deepEqual(calls.shift(), { gender: 'MALE' }); assert.equal(submitCalls, 0);
   p.changed('gender', 'OTHER'); p.flush();
   reply({ ...base, values: { gender: 'MALE' }, completionPercent: 11 });
   assert.equal(p.form.gender, 'OTHER'); assert.deepEqual(calls.shift(), { gender: 'OTHER' });
@@ -68,11 +69,18 @@ try {
   let navigated = false; const navigation = leaving.beforeLeave().then(() => { navigated = true; });
   assert.deepEqual(calls.shift(), { gender: 'MALE' }); assert.equal(navigated, false);
   reply({ ...base, values: { gender: 'MALE' } }); await navigation; assert.equal(navigated, true); leaving.ngOnDestroy();
-  current = { ...base, values: { gender: 'FEMALE' }, proofNumberMasked: '****234F' };
+  current = { ...base, values: { dateOfBirth: '1990-01-01', gender: 'FEMALE', relationship: 'FATHER', fatherOrSpouseName: 'Test Parent', occupation: 'SALARIED', countryOfOrigin: 'IN', proofOfIdType: 'PAN', idIssueDate: '2010-01-01' }, proofNumberMasked: '****234F', completionPercent: 100 };
   const confirm = page(); confirm.ngOnInit(); confirm.saveAll();
   const full = calls.shift(); assert.equal(full.confirmSavedProof, true); assert.ok(!('proofOfIdValue' in full));
-  reply({ ...current, kycStatus: 'VERIFIED', editingAllowed: false, completionPercent: 100 });
-  assert.equal(confirm.verified, true); assert.equal(confirm.profile.editingAllowed, false);
+  reply({ ...current, kycStatus: 'PENDING', cycleStatus: 'OPEN', editingAllowed: true });
+  assert.equal(submitCalls, 0); assert.equal(confirm.verified, false); assert.equal(confirm.profile.kycStatus, 'PENDING');
+  confirm.changed('fatherOrSpouseName', 'Updated Parent');
+  submittedProfile = { ...current, kycStatus: 'VERIFIED', cycleStatus: 'COMPLETED', editingAllowed: false, values: { ...current.values, fatherOrSpouseName: 'Updated Parent' } };
+  const submission = confirm.submitKyc();
+  assert.deepEqual(calls.shift(), { fatherOrSpouseName: 'Updated Parent' }); assert.equal(submitCalls, 0);
+  reply({ ...current, values: { ...current.values, fatherOrSpouseName: 'Updated Parent' }, completionPercent: 100 });
+  await submission;
+  assert.equal(submitCalls, 1); assert.equal(confirm.verified, true); assert.equal(confirm.profile.kycStatus, 'VERIFIED');
   confirm.remarks = 'Confirm my details'; confirm.requestRekyc();
   assert.equal(rekycRemarks, 'Confirm my details'); assert.equal(confirm.profile.completionPercent, 0); assert.equal(confirm.form.gender, 'FEMALE');
   confirm.ngOnDestroy();
@@ -95,8 +103,12 @@ try {
   assert.deepEqual(Object.keys(signup.personalGroup.controls), ['fullName', 'preferredLanguage']);
   assert.equal(signup.form.get('documents'), null);
   signup.personalGroup.patchValue({ fullName: 'Demo Customer' }); signup.next(); assert.equal(signup.currentStep, 1); assert.equal(signup.isLastStep, true);
-  signup.accountGroup.patchValue({ homeBranchId: 'MUM001', username: 'demo', mobileNumber: '9000000000', email: 'demo@example.test', addressLine: 'Main road', city: 'Mumbai', postalCode: '400001', password: 'TestPassword123', confirmPassword: 'TestPassword123' });
-  signup.submit(); const payload = calls.pop();
+  signup.accountGroup.patchValue({ homeBranchId: 'MUM001', username: 'demo', mobileNumber: '9000000000', email: 'demo@example.test', addressLine: 'Main road', state: 'Maharashtra', city: 'Mumbai', postalCode: '400001', password: 'ZebraMango482!', confirmPassword: 'ZebraMango482!' });
+  signup.emailVerified = true;
+  assert.equal(signup.form.invalid, false);
+  assert.equal(signup.passwordsMismatch, false);
+  assert.deepEqual(signup.passwordIssues, []);
+  signup.submit(); assert.equal(calls.length, 1, signup.errorMessage); const payload = calls.pop();
   for (const field of ['dateOfBirth', 'gender', 'occupation', 'countryOfOrigin', 'fatherOrSpouseName', 'proofOfIdType', 'proofOfIdValue', 'startDate']) assert.ok(!(field in payload));
   assert.deepEqual(nav.pop(), ['/login']);
   signup.accountGroup.patchValue({ preferredCurrency: 'JPY' }); assert.equal(signup.focalX, 88.8); assert.equal(signup.focalY, 33.5);
@@ -108,5 +120,11 @@ try {
     for (const match of source.matchAll(/'([^']+)'\s*\|\s*translate/g)) translationKeys.add(match[1]);
   }
   for (const key of translationKeys) for (const lang of ['en', 'hi', 'kn', 'ja', 'ar', 'es']) assert.ok(CATALOGUES[lang][key], `Missing KYC translation ${lang}: ${key}`);
-  console.log('Passed KYC validators, countries, debounce, serialized writes, stale responses, inline errors, navigation flush, masked confirmation, page states, re-KYC, ring animation/reduced motion, and signup flow.');
+  const kycHtml = fs.readFileSync('src/app/features/kyc/kyc.html', 'utf8');
+  assert.ok(kycHtml.includes('type="button" class="glass-btn" (click)="submitKyc()"'));
+  assert.ok(kycHtml.includes('(ngSubmit)="saveAll()"'));
+  const dashboardSource = fs.readFileSync('src/app/features/dashboard/dashboard-stub.ts', 'utf8');
+  assert.ok(dashboardSource.includes("import { KycProgressRing }"));
+  assert.ok(dashboardSource.includes('<app-kyc-progress-ring *ngIf="!canManageProducts"></app-kyc-progress-ring>'));
+  console.log('Passed KYC validators, countries, autosave without submission, serialized writes, stale responses, inline errors, navigation flush, masked confirmation, explicit submit after pending saves, page states, re-KYC, dashboard ring, ring animation/reduced motion, and signup flow.');
 } finally { if (fs.existsSync(generated)) fs.unlinkSync(generated); }

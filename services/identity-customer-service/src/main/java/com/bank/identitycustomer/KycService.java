@@ -88,16 +88,24 @@ public class KycService {
         args.add(String.join(",", confirmed)); args.add(masked); args.add(id(c));
         jdbc.update("UPDATE customer_kyc_profile SET " + String.join("=?,", COLUMNS)
                 + "=?,confirmed_fields=?,proof_number_masked=?,updated_at=UTC_TIMESTAMP(6) WHERE customer_id=?", args.toArray());
-        if (confirmed.size() == 9) {
-            jdbc.update("UPDATE customers SET cus_kyc_status='VERIFIED' WHERE cus_customer_id=?", id(c));
-            jdbc.update("UPDATE customer_kyc_profile SET cycle_status='COMPLETED' WHERE customer_id=?", id(c));
-            jdbc.update("UPDATE customer_details SET cud_date_of_birth=?,cud_father_or_spouse_name=?,cud_occupation=?,cud_updated_date=UTC_TIMESTAMP(6) WHERE cud_customer_id=?",
-                    values.get("dateOfBirth"), values.get("fatherOrSpouseName"), values.get("occupation"), id(c));
-            event(c, p, "AUTO_VERIFIED", null);
-            UserSnapshots.writeUserSnapshot(jdbc, ((Number)c.get("cus_user_id")).longValue());
-            c.put("cus_kyc_status", "VERIFIED");
-        }
         return response(c, profile(c), username, errors);
+    }
+
+    @Transactional
+    public Map<String, Object> submit(String username) {
+        Map<String, Object> c = customer(username), p = profile(c);
+        editable(c, p);
+        if (confirmed(p).size() != KycValidation.FIELDS.size())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Complete all 9 KYC fields before submitting.");
+        Map<String, String> values = values(p);
+        jdbc.update("UPDATE customers SET cus_kyc_status='VERIFIED' WHERE cus_customer_id=?", id(c));
+        jdbc.update("UPDATE customer_kyc_profile SET cycle_status='COMPLETED' WHERE customer_id=?", id(c));
+        jdbc.update("UPDATE customer_details SET cud_date_of_birth=?,cud_father_or_spouse_name=?,cud_occupation=?,cud_updated_date=UTC_TIMESTAMP(6) WHERE cud_customer_id=?",
+                values.get("dateOfBirth"), values.get("fatherOrSpouseName"), values.get("occupation"), id(c));
+        event(c, p, "AUTO_VERIFIED", null);
+        UserSnapshots.writeUserSnapshot(jdbc, ((Number)c.get("cus_user_id")).longValue());
+        c.put("cus_kyc_status", "VERIFIED");
+        return response(c, profile(c), username, Map.of());
     }
 
     @Transactional

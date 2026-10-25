@@ -106,6 +106,19 @@ export class Kyc implements OnInit, OnDestroy {
     this.savingCount--;
     if (!this.savingCount) { this.leaving.forEach(resolve => resolve()); this.leaving = []; }
   }
+  async submitKyc(): Promise<void> {
+    if (!this.profile || this.profile.completionPercent !== 100 || this.busy) return;
+    clearTimeout(this.timer);
+    this.error = '';
+    this.busy = true;
+    this.flush();
+    if (this.savingCount) await new Promise<void>(resolve => this.leaving.push(resolve));
+    if (this.error) { this.busy = false; return; }
+    this.api.submit().subscribe({
+      next: profile => { this.restore(profile); this.verified = profile.kycStatus === 'VERIFIED'; this.busy = false; this.saved = false; },
+      error: err => { this.busy = false; this.error = this.message(err); },
+    });
+  }
   async beforeLeave(): Promise<boolean> {
     this.flush();
     if (this.savingCount) await new Promise<void>(resolve => this.leaving.push(resolve));

@@ -17,6 +17,7 @@ public class KycController {
     public KycController(KycService service) { this.service = service; }
     @GetMapping public Map<String, Object> get(Authentication auth) { return service.get(auth.getName()); }
     @PutMapping("/draft") public Map<String, Object> save(Authentication auth, @RequestBody DraftRequest body) { return service.save(auth.getName(), body); }
+    @PostMapping("/submit") public Map<String, Object> submit(Authentication auth) { return service.submit(auth.getName()); }
     // Spring debug request logging must not render government ID values.
     public static class DraftRequest extends java.util.LinkedHashMap<String, Object> {
         @Override public String toString() { return "KYC draft [redacted]"; }
