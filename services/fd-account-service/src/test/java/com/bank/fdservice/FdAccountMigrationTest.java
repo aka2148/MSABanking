@@ -18,7 +18,6 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 
 import java.util.UUID;
 import java.util.Date;
@@ -58,6 +57,9 @@ class FdAccountMigrationTest {
 
     @Autowired
     MockMvc mvc;
+
+    @Autowired
+    FdBatchService batches;
 
     @Test
     void appliesAllFdMigrationsAndCreatesWorkflowSchema() {
@@ -164,15 +166,24 @@ class FdAccountMigrationTest {
         assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM savings_transactions WHERE st_remarks=?", Integer.class, "FD funding #" + fdId));
         assertEquals(new BigDecimal("900.00000000"), jdbc.queryForObject("SELECT sa_balance FROM savings_accounts WHERE sa_account_id=1", BigDecimal.class));
 
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/admin/clock/advance")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"days\":7}"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/admin/fixed-deposits/accrual-batch")
-                        .param("businessDate", LocalDate.now(ZoneOffset.UTC).plusDays(7).toString())
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/admin/clock/advance")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"days\":25}"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/admin/fixed-deposits/maturity-batch")
-                        .param("businessDate", LocalDate.now(ZoneOffset.UTC).plusMonths(1).plusDays(1).toString())
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
         assertEquals("MATURED", jdbc.queryForObject("SELECT fa_status FROM fd_accounts WHERE fa_account_id=?", String.class, fdId));
+        assertEquals(new BigDecimal("900.00000000"), jdbc.queryForObject("SELECT sa_balance FROM savings_accounts WHERE sa_account_id=1", BigDecimal.class),
+                "maturity recognition must not pay savings until the customer closes the FD");
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM fd_notices WHERE fn_account_id=? AND fn_notice_type='FD_MATURED'", Integer.class, fdId));
         assertTrue(jdbc.queryForObject("SELECT COUNT(*) FROM fd_interest_accrual WHERE fia_account_id=?", Integer.class, fdId) >= 28);
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/fixed-deposits/{id}/accruals", fdId)
                         .header("Authorization", "Bearer " + customerToken))
@@ -198,6 +209,18 @@ class FdAccountMigrationTest {
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$[0].currency_code").value("USD"));
         assertEquals("CLOSED", jdbc.queryForObject("SELECT fa_status FROM fd_accounts WHERE fa_account_id=?", String.class, fdId));
         assertEquals(3, jdbc.queryForObject("SELECT COUNT(*) FROM fd_journals WHERE fj_fd_account_id=?", Integer.class, fdId));
+        BigDecimal savingsAfterClose = jdbc.queryForObject("SELECT sa_balance FROM savings_accounts WHERE sa_account_id=1", BigDecimal.class);
+        assertTrue(savingsAfterClose.compareTo(new BigDecimal("900.00000000")) > 0);
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/fixed-deposits/{id}/close", fdId)
+                        .header("Authorization", "Bearer " + customerToken).header("Idempotency-Key", "close-701-1"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.status").value("CLOSED"));
+        assertEquals(0, savingsAfterClose.compareTo(jdbc.queryForObject("SELECT sa_balance FROM savings_accounts WHERE sa_account_id=1", BigDecimal.class)));
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM fd_journals WHERE fj_key=?", Integer.class, "SETTLEMENT:" + fdId));
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM fd_notices WHERE fn_account_id=? AND fn_notice_type='FD_CLOSED'", Integer.class, fdId));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/admin/clock/reset")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
 
         var secondBooking = mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/fixed-deposits")
                         .header("Authorization", "Bearer " + customerToken)
@@ -275,15 +298,14 @@ class FdAccountMigrationTest {
         jdbc.update("INSERT INTO fd_currency_ref(fcr_currency_id,fcr_iso_code,fcr_currency_name,fcr_decimal_places) VALUES(980,'GBP','Pound',2)");
         jdbc.update("INSERT INTO fd_user_ref(fur_user_id,fur_user_uuid,fur_user_status) VALUES(980,?,'ACTIVE')",UUID.randomUUID().toString());
         jdbc.update("INSERT INTO fd_product_ref(fpr_product_id,fpr_product_code,fpr_product_name,fpr_status) VALUES(980,'FD-COMPOUNDING','Compounding Test','ACTIVE')");
-        var batch=new FdBatchService(jdbc,new com.fasterxml.jackson.databind.ObjectMapper(),null);
         LocalDate start=LocalDate.of(2025,1,31),end=start.plusYears(1);
         for(String basis:new String[]{"MONTHLY","QUARTERLY","YEARLY"}) {
             jdbc.update("INSERT INTO fd_accounts(fa_account_number,fa_primary_holder_id,fa_product_id,fa_principal_amount,fa_currency_id,fa_tenure_months,fa_interest_rate,fa_compounding_frequency,fa_payout_frequency,fa_open_date,fa_maturity_date,fa_status) VALUES(?,980,980,10000,980,12,0.06,?,'AT_MATURITY',?,?,'ACTIVE')","COMPOUND-"+basis,basis,java.sql.Timestamp.valueOf(start.atStartOfDay()),java.sql.Date.valueOf(end));
             long id=jdbc.queryForObject("SELECT fa_account_id FROM fd_accounts WHERE fa_account_number=?",Long.class,"COMPOUND-"+basis);
-            batch.accrue(end);
+            batches.accrue(end);
             BigDecimal expected=FdCompounding.maturity(new BigDecimal("10000"),new BigDecimal("0.06"),start,end,2,basis);
             assertEquals(0,expected.compareTo(jdbc.queryForObject("SELECT fa_maturity_amount FROM fd_accounts WHERE fa_account_id=?",BigDecimal.class,id)));
-            assertEquals(0,batch.accrue(end).accrualRowsCreated());
+            assertEquals(0,batches.accrue(end).accrualRowsCreated());
             jdbc.update("UPDATE fd_accounts SET fa_status='CLOSED' WHERE fa_account_id=?",id);
         }
     }

@@ -26,6 +26,21 @@ public class PostingService {
     public MovementResult postSavingsMovement(long accountId, long currencyId, BigDecimal amount,
             String entryType, String reference, String remarks, String actorUsername,
             String journalKey, String operation, String debitCode, String creditCode) {
+        return postSavingsMovementInternal(null, accountId, currencyId, amount, entryType, reference, remarks,
+                actorUsername, journalKey, operation, debitCode, creditCode);
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public MovementResult postSavingsMovement(long fdAccountId, long accountId, long currencyId, BigDecimal amount,
+            String entryType, String reference, String remarks, String actorUsername,
+            String journalKey, String operation, String debitCode, String creditCode) {
+        return postSavingsMovementInternal(fdAccountId, accountId, currencyId, amount, entryType, reference, remarks,
+                actorUsername, journalKey, operation, debitCode, creditCode);
+    }
+
+    private MovementResult postSavingsMovementInternal(Long fdAccountId, long accountId, long currencyId, BigDecimal amount,
+            String entryType, String reference, String remarks, String actorUsername,
+            String journalKey, String operation, String debitCode, String creditCode) {
         Map<String, Object> account = lockAccount(accountId);
         if (((Number) account.get("currency")).longValue() != currencyId)
             throw bad("Savings account currency changed");
@@ -42,7 +57,7 @@ public class PostingService {
         List<LedgerLine> lines = List.of(
                 new LedgerLine(debitCode, "SAVINGS".equals(debitCode) ? accountId : null, money, BigDecimal.ZERO.setScale(scale)),
                 new LedgerLine(creditCode, "SAVINGS".equals(creditCode) ? accountId : null, BigDecimal.ZERO.setScale(scale), money));
-        postJournal(journalKey, null, accountId, currencyId, operation, actorUsername, after, lines);
+        postJournal(journalKey, fdAccountId, accountId, currencyId, operation, actorUsername, after, lines);
         return new MovementResult(reference, after, money);
     }
 

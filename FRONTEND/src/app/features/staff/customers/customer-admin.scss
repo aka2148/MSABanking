@@ -10,7 +10,9 @@
 .customer-admin__success { color: #b6e2bf; }
 .customer-row { align-items: flex-start; flex-wrap: wrap; padding: 18px 0; border-top: 1px solid rgba(255,255,255,.16); }
 .customer-row { margin: 1rem 0; padding: 1.5rem; border: 1px solid var(--ws-line); }
-.customer-row > .glass-btn { margin-left: auto; align-self: flex-end; width: auto; flex: 0 0 auto; }
+.customer-row__actions { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.customer-row__actions > .glass-btn { width: 100%; white-space: normal; overflow-wrap: anywhere; line-height: 1.25; }
+.customer-row__actions p { margin: 0; color: var(--ws-muted); font-size: var(--fs-xs); line-height: 1.4; }
 .customer-admin__empty { padding: 2rem; border: 1px dashed var(--ws-line); border-radius: 12px; }
 .customer-row__identity { display: grid; gap: 4px; min-width: 180px; }
 .customer-row__identity span { color: rgba(255,255,255,.64); font-size: var(--fs-xs); }
@@ -19,12 +21,12 @@
 @media (max-width: 760px) {
   .customer-admin__header, .customer-search, .customer-row { align-items: stretch; flex-direction: column; }
   .customer-row__fields { flex-basis: auto; grid-template-columns: repeat(2, minmax(0,1fr)); }
-  .customer-row > .glass-btn { margin: 0; width: 100%; }
+  .customer-row__actions { width: 100%; }
 }
 @media (max-width: 460px) { .customer-row__fields { grid-template-columns: 1fr; } }
 
 @media (min-width: 761px) {
-  .customer-row { display: grid; grid-template-columns: minmax(0, 1fr) repeat(4, minmax(0, 1fr)) auto; grid-template-rows: auto auto auto; column-gap: 12px; row-gap: 4px; align-items: start; }
+  .customer-row { display: grid; grid-template-columns: minmax(0, 1fr) repeat(4, minmax(0, 1fr)) minmax(9.5rem, 10rem); grid-template-rows: auto auto auto; column-gap: 12px; row-gap: 4px; align-items: start; }
   .customer-row__identity { grid-column: 1; grid-row: 1 / 4; min-width: 0; overflow-wrap: anywhere; }
   .customer-row__fields { display: contents; }
   .customer-row__fields > .glass-field { display: grid; grid-template-rows: subgrid; grid-row: 1 / 4; margin: 0; min-width: 0; }
@@ -35,5 +37,5 @@
   .customer-row__fields .glass-field__label { grid-row: 1; margin: 0; }
   .customer-row__fields input, .customer-row__fields select { grid-row: 2; align-self: center; }
   .customer-row__fields .glass-field__error { grid-row: 3; }
-  .customer-row > .glass-btn { grid-column: 6; grid-row: 2; align-self: center; margin: 0; }
+  .customer-row__actions { grid-column: 6; grid-row: 1 / 4; align-self: center; }
 }

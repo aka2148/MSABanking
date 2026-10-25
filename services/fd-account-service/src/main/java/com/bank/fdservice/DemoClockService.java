@@ -18,7 +18,7 @@ public class DemoClockService {
     private final ZoneId zone;
 
     public DemoClockService(JdbcTemplate jdbc,
-                            @Value("${app.demo-clock.business-zone:Asia/Kolkata}") String zone) {
+                            @Value("${app.demo-clock.business-zone:UTC}") String zone) {
         this.jdbc = jdbc;
         this.zone = ZoneId.of(zone);
     }

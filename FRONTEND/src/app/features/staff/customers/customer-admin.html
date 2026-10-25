@@ -56,9 +56,11 @@
             </select>
           </label>
         </div>
-        <button class="glass-btn glass-btn--ghost" type="button" [disabled]="savingId === customer.id" (click)="save(customer)" [attr.aria-label]="'Save changes for {0}' | translate: [customer.fullName || customer.customerNumber]"> {{ (savingId === customer.id ? 'Saving…' : 'Save changes') | translate }} </button>
-        <button class="glass-btn glass-btn--ghost" type="button" [disabled]="resettingId === customer.id" (click)="resetMpin(customer)">{{(resetConfirmId===customer.id?'Confirm MPIN reset':'Reset MPIN')|translate}}</button>
-        <p *ngIf="resetConfirmId===customer.id">{{'Resetting MPIN removes the existing PIN and requires the customer to set a new one.'|translate}}</p>
+        <div class="customer-row__actions">
+          <button class="glass-btn glass-btn--ghost" type="button" [disabled]="savingId === customer.id" (click)="save(customer)" [attr.aria-label]="'Save changes for {0}' | translate: [customer.fullName || customer.customerNumber]"> {{ (savingId === customer.id ? 'Saving…' : 'Save changes') | translate }} </button>
+          <button class="glass-btn glass-btn--ghost" type="button" [disabled]="resettingId === customer.id" (click)="resetMpin(customer)">{{(resetConfirmId===customer.id?'Confirm MPIN reset':'Reset MPIN')|translate}}</button>
+          <p *ngIf="resetConfirmId===customer.id">{{'Resetting MPIN removes the existing PIN and requires the customer to set a new one.'|translate}}</p>
+        </div>
       </article>
       <nav class="customer-pages" *ngIf="page.totalPages > 1" [attr.aria-label]="'Customer pages' | translate">
         <button class="glass-btn glass-btn--ghost" type="button" [disabled]="page.first" (click)="load(page.number - 1)"> {{ 'Previous' | translate }} </button>

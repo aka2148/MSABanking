@@ -35,6 +35,8 @@ class FdBookingAndCalculatorFinancialTest {
     @Mock private JdbcTemplate jdbc;
     @Mock private Authentication actor;
     @Mock private MpinProofVerifier mpin;
+    @Mock private PostingService postings;
+    @Mock private FdLifecycleRecordService lifecycleRecords;
 
     private ObjectMapper json;
     private DemoClockService clock;
@@ -50,7 +52,7 @@ class FdBookingAndCalculatorFinancialTest {
         clock = new DemoClockService(jdbc, "Asia/Kolkata");
         calculatorController = new FdCalculatorController(jdbc);
         depositController = new FixedDepositController(jdbc, json, clock, mpin);
-        lifecycleController = new FdLifecycleController(jdbc, null, json, clock, mpin);
+        lifecycleController = new FdLifecycleController(jdbc, null, json, clock, mpin, postings, lifecycleRecords);
 
         when(actor.getName()).thenReturn("test-user");
         when(actor.getDetails()).thenReturn(Map.of("userId", userId));

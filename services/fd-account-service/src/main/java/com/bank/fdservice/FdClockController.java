@@ -33,6 +33,12 @@ public class FdClockController {
         return response(state, batches.runDaily(state.businessDate()));
     }
 
+    @PostMapping("/run-daily")
+    public ClockStatus runDaily() {
+        DemoClockService.ClockState state = clock.status();
+        return response(state, batches.runDaily(state.businessDate()));
+    }
+
     @PostMapping("/reset")
     public ClockStatus reset() { return response(clock.reset(), null); }
 

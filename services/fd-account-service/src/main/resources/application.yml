@@ -25,6 +25,13 @@ spring:
     listener:
       ack-mode: manual
 app:
+  demo-clock:
+    business-zone: UTC
+  fd:
+    batch:
+      schedule:
+        enabled: ${FD_BATCH_SCHEDULE_ENABLED:false}
+        cron: ${FD_BATCH_CRON:0 0 0 * * *}
   demo:
     opening-balance:
       enabled: ${APP_DEMO_OPENING_BALANCE_ENABLED:false}
