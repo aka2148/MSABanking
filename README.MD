@@ -111,6 +111,7 @@ The SQL files are schema setup files for fresh databases, not application seed d
 - `.env.example` documents the environment variables. Use `scripts/initialize-demo-env.ps1` to create a real local `.env`; do not commit `.env`.
 - Compose stores MySQL and Kafka data in named volumes, so containers can be recreated without losing data.
 - Password reset email delivery is disabled by default. Enabling it requires provider settings in the ignored `.env`.
+- Signup email verification uses Brevo transactional email. Set `PASSWORD_RESET_API_URL` to `https://api.brevo.com/v3/smtp/email`, add a Brevo `PASSWORD_RESET_API_KEY`, and configure a verified `PASSWORD_RESET_FROM` sender in `.env`; recreate the identity service after changes.
 - Workbench setup and Compose database setup are separate options; the SQL files are not mounted into the running containers.
 
 ## Customer loans and forex requests

@@ -475,7 +475,6 @@ export class Signup {
   }
 
   private apiError(error: HttpErrorResponse, fallback: string): string {
-    if (error.status === 503) return 'Email verification is unavailable because email delivery is not configured. Add PASSWORD_RESET_API_KEY and a verified PASSWORD_RESET_FROM sender to .env, then restart the identity service.';
     const message = error.error?.message ?? error.error?.error;
     return typeof message === 'string' && message ? message : fallback;
   }

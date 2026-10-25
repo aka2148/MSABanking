@@ -19,6 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.client.RestClient;
+import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatusCode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 
 import java.util.Date;
@@ -35,12 +39,13 @@ import java.util.concurrent.ConcurrentHashMap;
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
     private final JdbcTemplate jdbc;
     private final PasswordEncoder passwords;
     private final byte[] jwtKey;
     private final long jwtExpiry;
     private final TotpService totp;
-    private final RestClient mailApi = RestClient.create();
+    private final RestClient mailApi;
     private final String mailFrom;
     private final String mailApiUrl;
     private final String mailApiKey;
@@ -52,7 +57,8 @@ public class AuthController {
                           @Value("${app.jwt.secret}") String secret,
                           @Value("${app.jwt.expiration-ms}") long jwtExpiry, TotpService totp,
                           @Value("${app.auth.password-reset-from:no-reply@localhost}") String mailFrom,
-                          @Value("${app.auth.password-reset-api-url:https://api.resend.com/emails}") String mailApiUrl,
+                          @Value("${app.auth.password-reset-api-url:https://api.brevo.com/v3/smtp/email}") String mailApiUrl,
+                          RestClient.Builder mailApiBuilder,
                           @Value("${app.auth.password-reset-api-key:}") String mailApiKey) {
         this.jdbc = jdbc;
         this.passwords = passwords;
@@ -62,6 +68,7 @@ public class AuthController {
         this.mailFrom = mailFrom;
         this.mailApiUrl = mailApiUrl;
         this.mailApiKey = mailApiKey;
+        this.mailApi = mailApiBuilder.build();
     }
 
     @PostMapping("/email/verification/send")
@@ -78,15 +85,44 @@ public class AuthController {
         String code = String.format("%06d", Math.floorMod(java.nio.ByteBuffer.wrap(bytes).getInt(), 1_000_000));
         emailChallenges.put(email, new EmailChallenge(code, Instant.now().plusSeconds(600), Instant.now(), 0));
         try {
-            mailApi.post().uri(mailApiUrl).header("Authorization", "Bearer " + mailApiKey)
-                    .body(Map.of("from", mailFrom, "to", email, "subject", "Verify your MoneyPal email",
-                            "text", "Your MoneyPal verification code is " + code + ". It expires in 10 minutes."))
-                    .retrieve().toBodilessEntity();
+            Sender sender = parseSender(mailFrom);
+            mailApi.post().uri(mailApiUrl)
+                    .header("api-key", mailApiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .body(Map.of("sender", Map.of("name", sender.name(), "email", sender.email()),
+                            "to", List.of(Map.of("email", email)), "subject", "Verify your MoneyPal email",
+                            "textContent", "Your MoneyPal verification code is " + code + ". It expires in 10 minutes."))
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (req, res) -> {
+                        String responseBody = new String(res.getBody().readAllBytes(), StandardCharsets.UTF_8);
+                        log.warn("Brevo email request failed with HTTP status {}: {}", res.getStatusCode().value(),
+                                safeProviderBody(responseBody, code));
+                        throw new IllegalStateException("Brevo rejected the email request");
+                    })
+                    .toBodilessEntity();
         } catch (RuntimeException ex) {
             emailChallenges.remove(email);
+            if (!(ex instanceof IllegalStateException && "Brevo rejected the email request".equals(ex.getMessage())))
+                log.warn("Brevo email request failed before receiving a response (status unavailable).");
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "The verification email could not be delivered.");
         }
         return new Message("A verification code has been sent.");
+    }
+
+    private Sender parseSender(String configured) {
+        String value = configured == null ? "" : configured.trim();
+        int open = value.lastIndexOf('<');
+        int close = value.endsWith(">") ? value.length() - 1 : -1;
+        if (open >= 0 && close > open) {
+            String name = value.substring(0, open).trim().replaceAll("^\\\"|\\\"$", "").trim();
+            return new Sender(name.isBlank() ? "MoneyPal" : name, value.substring(open + 1, close).trim());
+        }
+        return new Sender("MoneyPal", value);
+    }
+
+    private String safeProviderBody(String body, String code) {
+        return body.replace(mailApiKey, "[redacted]").replace(code, "[redacted]");
     }
 
     @PostMapping("/email/verification/verify")
@@ -276,6 +312,7 @@ public class AuthController {
     public record EmailOtpVerifyRequest(@NotBlank @Email String email,@NotBlank @Size(min=6,max=6) String code) {}
     public record Message(String message) {}
     private record EmailChallenge(String code,Instant expiresAt,Instant sentAt,int attempts) {}
+    private record Sender(String name, String email) {}
     public record LoginRequest(@NotBlank @JsonAlias({"identifier","email"}) String username,@NotBlank String password) {}
     public record ChangePasswordRequest(@NotBlank String currentPassword,@NotBlank String newPassword) {}
     public record MfaCodeRequest(@NotBlank String code) {}
