@@ -2,6 +2,7 @@ import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { FormsModule, NgForm } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
@@ -41,6 +42,7 @@ interface ChargeDraft {
 export class ProductBuilder implements OnInit, OnDestroy {
   private readonly draftStorageKey = 'product-builder-draft-v1';
   private restoringDraft = false;
+  private pendingNewProduct = false;
   readonly productSteps = ['Product family', 'Identity', 'Terms', 'Money', 'Eligibility', 'Pricing', 'Review', 'Publish'];
   readonly templates = PRODUCT_TEMPLATES;
   selectedTemplateKey: string | null = null;
@@ -77,10 +79,11 @@ export class ProductBuilder implements OnInit, OnDestroy {
   saving = false;
   previewing = false;
   activatingId: number | null = null;
+  deletingId: number | null = null;
   errorMessage = '';
   successMessage = '';
 
-  constructor(private readonly service: ProductConfigurationAdminService) {}
+  constructor(private readonly service: ProductConfigurationAdminService, private readonly route: ActivatedRoute) {}
 
   get selectedCategory(): CategoryOption | undefined {
     return this.metadata?.categories.find((category) => category.id === this.categoryId);
@@ -113,7 +116,42 @@ export class ProductBuilder implements OnInit, OnDestroy {
   ruleName(rule: EligibilityDraft): string { return `${rule.fact} ${rule.operator} ${rule.operator === 'IN' ? rule.valueSet : rule.operator === 'BETWEEN_INCLUSIVE' ? `${rule.valueFrom} - ${rule.valueTo}` : rule.valueFrom}`.trim().slice(0, 150); }
   private selectPrimaryHolder(): void { this.metadata?.roles.filter(role => role.code === 'PRIMARY_HOLDER').forEach(role => this.roleSelections[role.id] = true); }
 
-  ngOnInit(): void { this.restoreDraft(); this.load(); }
+  ngOnInit(): void {
+    this.restoreDraft();
+    this.route.queryParamMap.subscribe(params => {
+      if (params.get('new') === '1') {
+        if (this.metadata) this.startNewProduct();
+        else this.pendingNewProduct = true;
+      }
+    });
+    this.load();
+  }
+
+  startNewProduct(): void {
+    try { sessionStorage.removeItem(this.draftStorageKey); } catch { /* Browser storage can be disabled. */ }
+    this.restoringDraft = true;
+    this.selectedTemplateKey = null;
+    this.productStep = 1;
+    this.categoryId = this.metadata?.categories.find(category => category.family === 'FIXED_DEPOSIT')?.id ?? null;
+    this.productName = '';
+    this.description = '';
+    this.effectiveFrom = '';
+    this.effectiveTo = '';
+    this.baseCurrencyCode = 'INR';
+    this.currencyDrafts = [];
+    this.pricingDrafts = [];
+    this.attributeValues = {};
+    this.eligibilityRules = [];
+    this.charges = [];
+    this.roleSelections = {};
+    this.previewResult = null;
+    this.validationErrors = [];
+    this.createdProduct = null;
+    this.identityErrors = {};
+    this.clearMessages();
+    this.restoringDraft = false;
+    if (this.categoryId != null) this.categoryChanged();
+  }
 
   ngOnDestroy(): void { this.persistDraft(); }
 
@@ -156,7 +194,10 @@ export class ProductBuilder implements OnInit, OnDestroy {
       next: (metadata) => {
         this.metadata = metadata;
         this.selectPrimaryHolder();
-        if (this.categoryId == null) {
+        if (this.pendingNewProduct) {
+          this.pendingNewProduct = false;
+          this.startNewProduct();
+        } else if (this.categoryId == null) {
           this.categoryId = metadata.categories.find((category) => category.family === 'LOAN')?.id
             ?? metadata.categories[0]?.id ?? null;
           if (this.categoryId != null) this.categoryChanged();
@@ -468,6 +509,29 @@ export class ProductBuilder implements OnInit, OnDestroy {
       error: (error: HttpErrorResponse) => {
         this.errorMessage = this.errorText(error, 'Activation validation failed.');
         this.activatingId = null;
+      },
+    });
+  }
+
+  deleteDraft(product: ProductConfigurationSummary): void {
+    if (product.status !== 'DRAFT' || this.deletingId !== null) return;
+    if (!window.confirm(`Delete the draft “${product.productName}”? This cannot be undone.`)) return;
+    this.clearMessages();
+    this.deletingId = product.productId;
+    this.service.deleteDraft(product.productId).subscribe({
+      next: () => {
+        this.products = this.products.filter(item => item.productId !== product.productId);
+        if (this.createdProduct?.productId === product.productId) {
+          this.createdProduct = null;
+          try { sessionStorage.removeItem(this.draftStorageKey); } catch { /* Browser storage can be disabled. */ }
+        }
+        this.catalogPage = Math.min(this.catalogPage, this.catalogPageCount - 1);
+        this.successMessage = `${product.productName} draft deleted.`;
+        this.deletingId = null;
+      },
+      error: (error: HttpErrorResponse) => {
+        this.errorMessage = this.errorText(error, 'Could not delete this draft.');
+        this.deletingId = null;
       },
     });
   }

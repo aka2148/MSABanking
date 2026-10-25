@@ -146,6 +146,32 @@ public class ProductConfigurationController {
         return findSummary(productId);
     }
 
+    @DeleteMapping("/{productId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Transactional
+    public void deleteDraft(@PathVariable int productId) {
+        String status = jdbc.query("SELECT pro_status FROM product WHERE pro_product_id=?", r -> r.next() ? r.getString(1) : null, productId);
+        if (status == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Product was not found.");
+        if (!"DRAFT".equalsIgnoreCase(status))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only a draft product can be deleted.");
+
+        jdbc.update("DELETE FROM product_configuration_revision WHERE pcr_product_id=?", productId);
+        jdbc.update("DELETE FROM product_role_config WHERE prc_product_id=?", productId);
+        jdbc.update("DELETE FROM product_attribute_values WHERE pav_product_id=?", productId);
+        jdbc.update("DELETE FROM rule_condition WHERE rc_rule_id IN (SELECT pr_rule_id FROM product_rule WHERE pr_product_id=?)", productId);
+        jdbc.update("DELETE FROM rule_outcome WHERE ro_rule_id IN (SELECT pr_rule_id FROM product_rule WHERE pr_product_id=?)", productId);
+        jdbc.update("DELETE FROM product_rule WHERE pr_product_id=?", productId);
+        jdbc.update("DELETE FROM charge_slab WHERE cs_charge_id IN (SELECT cc_charge_id FROM charge_config WHERE cc_product_id=?)", productId);
+        jdbc.update("DELETE FROM charge_config WHERE cc_product_id=?", productId);
+        jdbc.update("DELETE FROM product_currency_config WHERE pcc_product_id=?", productId);
+        jdbc.update("DELETE FROM product_translation WHERE pt_product_id=?", productId);
+        try {
+            jdbc.update("DELETE FROM product WHERE pro_product_id=?", productId);
+        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This draft is referenced and cannot be deleted.");
+        }
+    }
+
     @PostMapping("/{productId}/activate")
     @Transactional
     public ConfigurationSummary activate(@PathVariable int productId) {

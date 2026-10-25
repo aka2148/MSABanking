@@ -153,6 +153,10 @@ export class ProductConfigurationAdminService {
     return this.http.put<ProductConfigurationSummary>(this.path(`/api/v1/product-configurations/${productId}`), request);
   }
 
+  deleteDraft(productId: number): Observable<void> {
+    return this.http.delete<void>(this.path(`/api/v1/product-configurations/${productId}`));
+  }
+
   activate(productId: number): Observable<ProductConfigurationSummary> {
     return this.http.post<ProductConfigurationSummary>(
       this.path(`/api/v1/product-configurations/${productId}/activate`), {},

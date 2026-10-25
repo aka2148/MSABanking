@@ -9,6 +9,7 @@
       </div>
       <span class="builder-badge"> {{ 'BANK OFFICER' | translate }} </span>
     </header>
+    <button type="button" class="glass-btn glass-btn--ghost" (click)="startNewProduct()"> {{ 'New product' | translate }} </button>
 
     <p class="glass-error" *ngIf="errorMessage" role="alert"> {{ (errorMessage) | translate }} </p>
     <p class="builder-success" *ngIf="successMessage" role="status"> {{ (successMessage) | translate }} </p>
@@ -320,6 +321,8 @@
         <div class="catalog-actions"><span class="status-chip" [attr.data-status]="product.status">{{ product.status }}</span>
           <button type="button" class="glass-btn glass-btn--ghost" *ngIf="product.status === 'DRAFT' && product.revision > 0"
                   [disabled]="activatingId === product.productId" (click)="activate(product)"> {{ 'Activate' | translate }} </button>
+          <button type="button" class="glass-link builder-text-button" *ngIf="product.status === 'DRAFT'"
+                  [disabled]="deletingId !== null" (click)="deleteDraft(product)"> {{ (deletingId === product.productId ? 'Deleting…' : 'Delete draft') | translate }} </button>
         </div>
       </article>
       <nav class="catalog-pagination" *ngIf="products.length > catalogPageSize" [attr.aria-label]="'Configured product pages' | translate">

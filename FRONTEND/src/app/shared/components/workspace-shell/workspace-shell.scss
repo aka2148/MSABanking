@@ -5,19 +5,24 @@
 .workspace { width: min(100%, 1200px); min-width: 0; margin: 0 auto; }
 .workspace__skip { position: absolute; z-index: 10; top: -100px; left: 1rem; padding: .7rem 1rem; background: var(--gold-500); color: var(--ink-900); border-radius: .5rem; }
 .workspace__skip:focus { top: .5rem; }
-.workspace__topbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem 2rem; padding: 1rem 0 1.25rem; border-bottom: 1px solid rgba(255,255,255,.12); }
+.workspace__topbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: nowrap; gap: .75rem; padding: 1rem 0 1.25rem; border-bottom: 1px solid rgba(255,255,255,.12); }
 .workspace__brand { display: inline-flex; align-items: center; gap: .75rem; color: white; font: 600 1.1rem var(--font-display); text-decoration: none; white-space: nowrap; }
 .workspace__mark { display: inline-grid; place-items: center; width: 2.55rem; height: 2.25rem; border-radius: .4rem; background: var(--gold-500); color: var(--ink-900); font-size: .85rem; font-weight: 700; }
-.workspace__nav { display: flex; flex-wrap: wrap; gap: .25rem; }
-.workspace__nav a { display: inline-flex; min-height: 2.65rem; align-items: center; padding: .55rem .8rem; border-radius: .5rem; color: rgba(255,255,255,.8); font-size: .875rem; font-weight: 500; text-decoration: none; }
+.workspace__nav { display: flex; flex: 1 1 auto; min-width: 0; justify-content: flex-end; flex-wrap: nowrap; gap: 0; }
+.workspace__nav a { display: inline-flex; min-height: 2.65rem; align-items: center; padding: .55rem clamp(.35rem, .65vw, .8rem); border-radius: .5rem; color: rgba(255,255,255,.8); font-size: clamp(.7rem, .8vw, .875rem); font-weight: 500; text-decoration: none; white-space: nowrap; }
 .workspace__nav a:hover, .workspace__nav a.is-active { color: white; background: rgba(255,255,255,.08); }
 .workspace__nav a.is-active { box-shadow: inset 0 -2px var(--gold-500); }
+.workspace__signout { flex: 0 0 auto; min-height: 2.65rem; padding: .55rem .8rem; border: 1px solid rgba(255,255,255,.2); border-radius: .5rem; background: transparent; color: rgba(255,255,255,.85); font: inherit; font-size: .875rem; cursor: pointer; }
+.workspace__signout:hover { border-color: var(--gold-500); color: white; }
+.workspace__signout:focus-visible { outline: 3px solid var(--gold-500); outline-offset: 3px; }
 .workspace__content { padding: 1.75rem 0 3rem; }
 a:focus-visible { outline: 3px solid var(--gold-500); outline-offset: 3px; }
 @media (max-width: 700px) {
   .workspace-stage .workspace { padding-inline: 1rem; }
   .workspace__topbar { align-items: flex-start; }
-  .workspace__nav { width: 100%; flex-wrap: nowrap; overflow-x: auto; padding-bottom: .25rem; }
+  .workspace__topbar { flex-wrap: wrap; }
+  .workspace__nav { order: 3; width: 100%; flex: 1 0 100%; justify-content: flex-start; overflow-x: auto; padding-bottom: .25rem; }
   .workspace__nav a { flex: 0 0 auto; }
+  .workspace__signout { margin-left: auto; }
   .workspace__content { padding-top: 1rem; }
 }

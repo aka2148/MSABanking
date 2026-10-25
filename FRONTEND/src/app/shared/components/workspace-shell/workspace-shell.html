@@ -8,14 +8,13 @@
       </a>
       <nav class="workspace__nav" [attr.aria-label]="'Main navigation' | translate" *ngIf="!guest; else guestNav">
         <a routerLink="/dashboard" routerLinkActive="is-active"> {{ 'Overview' | translate }} </a>
-        <a *ngIf="!staff" routerLink="/kyc" routerLinkActive="is-active"> {{ 'KYC' | translate }} </a>
         <a *ngIf="!staff" routerLink="/savings" routerLinkActive="is-active"> {{ 'Savings' | translate }} </a>
         <a *ngIf="!staff" routerLink="/fd" [routerLinkActiveOptions]="{exact: true}" routerLinkActive="is-active"> {{ 'Fixed deposits' | translate }} </a>
         <a *ngIf="!staff" routerLink="/loans" routerLinkActive="is-active"> {{ 'Loans' | translate }} </a>
         <a *ngIf="!staff" routerLink="/forex" routerLinkActive="is-active"> {{ 'Forex' | translate }} </a>
         <a *ngIf="!staff" routerLink="/applications" routerLinkActive="is-active"> {{ 'My applications' | translate }} </a>
         <a *ngIf="!staff" routerLink="/fd/accounts" routerLinkActive="is-active"> {{ 'My deposits' | translate }} </a>
-        <a *ngIf="staff" routerLink="/staff/product-builder" routerLinkActive="is-active"> {{ 'Product configuration' | translate }} </a>
+        <a *ngIf="staff" routerLink="/staff/product-builder" [queryParams]="{ new: 1 }" routerLinkActive="is-active"> {{ 'Product configuration' | translate }} </a>
         <a *ngIf="staff" routerLink="/staff/fd-products" routerLinkActive="is-active"> {{ 'FD offers' | translate }} </a>
         <a *ngIf="staff" routerLink="/staff/customers" routerLinkActive="is-active"> {{ 'Customers' | translate }} </a>
         <a *ngIf="staff" routerLink="/staff/fd" routerLinkActive="is-active"> {{ 'FD accounts' | translate }} </a>
@@ -27,6 +26,7 @@
       <ng-template #guestNav>
         <nav class="workspace__nav" [attr.aria-label]="'Main navigation' | translate"><a routerLink="/login"> {{ 'Sign in' | translate }} </a></nav>
       </ng-template>
+      <button *ngIf="!guest" type="button" class="workspace__signout" (click)="logout()"> {{ 'Sign out' | translate }} </button>
     </header>
     <div id="workspace-main" class="workspace__content" tabindex="-1"><ng-content></ng-content></div>
   </div>

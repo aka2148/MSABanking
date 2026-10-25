@@ -1,7 +1,7 @@
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { CommonModule } from '@angular/common';
 import { Component, Input } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { GlassShell } from '../glass-shell/glass-shell';
 
@@ -19,7 +19,12 @@ export class WorkspaceShell {
   @Input() focalY = 42;
   @Input() zoom = 1.15;
 
-  constructor(private readonly auth: AuthService) {}
+  constructor(private readonly auth: AuthService, private readonly router: Router) {}
+
+  logout(): void {
+    this.auth.logout();
+    void this.router.navigate(['/login']);
+  }
 
   get staff(): boolean {
     return ['ROLE_BANK_OFFICER', 'ROLE_ADMIN'].includes(this.auth.currentRole() ?? '');

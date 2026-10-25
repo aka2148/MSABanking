@@ -1,6 +1,6 @@
 <app-workspace-shell>
   <main class="glass-card glass-card--wide fd-admin-card">
-    <nav class="fd-admin-breadcrumb" [attr.aria-label]="'Staff navigation' | translate"><a routerLink="/dashboard" class="glass-link fd-admin-back"> {{ '← Staff overview' | translate }} </a><a routerLink="/staff/product-builder" class="glass-link fd-admin-back"> {{ 'Product configuration →' | translate }} </a></nav>
+    <nav class="fd-admin-breadcrumb" [attr.aria-label]="'Staff navigation' | translate"><a routerLink="/dashboard" class="glass-link fd-admin-back"> {{ '← Staff overview' | translate }} </a></nav>
     <header class="fd-admin-header">
       <div>
         <p class="fd-eyebrow"> {{ 'Staff workspace' | translate }} </p>
@@ -20,7 +20,7 @@
           <div><p class="fd-eyebrow"> {{ 'Existing offers' | translate }} </p><h3 id="existing-fd-products-heading"> {{ 'Offer status' | translate }} </h3></div>
           <button type="button" class="glass-link fd-text-button" (click)="load()" [disabled]="loading"> {{ 'Refresh' | translate }} </button>
         </div>
-        <p class="fd-admin-info"> {{ 'To create a product, open' | translate }} <a routerLink="/staff/product-builder"> {{ 'Product configuration' | translate }} </a> {{ '. This page only manages existing fixed-deposit offers.' | translate }} </p>
+        <p class="fd-admin-info"> {{ 'This page manages existing fixed-deposit offers.' | translate }} </p>
         <p class="fd-admin-info fd-admin-empty" *ngIf="!errorMessage && listedOffers.length === 0"> {{ 'No fixed-deposit offers are configured yet.' | translate }} </p>
         <p class="fd-admin-note" *ngIf="listedOffers.length > 0"> {{ '{0} product(s) · page {1} of {2}' | translate: [(listedOffers.length), (offerPage + 1), (offerPageCount)] }} </p>
         <div class="fd-admin-product-list" *ngIf="listedOffers.length > 0">
