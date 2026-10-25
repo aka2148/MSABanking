@@ -1,11 +1,13 @@
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+﻿import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { LANGUAGES } from '../../../core/i18n/language';
 import { TranslationService } from '../../../core/i18n/translation.service';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { Component, inject, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   ReactiveFormsModule,
+  FormsModule,
   FormBuilder,
   FormGroup,
   Validators,
@@ -25,6 +27,7 @@ import {
   GlassSelectOption,
 } from '../../../shared/components/glass-select/glass-select';
 import { PreferredCurrency } from '../../../core/models/auth.models';
+import { INDIA_LOCATIONS, INDIA_STATES } from './india-location-data';
 
 const CURRENCY_FOCAL_POINTS: Record<
   PreferredCurrency,
@@ -43,6 +46,7 @@ const CURRENCY_FOCAL_POINTS: Record<
     TranslatePipe,
     CommonModule,
     ReactiveFormsModule,
+    FormsModule,
     RouterLink,
     WorkspaceShell,
     GlassSelect,
@@ -85,6 +89,13 @@ export class Signup {
   private readonly destroyRef = inject(DestroyRef);
   readonly reducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   loading = false;
+  sendingEmailCode = false;
+  verifyingEmailCode = false;
+  emailCodeSent = false;
+  emailVerified = false;
+  emailCode = '';
+  emailStatus = '';
+  emailError = '';
   errorMessage = '';
   currentStep = 0;
 
@@ -138,6 +149,10 @@ export class Signup {
     },
   ];
 
+  readonly stateOptions: GlassSelectOption[] = INDIA_STATES.map(state => ({ label: state, value: state }));
+  cityOptions: GlassSelectOption[] = [];
+  postalCodeOptions: GlassSelectOption[] = [];
+
   focalX = CURRENCY_FOCAL_POINTS['INR'].x;
   focalY = CURRENCY_FOCAL_POINTS['INR'].y;
 
@@ -163,6 +178,8 @@ export class Signup {
           [
             Validators.required,
             Validators.minLength(4),
+            Validators.maxLength(30),
+            Validators.pattern(/^[A-Za-z0-9._-]+$/),
           ],
         ],
 
@@ -184,6 +201,8 @@ export class Signup {
 
         addressLine: ['', Validators.required],
 
+        state: ['', Validators.required],
+
         city: ['', Validators.required],
 
         postalCode: [
@@ -198,7 +217,8 @@ export class Signup {
           '',
           [
             Validators.required,
-            Validators.minLength(8),
+            Validators.minLength(12),
+            Validators.pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/),
           ],
         ],
 
@@ -216,6 +236,26 @@ export class Signup {
         const language = LANGUAGES.find(option => option.profileName === name);
         if (language) this.translations.setLanguage(language.code);
       });
+
+    this.accountGroup.get('email')!.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.emailVerified = false;
+      this.emailCodeSent = false;
+      this.emailCode = '';
+      this.emailStatus = '';
+      this.emailError = '';
+    });
+    this.accountGroup.get('state')!.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(state => {
+      const cities = Object.keys(INDIA_LOCATIONS[state] ?? {}).sort((a, b) => a.localeCompare(b));
+      this.cityOptions = cities.map(city => ({ label: city, value: city }));
+      this.accountGroup.patchValue({ city: '', postalCode: '' }, { emitEvent: false });
+      this.postalCodeOptions = [];
+    });
+    this.accountGroup.get('city')!.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(city => {
+      const state = this.accountGroup.get('state')!.value;
+      const postalCodes = [...(INDIA_LOCATIONS[state]?.[city] ?? [])].sort((a, b) => a.localeCompare(b));
+      this.postalCodeOptions = postalCodes.map(code => ({ label: code, value: code }));
+      this.accountGroup.patchValue({ postalCode: '' }, { emitEvent: false });
+    });
 
     /*
      * Currency background focal point
@@ -259,6 +299,44 @@ export class Signup {
     } = this.accountGroup.getRawValue();
 
     return !!confirmPassword && password !== confirmPassword;
+  }
+
+  get passwordIssues(): string[] {
+    const password = String(this.accountGroup.get('password')?.value ?? '');
+    const username = String(this.accountGroup.get('username')?.value ?? '').trim().toLowerCase();
+    const issues: string[] = [];
+    if (password.length < 12) issues.push('Use at least 12 characters.');
+    if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password) || !/[^A-Za-z0-9]/.test(password))
+      issues.push('Include lowercase and uppercase letters, a number, and a symbol.');
+    if (username && password.toLowerCase().includes(username)) issues.push('The password cannot contain your username.');
+    if (['password', 'qwerty', 'letmein', 'welcome', 'admin', 'iloveyou', '12345678']
+      .some(common => password.toLowerCase().includes(common)))
+      issues.push('Choose a password that is not commonly used.');
+    return issues;
+  }
+
+  sendEmailCode(): void {
+    const emailControl = this.accountGroup.get('email')!;
+    if (emailControl.invalid) { emailControl.markAsTouched(); return; }
+    this.sendingEmailCode = true;
+    this.emailStatus = '';
+    this.emailError = '';
+    this.authService.sendEmailVerificationCode(String(emailControl.value).trim()).subscribe({
+      next: response => { this.sendingEmailCode = false; this.emailCodeSent = true; this.emailStatus = response.message; },
+      error: error => { this.sendingEmailCode = false; this.emailError = this.apiError(error, 'Could not send a verification code.'); },
+    });
+  }
+
+  verifyEmailCode(): void {
+    const email = String(this.accountGroup.get('email')?.value ?? '').trim();
+    if (!/^\d{6}$/.test(this.emailCode)) { this.emailError = 'Enter the 6-digit code from your email.'; return; }
+    this.verifyingEmailCode = true;
+    this.emailStatus = '';
+    this.emailError = '';
+    this.authService.verifyEmailCode(email, this.emailCode).subscribe({
+      next: response => { this.verifyingEmailCode = false; this.emailVerified = true; this.emailStatus = response.message; },
+      error: error => { this.verifyingEmailCode = false; this.emailError = this.apiError(error, 'That verification code is not valid.'); },
+    });
   }
 
   showError(
@@ -310,6 +388,16 @@ export class Signup {
       return;
     }
 
+    if (this.isLastStep && this.passwordIssues.length) {
+      this.errorMessage = this.passwordIssues[0];
+      this.accountGroup.get('password')?.markAsTouched();
+      return;
+    }
+    if (this.isLastStep && !this.emailVerified) {
+      this.errorMessage = 'Verify your email before creating your account.';
+      return;
+    }
+
     this.errorMessage = '';
 
     if (this.isLastStep) {
@@ -329,7 +417,7 @@ export class Signup {
   }
 
   submit(): void {
-    if (this.passwordsMismatch || this.form.invalid) {
+    if (this.passwordsMismatch || this.form.invalid || this.passwordIssues.length || !this.emailVerified) {
       this.form.markAllAsTouched();
 
       this.errorMessage =
@@ -379,12 +467,16 @@ export class Signup {
           }
         },
 
-        error: () => {
+        error: (error: HttpErrorResponse) => {
           this.loading = false;
-
-          this.errorMessage =
-            'Could not reach the server. Try again shortly.';
+          this.errorMessage = this.apiError(error, 'Could not reach the server. Try again shortly.');
         },
       });
+  }
+
+  private apiError(error: HttpErrorResponse, fallback: string): string {
+    if (error.status === 503) return 'Email verification is unavailable because email delivery is not configured. Add PASSWORD_RESET_API_KEY and a verified PASSWORD_RESET_FROM sender to .env, then restart the identity service.';
+    const message = error.error?.message ?? error.error?.error;
+    return typeof message === 'string' && message ? message : fallback;
   }
 }

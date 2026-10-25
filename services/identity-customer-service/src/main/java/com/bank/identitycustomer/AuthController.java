@@ -18,6 +18,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.client.RestClient;
 import org.springframework.dao.DuplicateKeyException;
 
 import java.util.Date;
@@ -28,6 +29,8 @@ import java.security.SecureRandom;
 import java.util.Base64;
 import java.security.MessageDigest;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -37,25 +40,95 @@ public class AuthController {
     private final byte[] jwtKey;
     private final long jwtExpiry;
     private final TotpService totp;
+    private final RestClient mailApi = RestClient.create();
+    private final String mailFrom;
+    private final String mailApiUrl;
+    private final String mailApiKey;
+    private final SecureRandom random = new SecureRandom();
+    private final ConcurrentHashMap<String, EmailChallenge> emailChallenges = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Instant> verifiedEmails = new ConcurrentHashMap<>();
 
     public AuthController(JdbcTemplate jdbc, PasswordEncoder passwords,
                           @Value("${app.jwt.secret}") String secret,
-                          @Value("${app.jwt.expiration-ms}") long jwtExpiry, TotpService totp) {
+                          @Value("${app.jwt.expiration-ms}") long jwtExpiry, TotpService totp,
+                          @Value("${app.auth.password-reset-from:no-reply@localhost}") String mailFrom,
+                          @Value("${app.auth.password-reset-api-url:https://api.resend.com/emails}") String mailApiUrl,
+                          @Value("${app.auth.password-reset-api-key:}") String mailApiKey) {
         this.jdbc = jdbc;
         this.passwords = passwords;
         this.jwtKey = Decoders.BASE64.decode(secret);
         this.jwtExpiry = jwtExpiry;
         this.totp = totp;
+        this.mailFrom = mailFrom;
+        this.mailApiUrl = mailApiUrl;
+        this.mailApiKey = mailApiKey;
+    }
+
+    @PostMapping("/email/verification/send")
+    public Message sendEmailVerification(@Valid @RequestBody EmailOtpSendRequest request) {
+        String email = request.email.trim().toLowerCase(java.util.Locale.ROOT);
+        if (jdbc.queryForObject("SELECT COUNT(*) FROM customer_emails WHERE LOWER(cem_email_address)=?", Integer.class, email) > 0)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already registered.");
+        if (mailApiKey == null || mailApiKey.isBlank())
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Email verification is not configured. Contact the bank team.");
+        EmailChallenge prior = emailChallenges.get(email);
+        if (prior != null && prior.sentAt().plusSeconds(60).isAfter(Instant.now()))
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Wait a minute before requesting another code.");
+        byte[] bytes = new byte[4]; random.nextBytes(bytes);
+        String code = String.format("%06d", Math.floorMod(java.nio.ByteBuffer.wrap(bytes).getInt(), 1_000_000));
+        emailChallenges.put(email, new EmailChallenge(code, Instant.now().plusSeconds(600), Instant.now(), 0));
+        try {
+            mailApi.post().uri(mailApiUrl).header("Authorization", "Bearer " + mailApiKey)
+                    .body(Map.of("from", mailFrom, "to", email, "subject", "Verify your MoneyPal email",
+                            "text", "Your MoneyPal verification code is " + code + ". It expires in 10 minutes."))
+                    .retrieve().toBodilessEntity();
+        } catch (RuntimeException ex) {
+            emailChallenges.remove(email);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "The verification email could not be delivered.");
+        }
+        return new Message("A verification code has been sent.");
+    }
+
+    @PostMapping("/email/verification/verify")
+    public Message verifyEmail(@Valid @RequestBody EmailOtpVerifyRequest request) {
+        String email = request.email.trim().toLowerCase(java.util.Locale.ROOT);
+        EmailChallenge challenge = emailChallenges.get(email);
+        if (challenge == null || challenge.expiresAt().isBefore(Instant.now())) {
+            emailChallenges.remove(email);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request a new verification code.");
+        }
+        if (challenge.attempts() >= 5) {
+            emailChallenges.remove(email);
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Too many incorrect codes. Request a new code.");
+        }
+        if (!MessageDigest.isEqual(challenge.code().getBytes(StandardCharsets.US_ASCII), request.code.trim().getBytes(StandardCharsets.US_ASCII))) {
+            emailChallenges.put(email, new EmailChallenge(challenge.code(), challenge.expiresAt(), challenge.sentAt(), challenge.attempts() + 1));
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The verification code is incorrect.");
+        }
+        emailChallenges.remove(email);
+        verifiedEmails.put(email, Instant.now().plusSeconds(600));
+        return new Message("Email verified.");
     }
 
     @PostMapping("/register") @Transactional
     @ResponseStatus(HttpStatus.CREATED)
     public JwtResponse register(@Valid @RequestBody RegisterRequest request) {
-        if (jdbc.queryForObject("SELECT COUNT(*) FROM user_credentials WHERE ucr_username=?", Integer.class, request.username) > 0)
+        String normalizedEmail = request.email.trim().toLowerCase(java.util.Locale.ROOT);
+        Instant verificationExpiry = verifiedEmails.get(normalizedEmail);
+        if (verificationExpiry == null || verificationExpiry.isBefore(Instant.now())) {
+            verifiedEmails.remove(normalizedEmail);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Verify your email before creating an account.");
+        }
+        String username = request.username.trim();
+        if (jdbc.queryForObject("SELECT COUNT(*) FROM user_credentials WHERE LOWER(ucr_username)=LOWER(?)", Integer.class, username) > 0)
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username is already taken");
+        if (!strongPassword(request.password, username)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Use a strong password that is different from your username.");
+        if (jdbc.queryForObject("SELECT COUNT(*) FROM customer_emails WHERE LOWER(cem_email_address)=?", Integer.class, normalizedEmail) > 0)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already registered.");
+        verifiedEmails.remove(normalizedEmail);
         jdbc.update("INSERT INTO users(usr_user_type,usr_status) VALUES('CUSTOMER','ACTIVE')");
         long userId = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
-        jdbc.update("INSERT INTO user_credentials(ucr_user_id,ucr_username,ucr_password_hash,ucr_password_changed_at) VALUES(?,?,?,UTC_TIMESTAMP(6))", userId, request.username, passwords.encode(request.password));
+        jdbc.update("INSERT INTO user_credentials(ucr_user_id,ucr_username,ucr_password_hash,ucr_password_changed_at) VALUES(?,?,?,UTC_TIMESTAMP(6))", userId, username, passwords.encode(request.password));
         Integer roleCount = jdbc.queryForObject("SELECT COUNT(*) FROM roles WHERE rol_role_code='ROLE_CUSTOMER'", Integer.class);
         if (roleCount == null || roleCount == 0) jdbc.update("INSERT INTO roles(rol_role_code,rol_role_name) VALUES('ROLE_CUSTOMER','Customer')");
         long roleId = jdbc.queryForObject("SELECT rol_role_id FROM roles WHERE rol_role_code='ROLE_CUSTOMER'", Long.class);
@@ -63,10 +136,22 @@ public class AuthController {
         jdbc.update("INSERT INTO customers(cus_user_id,cus_customer_number,cus_legal_entity_type) VALUES(?,?,?)", userId, "CUS-"+UUID.randomUUID().toString().replace("-", "").substring(0,12).toUpperCase(), request.legalEntityType);
         long customerId = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         jdbc.update("INSERT INTO customer_details(cud_customer_id,cud_full_name) VALUES(?,?)", customerId, request.fullName);
-        jdbc.update("INSERT INTO customer_emails(cem_customer_id,cem_email_address,cem_contact_type,cem_is_primary_signup,cem_is_primary) VALUES(?,?,'PRIMARY',1,1)", customerId, request.email);
+        jdbc.update("INSERT INTO customer_emails(cem_customer_id,cem_email_address,cem_contact_type,cem_is_primary_signup,cem_is_primary) VALUES(?,?,'PRIMARY',1,1)", customerId, normalizedEmail);
         if (request.phone != null && !request.phone.isBlank()) jdbc.update("INSERT INTO customer_phone_numbers(cph_customer_id,cph_phone_number,cph_contact_type,cph_is_primary_signup,cph_is_primary) VALUES(?,?,'PRIMARY',1,1)", customerId, request.phone);
+        jdbc.update("INSERT INTO customer_addresses(cad_customer_id,cad_address_type,cad_address_line,cad_city,cad_state,cad_postal_code,cad_is_primary,cad_is_verified,cad_created_by) VALUES(?,'PRIMARY',?,?,?,?,1,0,?)", customerId, request.address, request.city, request.state, request.postalCode, username);
         UserSnapshots.writeUserSnapshot(jdbc, userId);
-        return response(request.username, request.email, List.of("ROLE_CUSTOMER"));
+        return response(username, normalizedEmail, List.of("ROLE_CUSTOMER"));
+    }
+
+    private boolean strongPassword(String password, String username) {
+        if (password == null || password.length() < 12 || password.length() > 100) return false;
+        String lower = password.toLowerCase(java.util.Locale.ROOT);
+        String user = username == null ? "" : username.toLowerCase(java.util.Locale.ROOT);
+        if (!user.isBlank() && lower.contains(user)) return false;
+        if (!password.matches(".*[a-z].*") || !password.matches(".*[A-Z].*") || !password.matches(".*\\d.*")
+                || !password.matches(".*[^A-Za-z0-9].*")) return false;
+        return List.of("password", "qwerty", "letmein", "welcome", "admin", "iloveyou", "12345678")
+                .stream().noneMatch(lower::contains);
     }
 
     @PostMapping("/login")
@@ -186,7 +271,11 @@ public class AuthController {
         return new JwtResponse(true,token,username,email,roles);
     }
 
-    public record RegisterRequest(@NotBlank @Size(min=3,max=255) String username,@NotBlank @Size(min=8,max=100) String password,@NotBlank @Email String email,@NotBlank String fullName,String phone,String address,String legalEntityType) {}
+    public record RegisterRequest(@NotBlank @Size(min=4,max=30) String username,@NotBlank @Size(min=12,max=100) String password,@NotBlank @Email String email,@NotBlank String fullName,String phone,@NotBlank String address,@NotBlank String city,@NotBlank String state,@NotBlank @jakarta.validation.constraints.Pattern(regexp="[0-9]{6}") String postalCode,String legalEntityType) {}
+    public record EmailOtpSendRequest(@NotBlank @Email String email) {}
+    public record EmailOtpVerifyRequest(@NotBlank @Email String email,@NotBlank @Size(min=6,max=6) String code) {}
+    public record Message(String message) {}
+    private record EmailChallenge(String code,Instant expiresAt,Instant sentAt,int attempts) {}
     public record LoginRequest(@NotBlank @JsonAlias({"identifier","email"}) String username,@NotBlank String password) {}
     public record ChangePasswordRequest(@NotBlank String currentPassword,@NotBlank String newPassword) {}
     public record MfaCodeRequest(@NotBlank String code) {}

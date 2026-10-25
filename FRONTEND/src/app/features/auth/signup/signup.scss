@@ -1,5 +1,24 @@
+.signup-card { background: #090a0f; border-color: rgba(229, 187, 104, .32); }
+.signup-card::before { background: #090a0f; }
+.signup-card form { position: relative; z-index: 4; }
+.signup-card__footer { position: relative; z-index: 0; }
+.signup-card .glass-field input { background: #090a0f; }
+.signup-card .glass-field input:focus { background: #090a0f; }
+.signup-card input:-webkit-autofill,
+.signup-card input:-webkit-autofill:hover,
+.signup-card input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #fff;
+  -webkit-box-shadow: 0 0 0 1000px #090a0f inset;
+  box-shadow: 0 0 0 1000px #090a0f inset;
+  caret-color: #fff;
+}
 .signup-card__eyebrow { margin: 0 0 .5rem; color: #e5bb68; font: .75rem var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
 .signup-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; list-style: none; margin: 0 0 1.75rem; padding: 0; }
 .signup-steps li { color: var(--ws-muted); padding: .4rem 0; font-size: .78rem; }
 .signup-steps .signup-steps--active { color: white; font-weight: 600; }
+.signup-email-verification { margin: -.5rem 0 1rem; }
+.signup-email-verification__code { display: flex; align-items: flex-end; gap: .75rem; margin-top: .75rem; }
+.signup-email-verification__code .glass-field { flex: 1; margin-bottom: 0; }
+.signup-success { display: block; margin-top: .45rem; color: #8de1c5; font-size: var(--fs-xs); }
+.signup-note { display: block; margin-top: .35rem; color: var(--ws-muted); font-size: var(--fs-xs); line-height: 1.45; }
 @media (max-width: 540px) { .signup-steps { gap: .25rem; } .signup-steps li { font-size: .7rem; } }

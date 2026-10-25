@@ -7,13 +7,23 @@
   </button>
 
   <div class="glass-select__menu" *ngIf="isOpen">
+    <input
+      class="glass-select__search"
+      type="search"
+      [value]="searchTerm"
+      (input)="searchTerm = $any($event.target).value"
+      [attr.aria-label]="'Search options' | translate"
+      [placeholder]="'Search options...' | translate"
+      autocomplete="off"
+    />
     <button
       type="button"
       class="glass-select__option"
-      *ngFor="let option of options"
+      *ngFor="let option of filteredOptions"
       [class.glass-select__option--selected]="option.value === selectedValue"
       [disabled]="option.disabled"
       (click)="select(option)"
     >{{ translateOptions ? (option.label | translate) : option.label }}</button>
+    <p class="glass-select__empty" *ngIf="filteredOptions.length === 0">{{ 'No matching options' | translate }}</p>
   </div>
 </div>
