@@ -39,6 +39,7 @@ public class FdLifecycleController {
         Map<String,Object> fd=fd(id);
         if(((Number)fd.get("owner")).longValue()!=user)throw notFound();
         if(!"MATURED".equals(fd.get("status")))throw conflict("Only a matured FD can be closed normally");
+        verifyMaturityJournals(id,((Number)fd.get("savings")).longValue(),(BigDecimal)fd.get("principal"),(BigDecimal)fd.get("maturityAmount"));
         return settle(id,user,user,key,"FD_CLOSE",fd,(BigDecimal)fd.get("maturityAmount"),"CLOSED","MATURITY_SETTLEMENT");
     }
 
@@ -74,11 +75,23 @@ public class FdLifecycleController {
     @GetMapping("/api/v1/fixed-deposits/{id}/transactions")
     public List<Map<String,Object>> transactions(Authentication actor,@PathVariable long id){Map<String,Object> fd=fd(id);if(((Number)fd.get("owner")).longValue()!=userId(actor))throw notFound();return jdbc.queryForList("SELECT record_type,record_id,occurred_at,event_type,amount,balance_after,remarks,currency_code,source_savings_account_id FROM (SELECT 'TRANSACTION' record_type,t.ft_transaction_id record_id,t.ft_txn_date occurred_at,tt.tt_txn_type_code event_type,t.ft_amount amount,t.ft_balance_after balance_after,t.ft_remarks remarks,c.fcr_iso_code currency_code,t.ft_source_savings_account_id source_savings_account_id FROM fd_transactions t JOIN transaction_types tt ON tt.tt_txn_type_id=t.ft_txn_type_id JOIN fd_currency_ref c ON c.fcr_currency_id=t.ft_currency_id WHERE t.ft_account_id=? UNION ALL SELECT 'ACCRUAL',a.fia_accrual_id,a.fia_accrual_date,'INTEREST_ACCRUAL',a.fia_accrued_amount,a.fia_cumulative_accrued,'Daily interest accrual',c.fcr_iso_code,NULL FROM fd_interest_accrual a JOIN fd_currency_ref c ON c.fcr_currency_id=a.fia_currency_id WHERE a.fia_account_id=?) history ORDER BY occurred_at,record_id",id,id);}
 
-    @GetMapping("/api/v1/fixed-deposits/{id}/journals")
-    public List<JournalView> journals(Authentication actor,@PathVariable long id){
-        Map<String,Object> fd=fd(id);if(((Number)fd.get("owner")).longValue()!=userId(actor))throw notFound();
+    @GetMapping("/api/v1/fixed-deposits/{id}/journals") @PreAuthorize("hasRole('ADMIN')")
+    public List<JournalView> journals(@PathVariable long id){
+        fd(id);
         return jdbc.query("SELECT j.fj_id,j.fj_operation,j.fj_posted_at,j.fj_savings_account_id,c.fcr_iso_code,j.fj_total_debit,j.fj_total_credit,j.fj_savings_balance_after FROM fd_journals j JOIN fd_currency_ref c ON c.fcr_currency_id=j.fj_currency_id WHERE j.fj_fd_account_id=? ORDER BY j.fj_id",
                 (r,n)->new JournalView(r.getLong(1),r.getString(2),r.getTimestamp(3).toInstant().toString(),r.getLong(4),r.getString(5),r.getBigDecimal(6),r.getBigDecimal(7),r.getBigDecimal(8),jdbc.query("SELECT jl_account_code,jl_debit,jl_credit FROM fd_journal_lines WHERE jl_journal_id=? ORDER BY jl_sequence",(line,lineNumber)->new JournalLine(line.getString(1),line.getBigDecimal(2),line.getBigDecimal(3)),r.getLong(1))),id);
+    }
+
+    private void verifyMaturityJournals(long id,long savings,BigDecimal principal,BigDecimal maturityAmount){
+        BigDecimal funding=journalCredits(id,savings,"FUNDING");
+        if(funding.compareTo(principal)!=0)throw conflict("Verified funding records are required before this FD can be closed");
+        BigDecimal expectedInterest=maturityAmount.subtract(principal).max(BigDecimal.ZERO);
+        BigDecimal interest=journalCredits(id,savings,"INTEREST");
+        if(interest.compareTo(expectedInterest)!=0)throw conflict("Verified maturity interest records are required before this FD can be closed");
+    }
+    private BigDecimal journalCredits(long id,long savings,String operation){
+        BigDecimal amount=jdbc.queryForObject("SELECT COALESCE(SUM(fj_total_credit),0) FROM fd_journals WHERE fj_fd_account_id=? AND fj_savings_account_id=? AND fj_operation=?",BigDecimal.class,id,savings,operation);
+        return amount==null?BigDecimal.ZERO:amount;
     }
 
     @GetMapping("/api/v1/fixed-deposits/{id}/accruals")

@@ -22,6 +22,7 @@
         <a *ngIf="admin" routerLink="/staff/loans" routerLinkActive="is-active"> {{ 'Loan review' | translate }} </a>
         <a *ngIf="staff" routerLink="/compliance" routerLinkActive="is-active"> {{ 'Compliance' | translate }} </a>
         <a *ngIf="admin" routerLink="/staff/operations/clock" routerLinkActive="is-active"> {{ 'Operations' | translate }} </a>
+        <a *ngIf="admin" routerLink="/staff/ledger" routerLinkActive="is-active"> {{ 'Ledger' | translate }} </a>
       </nav>
       <ng-template #guestNav>
         <nav class="workspace__nav" [attr.aria-label]="'Main navigation' | translate"><a routerLink="/login"> {{ 'Sign in' | translate }} </a></nav>

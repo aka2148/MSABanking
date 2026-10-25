@@ -21,7 +21,10 @@
       </header>
       <p class="fd-demo-note" role="note"> {{ 'This is a demonstration account. Transfers are recorded in the app and are not processed through an external payment service.' | translate }} </p>
       <nav class="fd-account-jump" [attr.aria-label]="'On this deposit page' | translate">
-        <a href="#next-action-heading"> {{ 'Next action' | translate }} </a><a href="#terms-heading"> {{ 'Terms' | translate }} </a><a href="#funding-savings-heading"> {{ 'Savings link' | translate }} </a><a href="#history-heading"> {{ 'History' | translate }} </a>
+        <a [routerLink]="[]" fragment="next-action-heading"> {{ 'Next action' | translate }} </a>
+        <a [routerLink]="[]" fragment="terms-heading"> {{ 'Terms' | translate }} </a>
+        <a [routerLink]="[]" fragment="funding-savings-heading"> {{ 'Savings link' | translate }} </a>
+        <a [routerLink]="[]" fragment="history-heading"> {{ 'History' | translate }} </a>
       </nav>
 
       <section class="fd-section fd-next-action" aria-labelledby="next-action-heading">
@@ -36,7 +39,6 @@
           <button type="button" class="glass-btn" *ngIf="actions.includes('CLOSE') && canSettleAtMaturity" (click)="close()" [disabled]="!!busyAction"> {{ (busyAction === 'CLOSE' ? 'Closing…' : 'Close at maturity') | translate }} </button>
           <button type="button" class="glass-btn glass-btn--ghost" *ngIf="actions.includes('REQUEST_PREMATURE')" (click)="requestPrematureClosure()" [disabled]="!!busyAction"> {{ (busyAction === 'REQUEST_PREMATURE' ? 'Requesting…' : 'Request premature closure') | translate }} </button>
         </div>
-        <p class="fd-muted" *ngIf="actions.includes('CLOSE') && journalsLoading" role="status"> {{ 'Checking the funding and maturity records before closure…' | translate }} </p>
         <p class="glass-error" *ngIf="actions.includes('CLOSE') && closureBlockMessage" role="status"> {{ (closureBlockMessage) | translate }} </p>
         <ng-template #noActions>
           <p class="fd-muted"> {{ 'This deposit is complete. Review its terms and activity below.' | translate }} </p>
@@ -102,34 +104,6 @@
         </ng-container>
       </section>
 
-      <section class="fd-section" aria-labelledby="settlement-heading" *ngIf="settlement as receipt">
-        <h3 id="settlement-heading"> {{ 'Settlement receipt' | translate }} </h3>
-        <dl class="fd-review-list">
-          <div><dt> {{ 'Settled on' | translate }} </dt><dd> {{ '{0} IST' | translate: [(receipt.posted_at | date:'medium':'+0530')] }} </dd></div>
-          <div><dt> {{ 'Returned to savings' | translate }} </dt><dd>{{ receipt.total_credit | number:'1.2-4' }} {{ receipt.currency_code }}</dd></div>
-          <div><dt> {{ 'Savings balance after settlement' | translate }} </dt><dd>{{ receipt.savings_balance_after | number:'1.2-4' }} {{ receipt.currency_code }}</dd></div>
-        </dl>
-      </section>
-      <p class="fd-muted" *ngIf="journalError"> {{ 'Account activity details could not be loaded.' | translate }} </p>
-      <section class="fd-section" *ngIf="journals.length > 0" aria-labelledby="ledger-heading">
-        <div class="fd-section-heading">
-          <div><p class="fd-eyebrow"> {{ 'Account activity' | translate }} </p><h3 id="ledger-heading"> {{ 'Double-entry ledger' | translate }} </h3></div>
-        </div>
-        <article *ngFor="let journal of journals" class="fd-journal">
-          <h4> {{ '{0} · {1} IST' | translate: [(journalOperationLabel(journal.operation) | translate), (journal.posted_at | date:'medium':'+0530')] }} </h4>
-          <table>
-            <thead><tr><th scope="col"> {{ 'Account' | translate }} </th><th scope="col"> {{ 'Debit' | translate }} </th><th scope="col"> {{ 'Credit' | translate }} </th></tr></thead>
-            <tbody>
-              <tr *ngFor="let line of journal.lines">
-                <td> {{ (ledgerAccountLabel(line.account_code)) | translate }} </td>
-                <td>{{ line.debit | number:'1.2-4' }} {{ journal.currency_code }}</td>
-                <td>{{ line.credit | number:'1.2-4' }} {{ journal.currency_code }}</td>
-              </tr>
-            </tbody>
-            <tfoot><tr><th scope="row"> {{ 'Total' | translate }} </th><td>{{ journal.total_debit | number:'1.2-4' }} {{ journal.currency_code }}</td><td>{{ journal.total_credit | number:'1.2-4' }} {{ journal.currency_code }}</td></tr></tfoot>
-          </table>
-        </article>
-      </section>
       <section class="fd-section fd-history" aria-labelledby="history-heading">
         <div class="fd-section-heading"><div><p class="fd-eyebrow"> {{ 'Activity' | translate }} </p><h3 id="history-heading"> {{ 'History' | translate }} </h3></div></div>
         <p class="fd-state" *ngIf="historyLoading" role="status"> {{ 'Loading history…' | translate }} </p>

@@ -7,6 +7,6 @@ RUN mvn -B -DskipTests package
 
 FROM eclipse-temurin:17-jre
 WORKDIR /app
-COPY --from=build /workspace/services/identity-customer-service/target/*.jar /app/app.jar
+COPY --from=build /workspace/services/identity-customer-service/target/identity-customer-service-0.1.0-SNAPSHOT.jar /app/app.jar
 EXPOSE 8081
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

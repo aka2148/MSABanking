@@ -144,4 +144,29 @@ Could not assign a variant code. Please retry.|प्रकार कोड न�
 Could not assign a product code. Please retry.|उत्पाद कोड नहीं दिया जा सका। फिर प्रयास करें।|ಉತ್ಪನ್ನ ಕೋಡ್ ನೀಡಲಾಗಲಿಲ್ಲ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.|商品コードを割り当てられませんでした。再試行してください。|تعذر تعيين رمز المنتج. حاول مجددًا.|No se pudo asignar un código de producto. Inténtalo de nuevo.
 Product code sequence is exhausted.|उत्पाद कोड क्रम की सीमा पूरी हो गई है।|ಉತ್ಪನ್ನ ಕೋಡ್ ಕ್ರಮದ ಮಿತಿ ತಲುಪಿದೆ.|商品コードの連番が上限に達しました。|تم بلوغ الحد الأقصى لتسلسل رموز المنتجات.|Se ha agotado la secuencia de códigos de producto.
 Choose a valid value for the selected eligibility fact.|चुने गए पात्रता तथ्य के लिए मान्य मान चुनें।|ಆಯ್ದ ಅರ್ಹತಾ ಅಂಶಕ್ಕೆ ಮಾನ್ಯ ಮೌಲ್ಯ ಆಯ್ಕೆಮಾಡಿ.|選択した適格性項目の有効な値を選んでください。|اختر قيمة صالحة لمعيار الأهلية المحدد.|Elige un valor válido para el criterio de elegibilidad seleccionado.
+Ledger|लेजर|ಲೆಡ್ಜರ್|台帳|دفتر الأستاذ|Libro mayor
+Bank branch ledger|बैंक शाखा लेजर|ಬ್ಯಾಂಕ್ ಶಾಖೆ ಲೆಡ್ಜರ್|銀行支店台帳|دفتر أستاذ فرع البنك|Libro mayor de la sucursal bancaria
+Review posted double-entry fixed-deposit journal records and narrow the view to a savings account or one fixed deposit.|पोस्ट की गई सावधि जमा की दोहरी प्रविष्टि देखें और बचत खाते या किसी एक सावधि जमा से फ़िल्टर करें।|ಪೋಸ್ಟ್ ಮಾಡಿದ ಸ್ಥಿರ ಠೇವಣಿಯ ದ್ವಿ-ಪ್ರವೇಶ ಜರ್ನಲ್ ದಾಖಲೆಗಳನ್ನು ನೋಡಿ; ಉಳಿತಾಯ ಖಾತೆ ಅಥವಾ ಒಂದು ನಿಶ್ಚಿತ ಠೇವಣಿಗೆ ಫಿಲ್ಟರ್ ಮಾಡಿ.|定期預金の複式仕訳を確認し、普通預金口座または特定の定期預金で絞り込みます。|راجع قيود الودائع لأجل المزدوجة وضيّق العرض إلى حساب توفير أو وديعة واحدة.|Consulta los asientos de partida doble de depósitos y filtra por cuenta de ahorro o depósito concreto.
+Ledger filters|फ़िल्टर|ಲೆಡ್ಜರ್ ಫಿಲ್ಟರ್‌ಗಳು|台帳フィルター|عوامل تصفية دفتر الأستاذ|Filtros del libro mayor
+Journal entries|जर्नल प्रविष्टियाँ|ಜರ್ನಲ್ ನಮೂದುಗಳು|仕訳|قيود اليومية|Asientos
+Ledger pages|लेजर पृष्ठ|ಲೆಡ್ಜರ್ ಪುಟಗಳು|台帳ページ|صفحات دفتر الأستاذ|Páginas del libro mayor
+Show ledger for|लेजर दिखाएँ|ಲೆಡ್ಜರ್ ತೋರಿಸಿ|台帳の対象|عرض دفتر الأستاذ لـ|Mostrar libro mayor de
+Bank branch|बैंक शाखा|ಬ್ಯಾಂಕ್ ಶಾಖೆ|銀行支店|فرع البنك|Sucursal bancaria
+Savings account|बचत खाता|ಉಳಿತಾಯ ಖಾತೆ|普通預金口座|حساب توفير|Cuenta de ahorro
+Fixed deposit|सावधि जमा|ನಿಶ್ಚಿತ ಠೇವಣಿ|定期預金|وديعة لأجل|Depósito a plazo
+Choose a savings account|बचत खाता चुनें|ಉಳಿತಾಯ ಖಾತೆ ಆಯ್ಕೆಮಾಡಿ|普通預金口座を選択|اختر حساب توفير|Elige una cuenta de ahorro
+Choose a fixed deposit|सावधि जमा चुनें|ನಿಶ್ಚಿತ ಠೇವಣಿ ಆಯ್ಕೆಮಾಡಿ|定期預金を選択|اختر وديعة لأجل|Elige un depósito a plazo
+Apply filter|फ़िल्टर लागू करें|ಫಿಲ್ಟರ್ ಅನ್ವಯಿಸಿ|フィルターを適用|تطبيق عامل التصفية|Aplicar filtro
+Loading account filters…|खाता फ़िल्टर लोड हो रहे हैं…|ಖಾತೆ ಫಿಲ್ಟರ್‌ಗಳು ಲೋಡ್ ಆಗುತ್ತಿವೆ…|口座フィルターを読み込み中…|جارٍ تحميل عوامل تصفية الحساب…|Cargando filtros de cuenta…
+Loading ledger entries…|लेजर प्रविष्टियाँ लोड हो रही हैं…|ಲೆಡ್ಜರ್ ನಮೂದುಗಳು ಲೋಡ್ ಆಗುತ್ತಿವೆ…|台帳の記録を読み込み中…|جارٍ تحميل قيود دفتر الأستاذ…|Cargando asientos del libro mayor…
+The ledger is available to administrators only.|लेजर केवल प्रशासकों के लिए उपलब्ध है।|ಲೆಡ್ಜರ್ ನಿರ್ವಾಹಕರಿಗೆ ಮಾತ್ರ ಲಭ್ಯವಿದೆ.|台帳は管理者のみ利用できます。|دفتر الأستاذ متاح للمسؤولين فقط.|El libro mayor solo está disponible para administradores.
+Could not load ledger entries.|लेजर प्रविष्टियाँ लोड नहीं हो सकीं।|ಲೆಡ್ಜರ್ ನಮೂದುಗಳನ್ನು ಲೋಡ್ ಮಾಡಲಾಗಲಿಲ್ಲ.|台帳の記録を読み込めませんでした。|تعذر تحميل قيود دفتر الأستاذ.|No se pudieron cargar los asientos del libro mayor.
+Choose a savings account to filter the ledger.|लेजर फ़िल्टर करने के लिए बचत खाता चुनें।|ಲೆಡ್ಜರ್ ಫಿಲ್ಟರ್ ಮಾಡಲು ಉಳಿತಾಯ ಖಾತೆ ಆಯ್ಕೆಮಾಡಿ.|台帳を絞り込む普通預金口座を選択してください。|اختر حساب توفير لتصفية دفتر الأستاذ.|Elige una cuenta de ahorro para filtrar el libro mayor.
+Choose a fixed deposit to filter the ledger.|लेजर फ़िल्टर करने के लिए सावधि जमा चुनें।|ಲೆಡ್ಜರ್ ಫಿಲ್ಟರ್ ಮಾಡಲು ನಿಶ್ಚಿತ ಠೇವಣಿ ಆಯ್ಕೆಮಾಡಿ.|台帳を絞り込む定期預金を選択してください。|اختر وديعة لأجل لتصفية دفتر الأستاذ.|Elige un depósito a plazo para filtrar el libro mayor.
+No ledger entries match this selection.|इस चयन से कोई लेजर प्रविष्टि मेल नहीं खाती।|ಈ ಆಯ್ಕೆಗೆ ಹೊಂದುವ ಲೆಡ್ಜರ್ ನಮೂದುಗಳಿಲ್ಲ.|この選択に一致する台帳記録はありません。|لا توجد قيود دفتر أستاذ تطابق هذا الاختيار.|No hay asientos que coincidan con esta selección.
+{0} journal entries|{0} जर्नल प्रविष्टियाँ|{0} ಜರ್ನಲ್ ನಮೂದುಗಳು|仕訳 {0} 件|{0} قيد يومية|{0} asientos
+Demo account opening|डेमो खाते की शुरुआत|ಡೆಮೊ ಖಾತೆ ಆರಂಭ|デモ口座開設|افتتاح حساب تجريبي|Apertura de cuenta de demostración
+Ledger account|लेजर खाता|ಲೆಡ್ಜರ್ ಖಾತೆ|台帳科目|حساب دفتر الأستاذ|Cuenta del libro mayor
+Not linked to a fixed deposit|किसी सावधि जमा से जुड़ा नहीं|ಯಾವುದೇ ನಿಶ್ಚಿತ ಠೇವಣಿಗೆ ಲಿಂಕ್ ಆಗಿಲ್ಲ|定期預金に関連付けられていません|غير مرتبط بوديعة لأجل|No vinculado a un depósito a plazo
+Page {0} of {1}|पृष्ठ {0} / {1}|ಪುಟ {0} / {1}|{0} / {1} ページ|الصفحة {0} من {1}|Página {0} de {1}
 `;

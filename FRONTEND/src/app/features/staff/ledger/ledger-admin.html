@@ -1,0 +1,92 @@
+<app-workspace-shell>
+  <main class="glass-card glass-card--wide ledger-page">
+    <a routerLink="/dashboard" class="glass-link"> {{ '← Staff overview' | translate }} </a>
+    <header class="ledger-heading">
+      <div>
+        <p class="fd-eyebrow"> {{ 'Admin operations' | translate }} </p>
+        <h2> {{ 'Bank branch ledger' | translate }} </h2>
+        <p class="glass-card__sub"> {{ 'Review posted double-entry fixed-deposit journal records and narrow the view to a savings account or one fixed deposit.' | translate }} </p>
+      </div>
+      <span class="fd-admin-badge"> {{ 'ADMIN ONLY' | translate }} </span>
+    </header>
+
+    <section class="ledger-filters" [attr.aria-label]="'Ledger filters' | translate">
+      <label class="glass-field">
+        <span class="glass-field__label"> {{ 'Show ledger for' | translate }} </span>
+        <select [(ngModel)]="scope" name="ledger-scope" (ngModelChange)="onScopeChange()">
+          <option value="BRANCH"> {{ 'Bank branch' | translate }} </option>
+          <option value="ACCOUNT"> {{ 'Savings account' | translate }} </option>
+          <option value="FIXED_DEPOSIT"> {{ 'Fixed deposit' | translate }} </option>
+        </select>
+      </label>
+
+      <label class="glass-field" *ngIf="scope === 'ACCOUNT'">
+        <span class="glass-field__label"> {{ 'Savings account' | translate }} </span>
+        <select [(ngModel)]="selectedAccountId" name="ledger-savings-account" [disabled]="filtersLoading" (ngModelChange)="onFilterSelectionChange()">
+          <option [ngValue]="null"> {{ 'Choose a savings account' | translate }} </option>
+          <option *ngFor="let account of savingsAccounts" [ngValue]="account.id">{{ account.accountNumber }} · {{ account.displayName }}<ng-container *ngIf="account.customerName"> · {{ account.customerName }}</ng-container></option>
+        </select>
+      </label>
+
+      <label class="glass-field" *ngIf="scope === 'FIXED_DEPOSIT'">
+        <span class="glass-field__label"> {{ 'Fixed deposit' | translate }} </span>
+        <select [(ngModel)]="selectedFixedDepositId" name="ledger-fixed-deposit" [disabled]="filtersLoading" (ngModelChange)="onFilterSelectionChange()">
+          <option [ngValue]="null"> {{ 'Choose a fixed deposit' | translate }} </option>
+          <option *ngFor="let account of fixedDeposits" [ngValue]="account.id">{{ account.accountNumber }} · {{ account.productName || ('Fixed deposit' | translate) }}<ng-container *ngIf="account.customerName"> · {{ account.customerName }}</ng-container></option>
+        </select>
+      </label>
+
+      <div class="ledger-filter-actions">
+        <button type="button" class="glass-btn" (click)="applyFilter()" [disabled]="loading || filtersLoading"> {{ 'Apply filter' | translate }} </button>
+        <button type="button" class="glass-btn glass-btn--ghost" (click)="resetFilter()" [disabled]="loading"> {{ 'Bank branch' | translate }} </button>
+      </div>
+    </section>
+
+    <p class="fd-muted" *ngIf="filtersLoading" role="status"> {{ 'Loading account filters…' | translate }} </p>
+    <p class="glass-error" *ngIf="filtersError" role="alert">{{ filtersError | translate }}</p>
+    <p class="glass-error" *ngIf="error" role="alert">{{ error | translate }}</p>
+    <p class="fd-state" *ngIf="loading" role="status"> {{ 'Loading ledger entries…' | translate }} </p>
+
+    <ng-container *ngIf="!loading && ledger as page">
+      <p class="ledger-count">{{ '{0} journal entries' | translate: [page.totalElements | number] }}</p>
+      <p class="fd-admin-info" *ngIf="page.content.length === 0"> {{ 'No ledger entries match this selection.' | translate }} </p>
+
+      <section class="ledger-entries" *ngIf="page.content.length > 0" [attr.aria-label]="'Journal entries' | translate">
+        <article class="ledger-entry" *ngFor="let entry of page.content">
+          <header class="ledger-entry__heading">
+            <div>
+              <p class="fd-eyebrow">{{ operationLabel(entry.operation) | translate }}</p>
+              <h3>{{ '{0} · {1} IST' | translate: [('#' + entry.journalId), (entry.postedAt | date:'medium':'+0530')] }}</h3>
+            </div>
+            <span class="ledger-currency">{{ entry.currencyCode }}</span>
+          </header>
+
+          <dl class="ledger-references">
+            <div><dt> {{ 'Savings account' | translate }} </dt><dd>{{ entry.savingsAccountNumber }} · #{{ entry.savingsAccountId }}</dd></div>
+            <div><dt> {{ 'Fixed deposit' | translate }} </dt><dd *ngIf="entry.fixedDepositId; else unlinkedDeposit">{{ entry.fixedDepositAccountNumber }} · #{{ entry.fixedDepositId }}</dd><ng-template #unlinkedDeposit><dd> {{ 'Not linked to a fixed deposit' | translate }} </dd></ng-template></div>
+          </dl>
+
+          <div class="ledger-table-wrap">
+            <table class="ledger-table">
+              <thead><tr><th scope="col"> {{ 'Ledger account' | translate }} </th><th scope="col"> {{ 'Debit' | translate }} </th><th scope="col"> {{ 'Credit' | translate }} </th></tr></thead>
+              <tbody>
+                <tr *ngFor="let line of entry.lines">
+                  <td>{{ accountLabel(line.accountCode) | translate }}</td>
+                  <td>{{ line.debit | number:'1.2-4' }} {{ entry.currencyCode }}</td>
+                  <td>{{ line.credit | number:'1.2-4' }} {{ entry.currencyCode }}</td>
+                </tr>
+              </tbody>
+              <tfoot><tr><th scope="row"> {{ 'Total' | translate }} </th><td>{{ entry.totalDebit | number:'1.2-4' }} {{ entry.currencyCode }}</td><td>{{ entry.totalCredit | number:'1.2-4' }} {{ entry.currencyCode }}</td></tr></tfoot>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <nav class="ledger-pagination" *ngIf="page.totalElements > page.size" [attr.aria-label]="'Ledger pages' | translate">
+        <button type="button" class="glass-btn glass-btn--ghost" (click)="load(pageNumber - 1)" [disabled]="pageNumber === 0 || loading"> {{ 'Previous' | translate }} </button>
+        <span> {{ 'Page {0} of {1}' | translate: [(pageNumber + 1), pageCount] }} </span>
+        <button type="button" class="glass-btn glass-btn--ghost" (click)="load(pageNumber + 1)" [disabled]="pageNumber + 1 >= pageCount || loading"> {{ 'Next' | translate }} </button>
+      </nav>
+    </ng-container>
+  </main>
+</app-workspace-shell>

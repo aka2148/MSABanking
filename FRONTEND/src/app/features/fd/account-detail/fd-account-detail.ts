@@ -7,7 +7,6 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import {
   AccountResponse,
   SavingsAccount,
-  Journal,
   ApiErrorResponse,
   ClosureResponse,
   FdStatus,
@@ -44,10 +43,6 @@ export class FdAccountDetail implements OnInit {
   account: AccountResponse | null = null;
   savings: SavingsAccount | null = null;
   savingsError = '';
-  journals: Journal[] = [];
-  journalError = '';
-  journalsLoading = false;
-  get settlement(): Journal | null { return this.journals.find(j => j.operation === 'SETTLEMENT') ?? null; }
   history: HistoryEntry[] = [];
   prematureClosures: PrematureClosureResponse[] = [];
   selectedPrematureClosure: PrematureClosureResponse | null = null;
@@ -106,42 +101,13 @@ export class FdAccountDetail implements OnInit {
 
   get canSettleAtMaturity(): boolean {
     const account = this.account;
-    if (!account || account.status !== 'MATURED' || this.journalsLoading || this.journalError
-        || account.funding_savings_account_id == null) return false;
-
-    const sourceId = account.funding_savings_account_id;
-    const funding = this.journals.find(journal => journal.operation === 'FUNDING');
-    if (!this.journalMatches(funding, sourceId, account.currency_code, account.principal_amount)) return false;
-
-    const interest = Math.max(0, account.maturity_amount - account.principal_amount);
-    if (interest === 0) return true;
-    return this.journalMatches(
-      this.journals.find(journal => journal.operation === 'INTEREST'),
-      sourceId,
-      account.currency_code,
-      interest,
-    );
+    return !!account && account.status === 'MATURED' && account.funding_savings_account_id != null;
   }
 
   get closureBlockMessage(): string {
-    if (!this.account || this.account.status !== 'MATURED' || this.journalsLoading) return '';
-    if (this.journalError) return 'Closure is unavailable because the settlement records could not be verified. Reload the account and try again.';
+    if (!this.account || this.account.status !== 'MATURED') return '';
     if (this.account.funding_savings_account_id == null) {
       return 'This older deposit has no linked savings account on record. Its original funding must be reconciled before it can be closed and paid out.';
-    }
-    const sourceId = this.account.funding_savings_account_id;
-    const funding = this.journals.find(journal => journal.operation === 'FUNDING');
-    if (!this.journalMatches(funding, sourceId, this.account.currency_code, this.account.principal_amount)) {
-      return 'This deposit has no verified savings funding record. Its historical funding must be reconciled before closure.';
-    }
-    const interest = Math.max(0, this.account.maturity_amount - this.account.principal_amount);
-    if (interest > 0 && !this.journalMatches(
-      this.journals.find(journal => journal.operation === 'INTEREST'),
-      sourceId,
-      this.account.currency_code,
-      interest,
-    )) {
-      return 'The maturity interest has not been verified in the account records, so closure is unavailable.';
     }
     return '';
   }
@@ -225,26 +191,6 @@ export class FdAccountDetail implements OnInit {
     return descriptions[entry.entry_type.toUpperCase()] ?? 'Account activity was recorded.';
   }
 
-  journalOperationLabel(operation: string): string {
-    const labels: Record<string, string> = {
-      FUNDING: 'Deposit funding',
-      INTEREST: 'Interest recognition',
-      SETTLEMENT: 'Maturity settlement',
-    };
-    return labels[operation] ?? 'Account entry';
-  }
-
-  ledgerAccountLabel(accountCode: string): string {
-    const labels: Record<string, string> = {
-      SAVINGS_LIABILITY: 'Linked savings account',
-      FD_PRINCIPAL_LIABILITY: 'Fixed deposit principal',
-      INTEREST_EXPENSE: 'Interest earned',
-      ACCRUED_INTEREST_PAYABLE: 'Accrued interest',
-      DEMO_CASH: 'Demonstration funds',
-    };
-    return labels[accountCode] ?? 'Other account';
-  }
-
   formatFrequency(value: string | null | undefined): string {
     if (!value) return '—';
     return value.toLowerCase().split('_').map((part) => part ? part[0].toUpperCase() + part.slice(1) : '').join(' ');
@@ -300,13 +246,6 @@ export class FdAccountDetail implements OnInit {
 
   private isAllowed(action: AccountAction): boolean {
     return this.actions.includes(action);
-  }
-
-  private journalMatches(journal: Journal | undefined, savingsAccountId: number,
-                         currencyCode: string, expectedAmount: number): boolean {
-    return !!journal && journal.savings_account_id === savingsAccountId
-      && journal.currency_code === currencyCode
-      && Math.abs(journal.total_credit - expectedAmount) < 0.00005;
   }
 
   private executeFunding(): void {
@@ -370,7 +309,6 @@ export class FdAccountDetail implements OnInit {
       next: (account) => {
         this.account = account;
         this.loadSavings();
-        this.loadJournals();
         this.loading = false;
         this.loadHistory();
         this.loadPrematureClosures();
@@ -387,7 +325,6 @@ export class FdAccountDetail implements OnInit {
       next: (account) => {
         this.account = account;
         this.loadSavings();
-        this.loadJournals();
         this.loadHistory();
         this.loadPrematureClosures();
       },
@@ -402,19 +339,6 @@ export class FdAccountDetail implements OnInit {
     this.fdService.getFundingSavings(this.accountId).subscribe({
       next: account => { this.savings = account; },
       error: (e: HttpErrorResponse) => { this.savingsError = normalizeApiError(e).message; },
-    });
-  }
-
-  private loadJournals(): void {
-    this.journalsLoading = true;
-    this.journals = [];
-    this.journalError = '';
-    this.fdService.listJournals(this.accountId).subscribe({
-      next: journals => { this.journals = journals; this.journalsLoading = false; },
-      error: (e: HttpErrorResponse) => {
-        this.journalError = normalizeApiError(e).message;
-        this.journalsLoading = false;
-      },
     });
   }
 

@@ -55,6 +55,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/staff/operations/clock-dashboard').then(m => m.ClockDashboard),
   },
   {
+    path: 'staff/ledger',
+    canActivate: [authGuard, adminGuard],
+    loadComponent: () => import('./features/staff/ledger/ledger-admin').then(m => m.LedgerAdmin),
+  },
+  {
     path: 'compliance',
     canActivate: [authGuard, staffGuard],
     loadComponent: () => import('./features/compliance/fd-compliance').then(m => m.FdCompliance),

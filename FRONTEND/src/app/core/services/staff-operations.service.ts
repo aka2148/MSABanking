@@ -12,11 +12,11 @@ export interface StaffTransaction { st_id: number; st_reference_id: string; st_e
 export class StaffOperationsService {
   constructor(private readonly http: HttpClient, @Inject(BACKEND_API_BASE_URL) private readonly base: string) {}
 
-  fixedDeposits(page = 0, status = ''): Observable<StaffPage<StaffFdRow>> {
-    return this.http.get<StaffPage<StaffFdRow>>(this.path('/fd/v1/staff/accounts'), { params: this.params(page, status) });
+  fixedDeposits(page = 0, status = '', pageSize = 8): Observable<StaffPage<StaffFdRow>> {
+    return this.http.get<StaffPage<StaffFdRow>>(this.path('/fd/v1/staff/accounts'), { params: this.params(page, status, pageSize) });
   }
-  savings(page = 0, status = ''): Observable<StaffPage<StaffSavingsRow>> {
-    return this.http.get<StaffPage<StaffSavingsRow>>(this.path('/fd/v1/staff/savings-accounts'), { params: this.params(page, status) });
+  savings(page = 0, status = '', pageSize = 8): Observable<StaffPage<StaffSavingsRow>> {
+    return this.http.get<StaffPage<StaffSavingsRow>>(this.path('/fd/v1/staff/savings-accounts'), { params: this.params(page, status, pageSize) });
   }
   transactions(id: number): Observable<StaffTransaction[]> {
     return this.http.get<StaffTransaction[]>(this.path(`/fd/v1/staff/savings-accounts/${id}/transactions`));
@@ -24,8 +24,8 @@ export class StaffOperationsService {
   transact(id: number, action: 'deposit' | 'withdraw', amount: number, remarks: string, idempotencyKey: string): Observable<StaffSavingsRow> {
     return this.http.post<StaffSavingsRow>(this.path(`/fd/v1/staff/savings-accounts/${id}/${action}`), { amount, remarks }, { headers: { 'Idempotency-Key': idempotencyKey } });
   }
-  private params(page: number, status: string): HttpParams {
-    let params = new HttpParams().set('page', page).set('pageSize', 8);
+  private params(page: number, status: string, pageSize: number): HttpParams {
+    let params = new HttpParams().set('page', page).set('pageSize', pageSize);
     if (status) params = params.set('status', status);
     return params;
   }

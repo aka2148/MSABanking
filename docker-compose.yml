@@ -98,7 +98,7 @@ services:
       kafka:
         condition: service_healthy
     environment:
-      CUSTOMER_DB_URL: ${CUSTOMER_DB_URL:-jdbc:mysql://customer-db:3306/moneypal_customer?serverTimezone=UTC}
+      CUSTOMER_DB_URL: ${CUSTOMER_DB_URL:-jdbc:mysql://customer-db:3306/moneypal_customer?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true}
       CUSTOMER_DB_USERNAME: ${CUSTOMER_DB_USERNAME:-${MYSQL_APP_USER}}
       CUSTOMER_DB_PASSWORD: ${CUSTOMER_DB_PASSWORD:-${MYSQL_APP_PASSWORD}}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
@@ -126,7 +126,7 @@ services:
       kafka:
         condition: service_healthy
     environment:
-      PRODUCT_DB_URL: ${PRODUCT_DB_URL:-jdbc:mysql://product-db:3306/moneypal_product?serverTimezone=UTC}
+      PRODUCT_DB_URL: ${PRODUCT_DB_URL:-jdbc:mysql://product-db:3306/moneypal_product?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true}
       PRODUCT_DB_USERNAME: ${PRODUCT_DB_USERNAME:-${MYSQL_APP_USER}}
       PRODUCT_DB_PASSWORD: ${PRODUCT_DB_PASSWORD:-${MYSQL_APP_PASSWORD}}
       JWT_SECRET: ${JWT_SECRET}
@@ -146,7 +146,7 @@ services:
       kafka:
         condition: service_healthy
     environment:
-      FD_DB_URL: ${FD_DB_URL:-jdbc:mysql://fd-db:3306/moneypal_fd?serverTimezone=UTC}
+      FD_DB_URL: ${FD_DB_URL:-jdbc:mysql://fd-db:3306/moneypal_fd?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true}
       FD_DB_USERNAME: ${FD_DB_USERNAME:-${MYSQL_APP_USER}}
       FD_DB_PASSWORD: ${FD_DB_PASSWORD:-${MYSQL_APP_PASSWORD}}
       PRODUCT_SERVICE_URL: http://product-service:8082
