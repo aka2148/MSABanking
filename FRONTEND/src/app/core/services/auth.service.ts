@@ -9,6 +9,7 @@ import {
   RequestContext,
   Channel,
   AuthSession,
+  AuthMessageResponse,
 } from '../models/auth.models';
 import { API_BASE_URL, apiUrl } from './api-config';
 
@@ -49,6 +50,14 @@ export class AuthService {
   signup(form: Omit<SignupRequest, 'context'>): Observable<SignupResponse> {
     const payload: SignupRequest = { ...form, context: this.buildContext() };
     return this.http.post<SignupResponse>(apiUrl(this.apiBaseUrl, '/api/v1/auth/register'), payload);
+  }
+
+  sendEmailVerificationCode(email: string): Observable<AuthMessageResponse> {
+    return this.http.post<AuthMessageResponse>(apiUrl(this.apiBaseUrl, '/api/v1/auth/email/verification/send'), { email });
+  }
+
+  verifyEmailCode(email: string, code: string): Observable<AuthMessageResponse> {
+    return this.http.post<AuthMessageResponse>(apiUrl(this.apiBaseUrl, '/api/v1/auth/email/verification/verify'), { email, code });
   }
 
   /** Reuse this in every module that writes data — FD creation, transactions, forex. */

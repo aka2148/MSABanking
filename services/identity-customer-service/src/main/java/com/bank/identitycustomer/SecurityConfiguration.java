@@ -19,7 +19,7 @@ public class SecurityConfiguration {
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http.csrf(csrf -> csrf.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(a -> a.requestMatchers("/actuator/health", "/actuator/info", "/error", "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/login/**", "/auth/password/forgot", "/auth/password/reset").permitAll().anyRequest().authenticated())
+                .authorizeHttpRequests(a -> a.requestMatchers("/actuator/health", "/actuator/info", "/error", "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/login/**", "/api/v1/auth/email/verification/**", "/auth/password/forgot", "/auth/password/reset").permitAll().anyRequest().authenticated())
                 .httpBasic(b -> b.disable()).formLogin(f -> f.disable())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class).build();
     }

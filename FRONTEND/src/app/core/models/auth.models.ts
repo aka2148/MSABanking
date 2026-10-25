@@ -94,6 +94,7 @@ export interface SignupRequest {
   email: string;
   // user_addresses
   addressLine: string;
+  state: string;
   city: string;
   postalCode: string;
   // users
@@ -109,3 +110,5 @@ export interface SignupResponse {
   success: boolean;
   message?: string;
 }
+
+export interface AuthMessageResponse { message: string; }

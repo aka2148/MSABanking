@@ -1,5 +1,5 @@
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
-import { Component, ElementRef, HostListener, Input, forwardRef } from '@angular/core';
+import { Component, ElementRef, HostBinding, HostListener, Input, forwardRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 
@@ -27,15 +27,20 @@ export class GlassSelect implements ControlValueAccessor {
   isOpen = false;
   selectedValue: string | null = null;
   disabled = false;
+  searchTerm = '';
 
   private onChange: (value: string) => void = () => {};
   private onTouched: () => void = () => {};
   private search = '';
   private lastKeyAt = 0;
 
+  @HostBinding('class.glass-select-host--open')
+  get hostOpen(): boolean { return this.isOpen; }
+
   @HostListener('keydown', ['$event'])
   onKeydown(event: KeyboardEvent): void {
     if (this.disabled) return;
+    if ((event.target as HTMLElement).matches('.glass-select__search')) return;
     if (event.key === 'Escape') { this.isOpen = false; return; }
     if (event.key.length !== 1 || event.ctrlKey || event.altKey || event.metaKey || event.key === ' ') return;
     event.preventDefault();
@@ -58,9 +63,17 @@ export class GlassSelect implements ControlValueAccessor {
     return found ? found.label : this.placeholder;
   }
 
+  get filteredOptions(): GlassSelectOption[] {
+    const query = this.searchTerm.trim().toLocaleLowerCase();
+    return query
+      ? this.options.filter(option => option.label.toLocaleLowerCase().includes(query))
+      : this.options;
+  }
+
   toggle(): void {
     if (this.disabled) return;
     this.isOpen = !this.isOpen;
+    this.searchTerm = '';
     if (!this.isOpen) this.onTouched();
   }
 
@@ -69,6 +82,7 @@ export class GlassSelect implements ControlValueAccessor {
     this.selectedValue = option.value;
     this.onChange(option.value);
     this.isOpen = false;
+    this.searchTerm = '';
     this.onTouched();
   }
 
