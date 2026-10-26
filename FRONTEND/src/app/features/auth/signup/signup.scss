@@ -1,24 +1,147 @@
-.signup-card { background: #090a0f; border-color: rgba(229, 187, 104, .32); }
-.signup-card::before { background: #090a0f; }
-.signup-card form { position: relative; z-index: 4; }
-.signup-card__footer { position: relative; z-index: 0; }
-.signup-card .glass-field input { background: #090a0f; }
-.signup-card .glass-field input:focus { background: #090a0f; }
-.signup-card input:-webkit-autofill,
-.signup-card input:-webkit-autofill:hover,
-.signup-card input:-webkit-autofill:focus {
-  -webkit-text-fill-color: #fff;
-  -webkit-box-shadow: 0 0 0 1000px #090a0f inset;
-  box-shadow: 0 0 0 1000px #090a0f inset;
-  caret-color: #fff;
+.signup-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+
+  background: rgba(18, 18, 26, 0.68);
+  backdrop-filter: blur(22px) saturate(145%);
+  -webkit-backdrop-filter: blur(22px) saturate(145%);
+
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 22px;
+
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+
+  text-align: start;
+
+  animation: loginCardEnter 650ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  transition:
+    border-color 250ms ease,
+    box-shadow 250ms ease,
+    background 250ms ease;
+
+  &::before {
+    display: block;
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+
+    background:
+      radial-gradient(circle at 15% 0%, rgba(224, 165, 20, 0.12), transparent 48%),
+      linear-gradient(135deg, rgba(255, 255, 255, 0.055), transparent 55%);
+  }
+
+  &:hover {
+    border-color: rgba(224, 165, 20, 0.34);
+    box-shadow:
+      0 28px 80px rgba(0, 0, 0, 0.48),
+      0 0 28px rgba(224, 165, 20, 0.055),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+
+  form { position: relative; z-index: 4; }
+
+  /* Inputs identical to login */
+  .glass-field input {
+    width: 100%;
+    background: rgba(26, 26, 36, 0.76);
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    border-radius: 12px;
+    transition:
+      border-color 220ms ease,
+      box-shadow 220ms ease,
+      background 220ms ease,
+      transform 220ms ease;
+
+    &:focus {
+      outline: none;
+      background: rgba(29, 29, 40, 0.95);
+      border-color: rgba(224, 165, 20, 0.78);
+      box-shadow: 0 0 0 3px rgba(224, 165, 20, 0.12);
+    }
+  }
+
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #fff;
+    -webkit-box-shadow: 0 0 0 1000px #1a1a24 inset;
+    box-shadow: 0 0 0 1000px #1a1a24 inset;
+    caret-color: #fff;
+    border-radius: 12px;
+  }
+
+  /* Buttons get the same hover/active treatment as the login button */
+  .glass-btn {
+    min-height: 46px;
+    transition: transform 200ms ease, box-shadow 200ms ease, filter 200ms ease;
+
+    &:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 22px rgba(224, 165, 20, 0.16);
+      filter: brightness(1.06);
+    }
+    &:active:not(:disabled) { transform: scale(0.985); }
+    &:disabled { cursor: not-allowed; opacity: 0.65; }
+  }
 }
-.signup-card__eyebrow { margin: 0 0 .5rem; color: #e5bb68; font: .75rem var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
-.signup-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; list-style: none; margin: 0 0 1.75rem; padding: 0; }
-.signup-steps li { color: var(--ws-muted); padding: .4rem 0; font-size: .78rem; }
-.signup-steps .signup-steps--active { color: white; font-weight: 600; }
-.signup-email-verification { margin: -.5rem 0 1rem; }
-.signup-email-verification__code { display: flex; align-items: flex-end; gap: .75rem; margin-top: .75rem; }
-.signup-email-verification__code .glass-field { flex: 1; margin-bottom: 0; }
+
+.signup-card__footer { position: relative; z-index: 0; }
+
+.signup-card__eyebrow {
+  margin: 0 0 .5rem;
+  color: #e0a514;
+  font: .75rem var(--font-mono);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.signup-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: .5rem;
+  list-style: none;
+  margin: 0 0 1.75rem;
+  padding: 0;
+
+  li { color: var(--ws-muted); padding: .4rem 0; font-size: .78rem; }
+  .signup-steps--active { color: #fff; font-weight: 600; }
+}
+
+.signup-email-verification {
+  margin: -.5rem 0 1rem;
+
+  &__code {
+    display: flex;
+    align-items: flex-end;
+    gap: .75rem;
+    margin-top: .75rem;
+
+    .glass-field { flex: 1; margin-bottom: 0; }
+  }
+}
+
 .signup-success { display: block; margin-top: .45rem; color: #8de1c5; font-size: var(--fs-xs); }
 .signup-note { display: block; margin-top: .35rem; color: var(--ws-muted); font-size: var(--fs-xs); line-height: 1.45; }
-@media (max-width: 540px) { .signup-steps { gap: .25rem; } .signup-steps li { font-size: .7rem; } }
+
+@media (max-width: 540px) {
+  .signup-steps { gap: .25rem; li { font-size: .7rem; } }
+}
+
+@media (max-width: 480px) {
+  .signup-card { padding: 28px 24px; border-radius: 18px; }
+  .signup-card .glass-field { margin-bottom: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signup-card,
+  .signup-card .glass-field input,
+  .signup-card .glass-btn {
+    animation: none;
+    transition: none;
+  }
+}
