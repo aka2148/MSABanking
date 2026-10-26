@@ -1,80 +1,489 @@
 <app-workspace-shell>
-  <main class="glass-card glass-card--wide reports-card">
-    <a [routerLink]="staff ? '/dashboard' : '/fd/accounts'" class="glass-link reports-back">{{ (staff ? '← Staff overview' : '← My deposits') | translate }}</a>
-    <header class="reports-heading">
-      <div>
-        <p class="fd-eyebrow">{{ (staff ? 'Staff operations' : 'Account activity') | translate }}</p>
-        <h1>{{ 'Fixed deposit reports' | translate }}</h1>
-        <p class="glass-card__sub">{{ 'Review account status, interest history, maturity, statements and notices.' | translate }}</p>
+  <main class="glass-card workflow-page reports-page">
+
+    <header class="workflow-page__hero reports-page__hero">
+      <div class="workflow-page__hero-copy">
+
+        <p class="workflow-page__eyebrow">
+          <span class="workflow-page__eyebrow-dot"></span>
+          {{ (staff ? 'Staff operations' : 'Account activity') | translate }}
+        </p>
+
+        <h2>
+          {{ 'Fixed deposit reports' | translate }}<span class="workflow-page__gold">.</span>
+        </h2>
+
+        <p class="workflow-page__intro">
+          {{ 'Review account status, interest history, maturity, statements and notices.' | translate }}
+        </p>
+
+        <nav class="workflow-page__paths">
+          <a
+            [routerLink]="staff ? '/dashboard' : '/fd/accounts'"
+            class="glass-btn glass-btn--ghost workflow-page__path">
+            {{ (staff ? '← Staff overview' : '← My deposits') | translate }}
+          </a>
+
+          <button
+            class="glass-btn workflow-page__path workflow-page__path--primary reports-download"
+            type="button"
+            (click)="download()"
+            [disabled]="loading">
+            {{ 'Download CSV' | translate }}
+            <span aria-hidden="true">↓</span>
+          </button>
+        </nav>
+
       </div>
-      <button class="glass-btn glass-btn--ghost" type="button" (click)="download()" [disabled]="loading">{{ 'Download CSV' | translate }}</button>
+
+      <!-- HERO ART: 📋 instead of ₹ -->
+      <div class="workflow-page__hero-art reports-page__hero-art" aria-hidden="true">
+        <div class="workflow-page__hero-orbit"></div>
+        <div class="workflow-page__hero-orbit workflow-page__hero-orbit--inner"></div>
+
+        <div class="workflow-page__hero-symbol reports-page__hero-symbol">📋</div>
+
+        <span class="workflow-page__hero-spark workflow-page__hero-spark--one"></span>
+        <span class="workflow-page__hero-spark workflow-page__hero-spark--two"></span>
+      </div>
     </header>
 
-    <form class="report-customer" *ngIf="staff" (ngSubmit)="loadCustomer()">
-      <label class="glass-field"><span class="glass-field__label">{{ 'Customer username (optional)' | translate }}</span><input [(ngModel)]="username" name="username" autocomplete="off" /></label>
-      <button class="glass-btn" type="submit" [disabled]="loading">{{ 'Load customer report' | translate }}</button>
+    <!-- STAFF CUSTOMER FILTER -->
+    <form
+      class="report-customer workflow-page__panel"
+      *ngIf="staff"
+      (ngSubmit)="loadCustomer()">
+
+      <div class="report-customer__heading">
+        <div class="workflow-page__section-icon" aria-hidden="true">⌕</div>
+
+        <div>
+          <p class="workflow-page__eyebrow">
+            <span class="workflow-page__eyebrow-dot"></span>
+            {{ 'Staff operations' | translate }}
+          </p>
+
+          <h3>{{ 'Load customer report' | translate }}</h3>
+        </div>
+      </div>
+
+      <div class="report-customer__controls">
+        <label class="glass-field">
+          <span class="glass-field__label">
+            {{ 'Customer username (optional)' | translate }}
+          </span>
+
+          <input
+            [(ngModel)]="username"
+            name="username"
+            autocomplete="off" />
+        </label>
+
+        <button
+          class="glass-btn workflow-page__submit"
+          type="submit"
+          [disabled]="loading">
+
+          {{ 'Load customer report' | translate }}
+          <span aria-hidden="true">→</span>
+        </button>
+      </div>
     </form>
 
-    <nav class="report-tabs" [attr.aria-label]="'Report type' | translate">
-      <button *ngFor="let report of reports" type="button" [class.is-active]="active === report.key" (click)="select(report.key)">{{ report.label | translate }}</button>
+    <!-- REPORT TABS -->
+    <nav
+      class="report-tabs"
+      [attr.aria-label]="'Report type' | translate">
+
+      <button
+        *ngFor="let report of reports; let i = index"
+        type="button"
+        [class.is-active]="active === report.key"
+        (click)="select(report.key)"
+        [style.--account-index]="i">
+
+        {{ report.label | translate }}
+      </button>
     </nav>
 
-    <p *ngIf="loading" class="report-state" role="status">{{ 'Loading report…' | translate }}</p>
-    <p *ngIf="error" class="report-error" role="alert">{{ error | translate }}</p>
+    <!-- LOADING AND ERROR STATES -->
+    <div class="workflow-page__notices" aria-live="polite">
+
+      <div
+        *ngIf="loading"
+        class="workflow-page__loading-state"
+        role="status">
+
+        <span class="workflow-page__loader"></span>
+        {{ 'Loading report…' | translate }}
+      </div>
+
+      <p
+        *ngIf="error"
+        class="glass-error report-error"
+        role="alert">
+
+        {{ error | translate }}
+      </p>
+    </div>
 
     <ng-container *ngIf="!loading && !error">
-      <section *ngIf="active === 'fd-summary'" class="report-section">
-        <h2>{{ 'FD status summary' | translate }}</h2>
-        <div class="report-table-wrap"><table><thead><tr><th>Product</th><th>Currency</th><th>Status</th><th>Accounts</th><th>Total principal</th><th>Accrued interest</th><th>Stored maturity amount</th></tr></thead>
-          <tbody><tr *ngFor="let row of fdSummary"><td>{{ row.productCode }} · {{ row.productName }}</td><td>{{ row.currencyCode }}</td><td>{{ row.status }}</td><td>{{ row.totalAccounts }}</td><td>{{ row.currencyCode }} {{ formatMoney(row.totalPrincipal, row.decimalPlaces) }}</td><td>{{ row.currencyCode }} {{ formatMoney(row.totalAccruedInterest, row.decimalPlaces) }}</td><td>{{ row.currencyCode }} {{ formatMoney(row.storedMaturityAmountTotal, row.decimalPlaces) }}</td></tr></tbody>
-        </table></div><p class="report-note">{{ 'Maturity amounts are the values stored on accounts; this report does not calculate new interest.' | translate }}</p>
-        <p *ngIf="!fdSummary.length" class="report-state">{{ 'No fixed deposits are available.' | translate }}</p>
+
+      <!-- FD STATUS SUMMARY -->
+      <section
+        *ngIf="active === 'fd-summary'"
+        class="report-section workflow-page__panel">
+
+        <div class="report-section__heading">
+          <div class="workflow-page__section-icon" aria-hidden="true">▤</div>
+          <h2>{{ 'FD status summary' | translate }}</h2>
+        </div>
+
+        <div class="report-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Currency</th>
+                <th>Status</th>
+                <th>Accounts</th>
+                <th>Total principal</th>
+                <th>Accrued interest</th>
+                <th>Stored maturity amount</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <tr *ngFor="let row of fdSummary">
+                <td>{{ row.productCode }} · {{ row.productName }}</td>
+                <td>{{ row.currencyCode }}</td>
+                <td>
+                  <span class="report-status">{{ row.status }}</span>
+                </td>
+                <td>{{ row.totalAccounts }}</td>
+                <td>
+                  {{ row.currencyCode }}
+                  {{ formatMoney(row.totalPrincipal, row.decimalPlaces) }}
+                </td>
+                <td>
+                  {{ row.currencyCode }}
+                  {{ formatMoney(row.totalAccruedInterest, row.decimalPlaces) }}
+                </td>
+                <td>
+                  {{ row.currencyCode }}
+                  {{ formatMoney(row.storedMaturityAmountTotal, row.decimalPlaces) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="report-note workflow-page__note">
+          {{ 'Maturity amounts are the values stored on accounts; this report does not calculate new interest.' | translate }}
+        </p>
+
+        <div *ngIf="!fdSummary.length" class="workflow-page__empty report-empty">
+          <div class="workflow-page__empty-icon" aria-hidden="true">▤</div>
+          <h4>{{ 'No fixed deposits are available.' | translate }}</h4>
+        </div>
       </section>
 
-      <section *ngIf="active === 'maturity-summary'" class="report-section">
-        <h2>{{ 'Maturity summary' | translate }}</h2>
-        <div class="report-table-wrap"><table><thead><tr><th>Date</th><th>Product</th><th>Currency</th><th>Accounts due</th><th>Principal</th><th>Accrued interest</th><th>Stored maturity amount</th></tr></thead>
-          <tbody><tr *ngFor="let row of maturitySummary"><td>{{ row.maturityDate | date:'mediumDate' }}</td><td>{{ row.productCode }} · {{ row.productName }}</td><td>{{ row.currencyCode }}</td><td>{{ row.accountsDue }}</td><td>{{ row.currencyCode }} {{ formatMoney(row.totalPrincipal, row.decimalPlaces) }}</td><td>{{ row.currencyCode }} {{ formatMoney(row.totalAccruedInterest, row.decimalPlaces) }}</td><td>{{ row.currencyCode }} {{ formatMoney(row.storedMaturityAmountTotal, row.decimalPlaces) }}</td></tr></tbody>
-        </table></div><p class="report-note">{{ 'Shows active accounts due on or within 30 calendar days of the current business date. Currency totals stay separate.' | translate }}</p>
-        <p *ngIf="!maturitySummary.length" class="report-state">{{ 'No active deposits are due in this period.' | translate }}</p>
+      <!-- MATURITY SUMMARY -->
+      <section
+        *ngIf="active === 'maturity-summary'"
+        class="report-section workflow-page__panel">
+
+        <div class="report-section__heading">
+          <div class="workflow-page__section-icon" aria-hidden="true">◷</div>
+          <h2>{{ 'Maturity summary' | translate }}</h2>
+        </div>
+
+        <div class="report-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Product</th>
+                <th>Currency</th>
+                <th>Accounts due</th>
+                <th>Principal</th>
+                <th>Accrued interest</th>
+                <th>Stored maturity amount</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <tr *ngFor="let row of maturitySummary">
+                <td>{{ row.maturityDate | date:'mediumDate' }}</td>
+                <td>{{ row.productCode }} · {{ row.productName }}</td>
+                <td>{{ row.currencyCode }}</td>
+                <td>{{ row.accountsDue }}</td>
+                <td>
+                  {{ row.currencyCode }}
+                  {{ formatMoney(row.totalPrincipal, row.decimalPlaces) }}
+                </td>
+                <td>
+                  {{ row.currencyCode }}
+                  {{ formatMoney(row.totalAccruedInterest, row.decimalPlaces) }}
+                </td>
+                <td>
+                  {{ row.currencyCode }}
+                  {{ formatMoney(row.storedMaturityAmountTotal, row.decimalPlaces) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="report-note workflow-page__note">
+          {{ 'Shows active accounts due on or within 30 calendar days of the current business date. Currency totals stay separate.' | translate }}
+        </p>
+
+        <div *ngIf="!maturitySummary.length" class="workflow-page__empty report-empty">
+          <div class="workflow-page__empty-icon" aria-hidden="true">◷</div>
+          <h4>{{ 'No active deposits are due in this period.' | translate }}</h4>
+        </div>
       </section>
 
-      <section *ngIf="active === 'portfolio'" class="report-section">
-        <h2>{{ (portfolio ? portfolio.fullName + ' · ' + portfolio.customerUsername : 'Customer portfolio') | translate }}</h2>
+      <!-- CUSTOMER PORTFOLIO -->
+      <section
+        *ngIf="active === 'portfolio'"
+        class="report-section workflow-page__panel">
+
+        <div class="report-section__heading">
+          <div class="workflow-page__section-icon" aria-hidden="true">◫</div>
+
+          <h2>
+            {{ (portfolio ? portfolio.fullName + ' · ' + portfolio.customerUsername : 'Customer portfolio') | translate }}
+          </h2>
+        </div>
+
+        <!-- PORTFOLIO TOTALS -->
         <div class="portfolio-totals" *ngIf="portfolio?.currencies?.length">
-          <article *ngFor="let total of portfolio?.currencies">
-            <p class="fd-eyebrow">{{ total.currencyCode }} · {{ 'Active accounts' | translate }}</p>
+
+          <article
+            *ngFor="let total of portfolio?.currencies; let i = index"
+            [style.--account-index]="i">
+
+            <p class="workflow-page__eyebrow">
+              {{ total.currencyCode }} · {{ 'Active accounts' | translate }}
+            </p>
+
             <strong>{{ total.activeCount }}</strong>
-            <dl><div><dt>{{ 'Total principal' | translate }}</dt><dd>{{ total.currencyCode }} {{ formatMoney(total.totalPrincipal, total.decimalPlaces) }}</dd></div>
-              <div><dt>{{ 'Accrued interest' | translate }}</dt><dd>{{ total.currencyCode }} {{ formatMoney(total.totalAccruedInterest, total.decimalPlaces) }}</dd></div>
-              <div><dt>{{ 'Average annual rate' | translate }}</dt><dd>{{ total.averageInterestRate | percent:'1.2-4' }}</dd></div></dl>
+
+            <dl>
+              <div>
+                <dt>{{ 'Total principal' | translate }}</dt>
+                <dd>
+                  {{ total.currencyCode }}
+                  {{ formatMoney(total.totalPrincipal, total.decimalPlaces) }}
+                </dd>
+              </div>
+
+              <div>
+                <dt>{{ 'Accrued interest' | translate }}</dt>
+                <dd>
+                  {{ total.currencyCode }}
+                  {{ formatMoney(total.totalAccruedInterest, total.decimalPlaces) }}
+                </dd>
+              </div>
+
+              <div>
+                <dt>{{ 'Average annual rate' | translate }}</dt>
+                <dd>{{ total.averageInterestRate | percent:'1.2-4' }}</dd>
+              </div>
+            </dl>
           </article>
         </div>
-        <div class="report-table-wrap"><table><thead><tr><th>Account</th><th>Currency</th><th>Principal</th><th>Rate</th><th>Maturity date</th><th>Stored maturity amount</th><th>Status</th></tr></thead>
-          <tbody><tr *ngFor="let row of portfolio?.accounts"><td>{{ row.accountNumber }}</td><td>{{ row.currencyCode }}</td><td>{{ row.currencyCode }} {{ formatMoney(row.principal, portfolioScale(row.currencyCode)) }}</td><td>{{ row.annualRate | percent:'1.2-4' }}</td><td>{{ row.maturityDate | date:'mediumDate' }}</td><td>{{ row.currencyCode }} {{ formatMoney(row.maturityAmount, portfolioScale(row.currencyCode)) }}</td><td>{{ row.status }}</td></tr></tbody>
-        </table></div><p *ngIf="!portfolio?.accounts?.length" class="report-state">{{ 'No fixed deposits are available.' | translate }}</p>
+
+        <!-- PORTFOLIO ACCOUNTS -->
+        <div class="report-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Account</th>
+                <th>Currency</th>
+                <th>Principal</th>
+                <th>Rate</th>
+                <th>Maturity date</th>
+                <th>Stored maturity amount</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <tr *ngFor="let row of portfolio?.accounts">
+                <td>{{ row.accountNumber }}</td>
+                <td>{{ row.currencyCode }}</td>
+                <td>
+                  {{ row.currencyCode }}
+                  {{ formatMoney(row.principal, portfolioScale(row.currencyCode)) }}
+                </td>
+                <td>{{ row.annualRate | percent:'1.2-4' }}</td>
+                <td>{{ row.maturityDate | date:'mediumDate' }}</td>
+                <td>
+                  {{ row.currencyCode }}
+                  {{ formatMoney(row.maturityAmount, portfolioScale(row.currencyCode)) }}
+                </td>
+                <td>
+                  <span class="report-status">{{ row.status }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div *ngIf="!portfolio?.accounts?.length" class="workflow-page__empty report-empty">
+          <div class="workflow-page__empty-icon" aria-hidden="true">◫</div>
+          <h4>{{ 'No fixed deposits are available.' | translate }}</h4>
+        </div>
       </section>
 
-      <section *ngIf="active === 'interest-history'" class="report-section">
-        <h2>{{ 'Interest transaction history' | translate }}</h2>
-        <div class="report-table-wrap"><table><thead><tr><th>Date</th><th>Account</th><th>Currency</th><th>Accrued</th><th>Cumulative</th><th>Capitalized</th></tr></thead>
-          <tbody><tr *ngFor="let row of interestHistory"><td>{{ row.accrualDate | date:'mediumDate' }}</td><td>{{ row.accountNumber }}</td><td>{{ row.currencyCode }}</td><td>{{ row.currencyCode }} {{ formatMoney(row.accruedInterest, row.decimalPlaces) }}</td><td>{{ row.currencyCode }} {{ formatMoney(row.cumulativeAccruedInterest, row.decimalPlaces) }}</td><td>{{ row.currencyCode }} {{ formatMoney(row.capitalizedAmount, row.decimalPlaces) }}</td></tr></tbody>
-        </table></div><p *ngIf="!interestHistory.length" class="report-state">{{ 'No interest accrual records are available.' | translate }}</p>
+      <!-- INTEREST HISTORY -->
+      <section
+        *ngIf="active === 'interest-history'"
+        class="report-section workflow-page__panel">
+
+        <div class="report-section__heading">
+          <div class="workflow-page__section-icon" aria-hidden="true">↗</div>
+          <h2>{{ 'Interest transaction history' | translate }}</h2>
+        </div>
+
+        <div class="report-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Account</th>
+                <th>Currency</th>
+                <th>Accrued</th>
+                <th>Cumulative</th>
+                <th>Capitalized</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <tr *ngFor="let row of interestHistory">
+                <td>{{ row.accrualDate | date:'mediumDate' }}</td>
+                <td>{{ row.accountNumber }}</td>
+                <td>{{ row.currencyCode }}</td>
+                <td>
+                  {{ row.currencyCode }}
+                  {{ formatMoney(row.accruedInterest, row.decimalPlaces) }}
+                </td>
+                <td>
+                  {{ row.currencyCode }}
+                  {{ formatMoney(row.cumulativeAccruedInterest, row.decimalPlaces) }}
+                </td>
+                <td>
+                  {{ row.currencyCode }}
+                  {{ formatMoney(row.capitalizedAmount, row.decimalPlaces) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div *ngIf="!interestHistory.length" class="workflow-page__empty report-empty">
+          <div class="workflow-page__empty-icon" aria-hidden="true">↗</div>
+          <h4>{{ 'No interest accrual records are available.' | translate }}</h4>
+        </div>
       </section>
 
-      <section *ngIf="active === 'statements'" class="report-section">
-        <h2>{{ 'Statements' | translate }}</h2>
-        <div class="report-table-wrap"><table><thead><tr><th>Period end</th><th>Account</th><th>Currency</th><th>Principal</th><th>Interest in period</th><th>Status</th></tr></thead>
-          <tbody><tr *ngFor="let row of statements"><td>{{ row.periodEnd | date:'mediumDate' }}</td><td>{{ row.accountNumber }}</td><td>{{ row.currencyCode }}</td><td>{{ row.currencyCode }} {{ formatMoney(row.contractedPrincipal, row.decimalPlaces) }}</td><td>{{ row.currencyCode }} {{ formatMoney(row.interestAccruedInPeriod, row.decimalPlaces) }}</td><td>{{ row.accountStatus }}</td></tr></tbody>
-        </table></div><p *ngIf="!statements.length" class="report-state">{{ 'No statement records are available yet.' | translate }}</p>
+      <!-- STATEMENTS -->
+      <section
+        *ngIf="active === 'statements'"
+        class="report-section workflow-page__panel">
+
+        <div class="report-section__heading">
+          <div class="workflow-page__section-icon" aria-hidden="true">▧</div>
+          <h2>{{ 'Statements' | translate }}</h2>
+        </div>
+
+        <div class="report-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Period end</th>
+                <th>Account</th>
+                <th>Currency</th>
+                <th>Principal</th>
+                <th>Interest in period</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <tr *ngFor="let row of statements">
+                <td>{{ row.periodEnd | date:'mediumDate' }}</td>
+                <td>{{ row.accountNumber }}</td>
+                <td>{{ row.currencyCode }}</td>
+                <td>
+                  {{ row.currencyCode }}
+                  {{ formatMoney(row.contractedPrincipal, row.decimalPlaces) }}
+                </td>
+                <td>
+                  {{ row.currencyCode }}
+                  {{ formatMoney(row.interestAccruedInPeriod, row.decimalPlaces) }}
+                </td>
+                <td>
+                  <span class="report-status">{{ row.accountStatus }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div *ngIf="!statements.length" class="workflow-page__empty report-empty">
+          <div class="workflow-page__empty-icon" aria-hidden="true">▧</div>
+          <h4>{{ 'No statement records are available yet.' | translate }}</h4>
+        </div>
       </section>
 
-      <section *ngIf="active === 'notices'" class="report-section">
-        <h2>{{ 'Notices' | translate }}</h2>
-        <div class="report-table-wrap"><table><thead><tr><th>Recorded</th><th>Account</th><th>Currency</th><th>Type</th><th>Channel</th><th>Delivery status</th></tr></thead>
-          <tbody><tr *ngFor="let row of notices"><td>{{ row.recordedAt | date:'medium' }}</td><td>{{ row.accountNumber }}</td><td>{{ row.currencyCode }}</td><td>{{ row.noticeType }}</td><td>{{ row.channel }}</td><td>{{ row.deliveryStatus }}</td></tr></tbody>
-        </table></div><p *ngIf="!notices.length" class="report-state">{{ 'No notice records are available yet.' | translate }}</p>
+      <!-- NOTICES -->
+      <section
+        *ngIf="active === 'notices'"
+        class="report-section workflow-page__panel">
+
+        <div class="report-section__heading">
+          <div class="workflow-page__section-icon" aria-hidden="true">✉</div>
+          <h2>{{ 'Notices' | translate }}</h2>
+        </div>
+
+        <div class="report-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Recorded</th>
+                <th>Account</th>
+                <th>Currency</th>
+                <th>Type</th>
+                <th>Channel</th>
+                <th>Delivery status</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <tr *ngFor="let row of notices">
+                <td>{{ row.recordedAt | date:'medium' }}</td>
+                <td>{{ row.accountNumber }}</td>
+                <td>{{ row.currencyCode }}</td>
+                <td>{{ row.noticeType }}</td>
+                <td>{{ row.channel }}</td>
+                <td>
+                  <span class="report-status">{{ row.deliveryStatus }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div *ngIf="!notices.length" class="workflow-page__empty report-empty">
+          <div class="workflow-page__empty-icon" aria-hidden="true">✉</div>
+          <h4>{{ 'No notice records are available yet.' | translate }}</h4>
+        </div>
       </section>
+
     </ng-container>
   </main>
 </app-workspace-shell>
