@@ -57,14 +57,56 @@ public class FixedDepositController {
         if(pcc==null)throw bad("Currency "+request.currencyCode+" is not supported for this product");
         BigDecimal minAmount=(BigDecimal)pcc.get("min");BigDecimal maxAmount=(BigDecimal)pcc.get("max");
         if(principal.compareTo(minAmount)<0||principal.compareTo(maxAmount)>0)throw bad("Principal amount "+principal+" is outside permitted bounds ["+minAmount+", "+maxAmount+"]");
-        List<Map<String,Object>> rateRows=jdbc.queryForList("SELECT annual_rate,compounding_basis,payout_frequency FROM fd_product_rate_ref WHERE product_id=? AND currency_id=? AND minimum_tenure_months<=? AND maximum_tenure_months>=? ORDER BY annual_rate DESC LIMIT 1",request.productId,currencyId,request.tenureMonths,request.tenureMonths);
-        if(rateRows.isEmpty())throw bad("Requested tenure of "+request.tenureMonths+" months does not match any configured tenure rate band");
-        Map<String,Object> rateBand=rateRows.get(0);
-        BigDecimal rate=(BigDecimal)rateBand.get("annual_rate");String compounding=(String)rateBand.get("compounding_basis");String payout=(String)rateBand.get("payout_frequency");
+        LocalDate open=clock.businessDate();
+        List<Map<String,Object>> candidateBands=jdbc.queryForList("SELECT annual_rate,compounding_basis,payout_frequency,effective_from,effective_to FROM fd_product_rate_ref WHERE product_id=? AND currency_id=? AND minimum_tenure_months<=? AND maximum_tenure_months>=?",request.productId,currencyId,request.tenureMonths,request.tenureMonths);
+        if(candidateBands.isEmpty())throw bad("Requested tenure of "+request.tenureMonths+" months does not match any configured tenure rate band");
+        List<Map<String,Object>> effectiveBands=candidateBands.stream().filter(b->{
+            LocalDate from=b.get("effective_from")==null?null:(b.get("effective_from") instanceof java.sql.Date d?d.toLocalDate():LocalDate.parse(b.get("effective_from").toString().substring(0,10)));
+            LocalDate to=b.get("effective_to")==null?null:(b.get("effective_to") instanceof java.sql.Date d?d.toLocalDate():LocalDate.parse(b.get("effective_to").toString().substring(0,10)));
+            return (from==null||!open.isBefore(from))&&(to==null||!open.isAfter(to));
+        }).toList();
+        if(effectiveBands.isEmpty()){
+            boolean allFuture=candidateBands.stream().allMatch(b->{
+                LocalDate from=b.get("effective_from")==null?null:(b.get("effective_from") instanceof java.sql.Date d?d.toLocalDate():LocalDate.parse(b.get("effective_from").toString().substring(0,10)));
+                return from!=null&&open.isBefore(from);
+            });
+            if(allFuture){
+                LocalDate earliest=candidateBands.stream().map(b->b.get("effective_from") instanceof java.sql.Date d?d.toLocalDate():LocalDate.parse(b.get("effective_from").toString().substring(0,10))).min(LocalDate::compareTo).orElse(null);
+                throw bad("NOT_YET_EFFECTIVE: The rate schedule is not effective until "+earliest);
+            }
+            boolean allPast=candidateBands.stream().allMatch(b->{
+                LocalDate to=b.get("effective_to")==null?null:(b.get("effective_to") instanceof java.sql.Date d?d.toLocalDate():LocalDate.parse(b.get("effective_to").toString().substring(0,10)));
+                return to!=null&&open.isAfter(to);
+            });
+            if(allPast){
+                LocalDate latest=candidateBands.stream().map(b->b.get("effective_to") instanceof java.sql.Date d?d.toLocalDate():LocalDate.parse(b.get("effective_to").toString().substring(0,10))).max(LocalDate::compareTo).orElse(null);
+                throw bad("EXPIRED: The rate schedule expired on "+latest);
+            }
+            throw bad("NO_APPLICABLE_RATE: No active rate schedule is effective on "+open);
+        }
+        BigDecimal rate;
+        String compounding;
+        String payout;
+        if(effectiveBands.size()>1){
+            BigDecimal firstRate=(BigDecimal)effectiveBands.get(0).get("annual_rate");
+            boolean allSame=effectiveBands.stream().allMatch(b->((BigDecimal)b.get("annual_rate")).compareTo(firstRate)==0);
+            if(!allSame)throw new ResponseStatusException(HttpStatus.CONFLICT,"AMBIGUOUS_CONFIGURATION: Multiple rate schedules overlap on "+open+" with differing rates");
+            rate=firstRate;compounding=(String)effectiveBands.get(0).get("compounding_basis");payout=(String)effectiveBands.get(0).get("payout_frequency");
+        } else {
+            rate=(BigDecimal)effectiveBands.get(0).get("annual_rate");compounding=(String)effectiveBands.get(0).get("compounding_basis");payout=(String)effectiveBands.get(0).get("payout_frequency");
+        }
+        if(request.expectedAnnualRate!=null && rate.compareTo(request.expectedAnnualRate)!=0){
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Disclosed interest rate ("+request.expectedAnnualRate+") differs from authoritative rate ("+rate+") on "+open+". Please review the updated disclosure before booking.");
+        }
         String penaltyStr=(String)pcc.get("penalty");
-        LocalDate open=clock.businessDate();LocalDate maturity=open.plusMonths(request.tenureMonths);BigDecimal estimate=FdCompounding.maturity(principal,rate,open,maturity,scale,compounding);
+        LocalDate maturity=open.plusMonths(request.tenureMonths);BigDecimal estimate=FdCompounding.maturity(principal,rate,open,maturity,scale,compounding);
         String policy="academic-v2-"+FdCompounding.basis(compounding).toLowerCase(java.util.Locale.ROOT);
-        String terms=json(mapOf("productId",request.productId,"productCode",product.get("code"),"productName",product.get("name"),"currencyCode",request.currencyCode,"currencyScale",scale,"principal",principal,"annualRate",rate,"tenureMonths",request.tenureMonths,"compoundingBasis",compounding,"payoutFrequency",payout,"prematurePenaltyPoints",penaltyStr==null||penaltyStr.isBlank()?null:penaltyStr,"policyVersion",policy));
+        Map<String,Object> termsMap=mapOf("productId",request.productId,"productCode",product.get("code"),"productName",product.get("name"),"currencyCode",request.currencyCode,"currencyScale",scale,"principal",principal,"annualRate",rate,"tenureMonths",request.tenureMonths,"compoundingBasis",compounding,"payoutFrequency",payout,"prematurePenaltyPoints",penaltyStr==null||penaltyStr.isBlank()?null:penaltyStr,"policyVersion",policy,"bookingDate",open.toString(),"maturityDate",maturity.toString(),"calculationConvention","ACTUAL_365");
+        if(request.expectedAnnualRate!=null){
+            termsMap.put("disclosedAnnualRate",request.expectedAnnualRate);
+            termsMap.put("disclosureVerified",true);
+        }
+        String terms=json(termsMap);
         String accountNumber="FD-"+UUID.randomUUID().toString().replace("-","").substring(0,16).toUpperCase();
         jdbc.update("INSERT INTO fd_accounts(fa_account_number,fa_primary_holder_id,fa_product_id,fa_principal_amount,fa_currency_id,fa_tenure_months,fa_interest_rate,fa_compounding_frequency,fa_payout_frequency,fa_open_date,fa_maturity_date,fa_maturity_amount,fa_status,fa_funding_savings_account_id,fa_terms_snapshot,fa_policy_version) VALUES(?,?,?,?,?,?,?,?,?, ?,?,?,'PENDING',?,CAST(? AS JSON),?)",accountNumber,userId,request.productId,principal.setScale(scale,RoundingMode.HALF_UP),currencyId,request.tenureMonths,rate,compounding,payout,open.atStartOfDay(),java.sql.Date.valueOf(maturity),estimate.setScale(scale,RoundingMode.HALF_UP),request.savingsAccountId,terms,policy);
         long id=jdbc.queryForObject("SELECT LAST_INSERT_ID()",Long.class);
@@ -114,7 +156,11 @@ public class FixedDepositController {
     private ResponseStatusException bad(String message){return new ResponseStatusException(HttpStatus.BAD_REQUEST,message);}
     private int currencyScale(long id){Integer n=jdbc.queryForObject("SELECT fcr_decimal_places FROM fd_currency_ref WHERE fcr_currency_id=?",Integer.class,id);return n==null?2:n;}
 
-    public record BookingRequest(@NotNull @Min(1) Long productId,@NotNull @Min(1) Long savingsAccountId,@NotNull @DecimalMin("0.01") BigDecimal principal,@NotBlank @Size(max=10) String currencyCode,@Min(1) int tenureMonths){}
+    public record BookingRequest(@NotNull @Min(1) Long productId,@NotNull @Min(1) Long savingsAccountId,@NotNull @DecimalMin("0.01") BigDecimal principal,@NotBlank @Size(max=10) String currencyCode,@Min(1) int tenureMonths,@com.fasterxml.jackson.annotation.JsonProperty("expected_annual_rate") BigDecimal expectedAnnualRate){
+        public BookingRequest(Long productId, Long savingsAccountId, BigDecimal principal, String currencyCode, int tenureMonths){
+            this(productId, savingsAccountId, principal, currencyCode, tenureMonths, null);
+        }
+    }
     public record FundingChoice(@NotNull @Min(1) Long savingsAccountId){}
     public record FdView(@com.fasterxml.jackson.annotation.JsonProperty("account_id") long accountId,@com.fasterxml.jackson.annotation.JsonProperty("account_number") String accountNumber,@com.fasterxml.jackson.annotation.JsonProperty("principal_amount") BigDecimal principal,@com.fasterxml.jackson.annotation.JsonProperty("currency_id") long currencyId,@com.fasterxml.jackson.annotation.JsonProperty("currency_code") String currencyCode,@com.fasterxml.jackson.annotation.JsonProperty("tenure_months") int tenureMonths,@com.fasterxml.jackson.annotation.JsonProperty("annual_rate") BigDecimal annualRate,@com.fasterxml.jackson.annotation.JsonProperty("open_date") LocalDate openDate,@com.fasterxml.jackson.annotation.JsonProperty("maturity_date") LocalDate maturityDate,@com.fasterxml.jackson.annotation.JsonProperty("maturity_amount") BigDecimal estimatedMaturityAmount,String status,@com.fasterxml.jackson.annotation.JsonProperty("funding_savings_account_id") long fundingSavingsAccountId,@com.fasterxml.jackson.annotation.JsonProperty("product_id") long productId,@com.fasterxml.jackson.annotation.JsonProperty("product_code") String productCode,@com.fasterxml.jackson.annotation.JsonProperty("product_name") String productName,@com.fasterxml.jackson.annotation.JsonProperty("compounding_frequency") String compoundingFrequency,@com.fasterxml.jackson.annotation.JsonProperty("payout_frequency") String payoutFrequency,@com.fasterxml.jackson.annotation.JsonProperty("policy_version") String policyVersion,@com.fasterxml.jackson.annotation.JsonProperty("funding_recorded") boolean fundingRecorded){
         public FdView(long accountId,String accountNumber,BigDecimal principal,long currencyId,String currencyCode,int tenureMonths,BigDecimal annualRate,LocalDate openDate,LocalDate maturityDate,BigDecimal estimatedMaturityAmount,String status,long fundingSavingsAccountId,long productId,String productCode,String productName,String compoundingFrequency,String payoutFrequency,String policyVersion){this(accountId,accountNumber,principal,currencyId,currencyCode,tenureMonths,annualRate,openDate,maturityDate,estimatedMaturityAmount,status,fundingSavingsAccountId,productId,productCode,productName,compoundingFrequency,payoutFrequency,policyVersion,!"PENDING".equals(status));}

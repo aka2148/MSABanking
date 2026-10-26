@@ -66,7 +66,11 @@ public class ReferenceSnapshotConsumer {
                 if(currencyId==null)throw new IllegalArgumentException("Rate band references an unknown currency");
                 int minimum=band.has("minimumMonth")?band.path("minimumMonth").asInt():band.path("min_month").asInt();
                 int maximum=band.has("maximumMonth")?band.path("maximumMonth").asInt():band.path("max_month").asInt();
-                jdbc.update("INSERT INTO fd_product_rate_ref(product_id,currency_id,minimum_tenure_months,maximum_tenure_months,annual_rate,compounding_basis,payout_frequency,source_version) VALUES(?,?,?,?,?,?,?,?)",id,currencyId,minimum,maximum,new BigDecimal(band.path("ro_outcome_value").asText()),band.path("ro_compounding_basis").asText(null),band.path("ro_payout_frequency").asText(null),version);
+                String effFrom = band.has("effectiveFrom") && !band.path("effectiveFrom").isNull() ? band.path("effectiveFrom").asText(null) : null;
+                String effTo = band.has("effectiveTo") && !band.path("effectiveTo").isNull() ? band.path("effectiveTo").asText(null) : null;
+                java.sql.Date fromDate = (effFrom == null || effFrom.isBlank()) ? null : java.sql.Date.valueOf(effFrom.substring(0, 10));
+                java.sql.Date toDate = (effTo == null || effTo.isBlank()) ? null : java.sql.Date.valueOf(effTo.substring(0, 10));
+                jdbc.update("INSERT INTO fd_product_rate_ref(product_id,currency_id,minimum_tenure_months,maximum_tenure_months,annual_rate,compounding_basis,payout_frequency,source_version,effective_from,effective_to) VALUES(?,?,?,?,?,?,?,?,?,?)",id,currencyId,minimum,maximum,new BigDecimal(band.path("ro_outcome_value").asText()),band.path("ro_compounding_basis").asText(null),band.path("ro_payout_frequency").asText(null),version,fromDate,toDate);
             }
             ack.acknowledge();
         } catch (Exception e) { log.error("Invalid product.catalog event; not acknowledging", e); throw new IllegalArgumentException("Could not apply product snapshot", e); }
