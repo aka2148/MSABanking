@@ -152,6 +152,7 @@ export class FdBooking implements OnInit {
       principal_amount: Number(values.principalAmount),
       tenure_months: Number(values.tenureMonths),
       currency_code: this.selectedCurrencyOffer.currency_code,
+      expected_annual_rate: this.selectedRateTier.annual_rate,
     };
 
     this.submitting = true;
@@ -202,6 +203,41 @@ export class FdBooking implements OnInit {
   }
 
   private maskAccount(number: string): string { return `•••• ${number.slice(-4)}`; }
+
+  get estimatedMaturityDate(): string {
+    const months = Number(this.bookingForm.controls.tenureMonths.value) || 0;
+    const d = new Date();
+    d.setMonth(d.getMonth() + months);
+    return d.toISOString().slice(0, 10);
+  }
+
+  get estimatedMaturity(): { maturityAmount: number; interestEarned: number } {
+    const p = Number(this.bookingForm.controls.principalAmount.value) || 0;
+    const r = this.selectedRateTier?.annual_rate || 0;
+    const months = Number(this.bookingForm.controls.tenureMonths.value) || 0;
+    if (p <= 0 || r <= 0 || months <= 0) return { maturityAmount: 0, interestEarned: 0 };
+
+    const freq = (this.selectedRateTier?.compounding_frequency || '').toUpperCase();
+    let periodsPerYear = 4;
+    if (freq.includes('MONTH')) periodsPerYear = 12;
+    else if (freq.includes('SEMI')) periodsPerYear = 2;
+    else if (freq.includes('ANNUAL') || freq.includes('YEAR')) periodsPerYear = 1;
+    else if (freq.includes('SIMPLE')) periodsPerYear = 0;
+
+    let total = p;
+    if (periodsPerYear === 0) {
+      const interest = p * r * (months / 12);
+      total = p + interest;
+    } else {
+      const t = months / 12;
+      total = p * Math.pow(1 + (r / periodsPerYear), periodsPerYear * t);
+    }
+    const interest = total - p;
+    return {
+      maturityAmount: Math.round(total * 100) / 100,
+      interestEarned: Math.round(interest * 100) / 100,
+    };
+  }
 
   formatFrequency(value: string | null | undefined): string {
     if (!value) return 'not specified';

@@ -24,6 +24,8 @@ export interface RateTier {
   annual_rate: number;
   compounding_frequency: string;
   payout_frequency: string;
+  effective_from?: string;
+  effective_to?: string;
 }
 
 export interface Journal {
@@ -48,6 +50,7 @@ export interface BookingRequest {
   principal_amount: number;
   tenure_months: number;
   currency_code: string;
+  expected_annual_rate?: number;
 }
 
 export interface FundingRequest {

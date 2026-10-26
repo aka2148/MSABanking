@@ -22,7 +22,7 @@ import java.time.ZoneId;
 
 @RestController
 @RequestMapping("/api/v1/compliance/fd")
-@PreAuthorize("hasAnyRole('BANK_OFFICER','ADMIN')")
+@PreAuthorize("hasAnyRole('CUSTOMER','BANK_OFFICER','ADMIN')")
 public class FdComplianceController {
     private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Kolkata");
     private final FdComplianceService compliance;
@@ -32,9 +32,10 @@ public class FdComplianceController {
     @PostMapping("/verify-rate-disclosure")
     public FdComplianceService.RateDisclosureResponse verifyRate(
             @Valid @RequestBody RateDisclosureRequest request) {
+        LocalDate evalDate = request.evaluationDate() != null ? request.evaluationDate() : LocalDate.now(BUSINESS_ZONE);
         return compliance.verifyRate(new FdComplianceService.RateDisclosureRequest(request.productId(),
                 request.currencyCode(), request.principalAmount(), request.tenureMonths(), request.displayedRate(),
-                request.evaluationDate()), LocalDate.now(BUSINESS_ZONE));
+                evalDate), evalDate);
     }
 
     @PostMapping("/evaluate-effective-date")

@@ -117,6 +117,7 @@ export class FdService {
       principal: request.principal_amount,
       tenureMonths: request.tenure_months,
       currencyCode: request.currency_code,
+      expected_annual_rate: request.expected_annual_rate,
     }).pipe(map(accountView));
   }
 

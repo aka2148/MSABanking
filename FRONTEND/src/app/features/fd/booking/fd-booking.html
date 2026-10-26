@@ -75,9 +75,18 @@
           <div><dt> {{ 'Funding savings account' | translate }} </dt><dd> {{ (selectedSavingsAccountLabel()) | translate }} </dd></div>
           <div><dt> {{ 'Principal' | translate }} </dt><dd>{{ bookingForm.controls.principalAmount.value }} {{ selectedCurrencyOffer?.currency_code }}</dd></div>
           <div><dt> {{ 'Tenure' | translate }} </dt><dd> {{ '{0} months' | translate: [(bookingForm.controls.tenureMonths.value)] }} </dd></div>
-          <div><dt> {{ 'Selected annual rate' | translate }} </dt><dd>{{ selectedRateTier ? (selectedRateTier.annual_rate * 100 | number:'1.2-2') + '%' : '—' }}</dd></div>
-          <div><dt> {{ 'Interest' | translate }} </dt><dd> {{ '{0} compounding, paid {1}' | translate: [(formatFrequency(selectedRateTier?.compounding_frequency) | translate), (formatFrequency(selectedRateTier?.payout_frequency) | translate)] }} </dd></div>
+          <div><dt> {{ 'Disclosed annual rate' | translate }} </dt><dd>{{ selectedRateTier ? (selectedRateTier.annual_rate * 100 | number:'1.2-2') + '%' : '—' }}</dd></div>
+          <div><dt> {{ 'Calculation convention' | translate }} </dt><dd>Actual/365</dd></div>
+          <div><dt> {{ 'Estimated maturity date' | translate }} </dt><dd>{{ estimatedMaturityDate }}</dd></div>
+          <div><dt> {{ 'Estimated interest' | translate }} </dt><dd>{{ estimatedMaturity.interestEarned | number:'1.2-2' }} {{ selectedCurrencyOffer?.currency_code }}</dd></div>
+          <div><dt> {{ 'Estimated maturity amount' | translate }} </dt><dd>{{ estimatedMaturity.maturityAmount | number:'1.2-2' }} {{ selectedCurrencyOffer?.currency_code }}</dd></div>
+          <div><dt> {{ 'Interest compounding' | translate }} </dt><dd> {{ '{0} compounding, paid {1}' | translate: [(formatFrequency(selectedRateTier?.compounding_frequency) | translate), (formatFrequency(selectedRateTier?.payout_frequency) | translate)] }} </dd></div>
+          <div *ngIf="selectedRateTier?.effective_from || selectedRateTier?.effective_to"><dt> {{ 'Pricing schedule' | translate }} </dt><dd>{{ selectedRateTier?.effective_from || 'Effective' }} to {{ selectedRateTier?.effective_to || 'Indefinite' }}</dd></div>
         </dl>
+        <div class="fd-disclosure-alert" *ngIf="!submittedAccount" style="margin-top: 1rem; padding: 0.75rem 1rem; border-radius: 8px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25);">
+          <p style="margin: 0 0 0.4rem 0; font-size: 0.85rem;"><strong>{{ 'Regulatory Disclosure:' | translate }}</strong> {{ 'The disclosed annual rate is verified at booking under Actual/365 convention. Rates are locked upon booking.' | translate }}</p>
+          <p style="margin: 0; font-size: 0.8rem; opacity: 0.85;">{{ 'Premature withdrawal is subject to a 1.00% point deduction penalty from applicable interest.' | translate }}</p>
+        </div>
         <dl class="fd-review-list" *ngIf="submittedAccount as account">
           <div><dt> {{ 'Status' | translate }} </dt><dd> {{ (accountStatusLabel(account.status)) | translate }} </dd></div>
           <div><dt> {{ 'Annual rate' | translate }} </dt><dd>{{ account.annual_rate * 100 | number:'1.2-2' }}%</dd></div>

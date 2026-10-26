@@ -60,13 +60,47 @@ public class FdCalculatorController {
         if (baseRate == null && request.productId() != null) {
             int tenureMonths = Math.max(1, (request.termDays() + 15) / 30);
             String curr = request.currencyCode() == null ? "INR" : request.currencyCode().toUpperCase(Locale.ROOT);
-            List<BigDecimal> rates = jdbc.queryForList(
-                    "SELECT rr.annual_rate FROM fd_product_rate_ref rr JOIN fd_currency_ref c ON c.fcr_currency_id=rr.currency_id " +
-                    "WHERE rr.product_id=? AND UPPER(c.fcr_iso_code)=? AND rr.minimum_tenure_months<=? AND rr.maximum_tenure_months>=? " +
-                    "ORDER BY rr.annual_rate DESC LIMIT 1",
-                    BigDecimal.class, request.productId(), curr, tenureMonths, tenureMonths);
-            if (!rates.isEmpty()) {
-                baseRate = rates.get(0).multiply(HUNDRED);
+            List<Map<String, Object>> candidateBands = jdbc.queryForList(
+                    "SELECT rr.annual_rate, rr.effective_from, rr.effective_to FROM fd_product_rate_ref rr JOIN fd_currency_ref c ON c.fcr_currency_id=rr.currency_id " +
+                    "WHERE rr.product_id=? AND UPPER(c.fcr_iso_code)=? AND rr.minimum_tenure_months<=? AND rr.maximum_tenure_months>=?",
+                    request.productId(), curr, tenureMonths, tenureMonths);
+            if (candidateBands.isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Requested tenure of " + tenureMonths + " months does not match any configured tenure rate band");
+            }
+            LocalDate evalDate = LocalDate.now();
+            List<Map<String, Object>> effectiveBands = candidateBands.stream().filter(b -> {
+                LocalDate from = b.get("effective_from") == null ? null : (b.get("effective_from") instanceof java.sql.Date d ? d.toLocalDate() : LocalDate.parse(b.get("effective_from").toString().substring(0, 10)));
+                LocalDate to = b.get("effective_to") == null ? null : (b.get("effective_to") instanceof java.sql.Date d ? d.toLocalDate() : LocalDate.parse(b.get("effective_to").toString().substring(0, 10)));
+                return (from == null || !evalDate.isBefore(from)) && (to == null || !evalDate.isAfter(to));
+            }).toList();
+            if (effectiveBands.isEmpty()) {
+                boolean allFuture = candidateBands.stream().allMatch(b -> {
+                    LocalDate from = b.get("effective_from") == null ? null : (b.get("effective_from") instanceof java.sql.Date d ? d.toLocalDate() : LocalDate.parse(b.get("effective_from").toString().substring(0, 10)));
+                    return from != null && evalDate.isBefore(from);
+                });
+                if (allFuture) {
+                    LocalDate earliest = candidateBands.stream().map(b -> b.get("effective_from") instanceof java.sql.Date d ? d.toLocalDate() : LocalDate.parse(b.get("effective_from").toString().substring(0, 10))).min(LocalDate::compareTo).orElse(null);
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "NOT_YET_EFFECTIVE: The rate schedule is not effective until " + earliest);
+                }
+                boolean allPast = candidateBands.stream().allMatch(b -> {
+                    LocalDate to = b.get("effective_to") == null ? null : (b.get("effective_to") instanceof java.sql.Date d ? d.toLocalDate() : LocalDate.parse(b.get("effective_to").toString().substring(0, 10)));
+                    return to != null && evalDate.isAfter(to);
+                });
+                if (allPast) {
+                    LocalDate latest = candidateBands.stream().map(b -> b.get("effective_to") instanceof java.sql.Date d ? d.toLocalDate() : LocalDate.parse(b.get("effective_to").toString().substring(0, 10))).max(LocalDate::compareTo).orElse(null);
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "EXPIRED: The rate schedule expired on " + latest);
+                }
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "NO_APPLICABLE_RATE: No active rate schedule is effective on " + evalDate);
+            }
+            if (effectiveBands.size() > 1) {
+                BigDecimal firstRate = (BigDecimal) effectiveBands.get(0).get("annual_rate");
+                boolean allSame = effectiveBands.stream().allMatch(b -> ((BigDecimal) b.get("annual_rate")).compareTo(firstRate) == 0);
+                if (!allSame) {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "AMBIGUOUS_CONFIGURATION: Multiple rate schedules overlap on " + evalDate + " with differing rates");
+                }
+                baseRate = firstRate.multiply(HUNDRED);
+            } else {
+                baseRate = ((BigDecimal) effectiveBands.get(0).get("annual_rate")).multiply(HUNDRED);
             }
         }
         if (baseRate == null) {
