@@ -1,67 +1,267 @@
 <app-workspace-shell>
   <main class="glass-card savings-page">
-    <header class="savings-page__header">
-      <div><p class="fd-eyebrow"> {{ 'Your money' | translate }} </p><h2> {{ 'Savings accounts' | translate }} </h2>
-        <p class="glass-card__sub"> {{ 'Create a savings account to fund a fixed deposit and receive its maturity payout.' | translate }} </p></div>
-      <a routerLink="/fd" class="glass-btn glass-btn--ghost"> {{ 'Browse fixed deposits' | translate }} </a>
+    <header class="savings-page__hero">
+      <div class="savings-page__hero-copy">
+
+        <h2>{{ 'Savings accounts' | translate }}<span class="savings-page__gold">.</span></h2>
+
+        <p class="savings-page__intro">
+          {{ 'Create a savings account to fund a fixed deposit and receive its maturity payout.' | translate }}
+        </p>
+
+        <a routerLink="/fd" class="glass-btn glass-btn--ghost savings-page__browse">
+          {{ 'Browse fixed deposits' | translate }}
+          <span aria-hidden="true">↗</span>
+        </a>
+      </div>
+
+      <div class="savings-page__hero-art" aria-hidden="true">
+        <div class="savings-page__hero-orbit"></div>
+        <div class="savings-page__hero-orbit savings-page__hero-orbit--inner"></div>
+        <div class="savings-page__hero-symbol">🌍</div>
+        <span class="savings-page__hero-spark savings-page__hero-spark--one"></span>
+        <span class="savings-page__hero-spark savings-page__hero-spark--two"></span>
+      </div>
     </header>
-    <p class="glass-error" *ngIf="error" role="alert">{{ error | translate }}</p>
-    <p class="fd-step-copy" *ngIf="message" role="status">{{ message | translate: messageParameters }}</p>
-    <p class="fd-step-copy" *ngIf="currenciesLoading" role="status"> {{ 'Loading supported currencies…' | translate }} </p>
-    <form [formGroup]="form" (ngSubmit)="create()" class="savings-page__form" aria-labelledby="create-savings-heading">
-      <div class="savings-page__section-heading"><div><p class="fd-eyebrow"> {{ 'New account' | translate }} </p><h3 id="create-savings-heading"> {{ 'Create a savings account' | translate }} </h3></div><span> {{ 'Starts at zero balance' | translate }} </span></div>
-      <div class="glass-field-row">
-        <label class="glass-field"><span class="glass-field__label"> {{ 'Account name' | translate }} </span>
-          <input formControlName="displayName" maxlength="80" [placeholder]="'My savings' | translate" />
-          <span class="glass-field__error" *ngIf="form.controls.displayName.touched && form.controls.displayName.invalid"> {{ 'Enter a name of up to 80 characters.' | translate }} </span>
-        </label>
-        <label class="glass-field"><span class="glass-field__label"> {{ 'Currency' | translate }} </span>
-          <app-glass-select formControlName="currencyCode" [options]="currencies"></app-glass-select>
-          <span class="glass-field__error" *ngIf="form.controls.currencyCode.touched && form.controls.currencyCode.invalid"> {{ 'Choose a currency.' | translate }} </span>
-        </label>
+
+    <!-- NOTICES -->
+    <div class="savings-page__notices" aria-live="polite">
+      <p class="glass-error" *ngIf="error" role="alert">{{ error | translate }}</p>
+
+      <p class="savings-page__message" *ngIf="message" role="status">
+        <span aria-hidden="true">✓</span>
+        {{ message | translate: messageParameters }}
+      </p>
+
+      <p class="savings-page__loading" *ngIf="currenciesLoading" role="status">
+        {{ 'Loading supported currencies…' | translate }}
+      </p>
+    </div>
+
+    <!-- CREATE ACCOUNT -->
+    <section class="savings-page__panel savings-page__create">
+      <div class="savings-page__section-heading">
+        <div class="savings-page__section-icon" aria-hidden="true">＋</div>
+        <div>
+          <p class="savings-page__eyebrow">{{ 'New account' | translate }}</p>
+          <h3 id="create-savings-heading">{{ 'Create a savings account' | translate }}</h3>
+        </div>
       </div>
-      <button class="glass-btn" type="submit" [disabled]="submitting || currenciesLoading || currencies.length === 0"> {{ (submitting ? 'Creating…' : 'Create savings account') | translate }} </button>
-    </form>
-    <form [formGroup]="transferForm" (ngSubmit)="transfer()" class="savings-page__form" aria-labelledby="transfer-heading">
-      <div class="savings-page__section-heading"><div><p class="fd-eyebrow"> {{ 'Savings transfer' | translate }} </p><h3 id="transfer-heading"> {{ 'Transfer money' | translate }} </h3></div></div>
-      <p class="glass-error" *ngIf="transferError" role="alert">{{ transferError | translate }}</p>
-      <a *ngIf="mpinNotSet" routerLink="/mpin">{{ 'Set up your MPIN' | translate }}</a>
-      <p class="fd-step-copy" *ngIf="transferMessage" role="status">{{ transferMessage | translate: [transferReference] }}</p>
-      <div class="glass-field-row">
-        <label class="glass-field"><span class="glass-field__label"> {{ 'From account' | translate }} </span>
-          <app-glass-select formControlName="fromAccountId" [options]="transferOptions" [translateOptions]="false" [placeholder]="'Choose savings account' | translate"></app-glass-select>
-        </label>
-        <label class="glass-field"><span class="glass-field__label"> {{ 'Destination account number' | translate }} </span>
-          <input formControlName="toAccountNumber" maxlength="64" autocomplete="off" />
-        </label>
-        <label class="glass-field"><span class="glass-field__label"> {{ 'Amount' | translate }} </span>
-          <input formControlName="amount" type="number" min="0.00000001" step="any" />
-        </label>
-        <label class="glass-field"><span class="glass-field__label"> {{ 'Remark (optional)' | translate }} </span>
-          <input formControlName="remark" maxlength="140" />
-        </label>
-        <label class="glass-field"><span class="glass-field__label">{{'MPIN'|translate}}</span><app-mpin-input formControlName="mpin"></app-mpin-input></label>
+
+      <form
+        [formGroup]="form"
+        (ngSubmit)="create()"
+        class="savings-page__form"
+        aria-labelledby="create-savings-heading">
+
+        <div class="savings-page__fields">
+          <label class="glass-field">
+            <span class="glass-field__label">{{ 'Account name' | translate }}</span>
+            <input
+              formControlName="displayName"
+              maxlength="80"
+              [placeholder]="'My savings' | translate" />
+            <span
+              class="glass-field__error"
+              *ngIf="form.controls.displayName.touched && form.controls.displayName.invalid">
+              {{ 'Enter a name of up to 80 characters.' | translate }}
+            </span>
+          </label>
+
+          <label class="glass-field">
+            <span class="glass-field__label">{{ 'Currency' | translate }}</span>
+            <app-glass-select
+              formControlName="currencyCode"
+              [options]="currencies"></app-glass-select>
+            <span
+              class="glass-field__error"
+              *ngIf="form.controls.currencyCode.touched && form.controls.currencyCode.invalid">
+              {{ 'Choose a currency.' | translate }}
+            </span>
+          </label>
+        </div>
+
+        <div class="savings-page__form-footer">
+          <p>
+            <span aria-hidden="true">●</span>
+            {{ 'Starts at zero balance' | translate }}
+          </p>
+
+          <button
+            class="glass-btn savings-page__submit"
+            type="submit"
+            [disabled]="submitting || currenciesLoading || currencies.length === 0">
+            {{ (submitting ? 'Creating…' : 'Create savings account') | translate }}
+            <span *ngIf="!submitting" aria-hidden="true">→</span>
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- TRANSFER -->
+    <section class="savings-page__panel savings-page__transfer">
+      <div class="savings-page__section-heading">
+        <div class="savings-page__section-icon" aria-hidden="true">⇄</div>
+        <div>
+          <p class="savings-page__eyebrow">{{ 'Savings transfer' | translate }}</p>
+          <h3 id="transfer-heading">{{ 'Transfer money' | translate }}</h3>
+        </div>
       </div>
-      <button class="glass-btn" type="submit" [disabled]="transferBusy || transferOptions.length === 0"> {{ (transferBusy ? 'Transfer pending…' : 'Transfer money') | translate }} </button>
-    </form>
-    <section class="savings-page__list" aria-labelledby="savings-list">
-      <div class="savings-page__section-heading"><div><p class="fd-eyebrow"> {{ 'Accounts' | translate }} </p><h3 id="savings-list"> {{ 'Your savings accounts' | translate }} </h3></div><span *ngIf="!loading"> {{ '{0} shown' | translate: [(accounts.length)] }} </span></div>
-      <p *ngIf="loading" role="status"> {{ 'Loading accounts…' | translate }} </p>
-      <p class="savings-page__empty" *ngIf="!loading && !error && accounts.length === 0"> {{ 'No savings accounts yet. Create your first account above.' | translate }} </p>
-      <dl class="fd-review-list savings-page__account" *ngFor="let account of accounts">
-        <div><dt>{{ account.display_name }}</dt><dd>{{ account.account_number }}</dd></div>
-        <div><dt> {{ 'Balance' | translate }} </dt><dd>{{ account.balance | number:'1.2-4' }} {{ account.currency_code }}</dd></div>
-        <div><dt> {{ 'Status' | translate }} </dt><dd> {{ (statusLabel(account.status)) | translate }} </dd></div>
-      </dl>
-      <section *ngIf="historyAccountId !== null" aria-labelledby="transfer-history-heading" class="savings-page__list">
-        <h3 id="transfer-history-heading"> {{ 'Recent savings history' | translate }} </h3>
-        <p *ngIf="transferHistory.length === 0"> {{ 'No transactions to show.' | translate }} </p>
-        <dl class="fd-review-list savings-page__account" *ngFor="let item of transferHistory">
-          <div><dt>{{ item.st_entry_type | titlecase }}</dt><dd>{{ item.st_amount | number:'1.0-4' }} · {{ item.st_reference_id }}</dd></div>
-          <div><dt>{{ 'Balance after' | translate }}</dt><dd>{{ item.st_balance_after | number:'1.0-4' }}</dd></div>
-          <div><dt>{{ 'Posted' | translate }}</dt><dd>{{ item.st_posted_at | date:'medium' }}</dd></div>
-        </dl>
+
+      <form
+        [formGroup]="transferForm"
+        (ngSubmit)="transfer()"
+        class="savings-page__form"
+        aria-labelledby="transfer-heading">
+
+        <p class="glass-error savings-page__inline-error" *ngIf="transferError" role="alert">
+          {{ transferError | translate }}
+        </p>
+
+        <a class="savings-page__mpin-link" *ngIf="mpinNotSet" routerLink="/mpin">
+          {{ 'Set up your MPIN' | translate }}
+          <span aria-hidden="true">→</span>
+        </a>
+
+        <p class="savings-page__message savings-page__inline-message" *ngIf="transferMessage" role="status">
+          <span aria-hidden="true">✓</span>
+          {{ transferMessage | translate: [transferReference] }}
+        </p>
+
+        <div class="savings-page__fields">
+          <label class="glass-field">
+            <span class="glass-field__label">{{ 'From account' | translate }}</span>
+            <app-glass-select
+              formControlName="fromAccountId"
+              [options]="transferOptions"
+              [translateOptions]="false"
+              [placeholder]="'Choose savings account' | translate"></app-glass-select>
+          </label>
+
+          <label class="glass-field">
+            <span class="glass-field__label">{{ 'Destination account number' | translate }}</span>
+            <input formControlName="toAccountNumber" maxlength="64" autocomplete="off" />
+          </label>
+
+          <label class="glass-field">
+            <span class="glass-field__label">{{ 'Amount' | translate }}</span>
+            <input formControlName="amount" type="number" min="0.00000001" step="any" />
+          </label>
+
+          <label class="glass-field">
+            <span class="glass-field__label">{{ 'Remark (optional)' | translate }}</span>
+            <input formControlName="remark" maxlength="140" />
+          </label>
+
+          <label class="glass-field">
+            <span class="glass-field__label">{{ 'MPIN' | translate }}</span>
+            <app-mpin-input formControlName="mpin"></app-mpin-input>
+          </label>
+        </div>
+
+        <div class="savings-page__form-footer savings-page__form-footer--end">
+          <button
+            class="glass-btn savings-page__submit"
+            type="submit"
+            [disabled]="transferBusy || transferOptions.length === 0">
+            {{ (transferBusy ? 'Transfer pending…' : 'Transfer money') | translate }}
+            <span *ngIf="!transferBusy" aria-hidden="true">→</span>
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ACCOUNTS -->
+    <section class="savings-page__accounts" aria-labelledby="savings-list">
+      <div class="savings-page__accounts-heading">
+        <div>
+          <p class="savings-page__eyebrow">{{ 'Accounts' | translate }}</p>
+          <h3 id="savings-list">{{ 'Your savings accounts' | translate }}</h3>
+        </div>
+
+        <span class="savings-page__count" *ngIf="!loading">
+          {{ '{0} shown' | translate: [(accounts.length)] }}
+        </span>
+      </div>
+
+      <div class="savings-page__loading-state" *ngIf="loading" role="status">
+        <span class="savings-page__loader"></span>
+        {{ 'Loading accounts…' | translate }}
+      </div>
+
+      <div
+        class="savings-page__empty"
+        *ngIf="!loading && !error && accounts.length === 0">
+        <div class="savings-page__empty-icon" aria-hidden="true">₹</div>
+        <h4>{{ 'No savings accounts yet. Create your first account above.' | translate }}</h4>
+      </div>
+
+      <article
+        class="savings-page__account"
+        *ngFor="let account of accounts; let i = index"
+        [style.--account-index]="i">
+
+        <div class="savings-page__account-top">
+          <div class="savings-page__account-icon" aria-hidden="true">₹</div>
+
+          <div class="savings-page__account-identity">
+            <h4>{{ account.display_name }}</h4>
+            <p>{{ account.account_number }}</p>
+          </div>
+
+          <span class="savings-page__status">
+            {{ (statusLabel(account.status)) | translate }}
+          </span>
+        </div>
+
+        <div class="savings-page__balance">
+          <span>{{ 'Balance' | translate }}</span>
+          <strong>
+            {{ account.balance | number:'1.2-4' }}
+            <small>{{ account.currency_code }}</small>
+          </strong>
+        </div>
+      </article>
+
+      <!-- RECENT HISTORY -->
+      <section
+        *ngIf="historyAccountId !== null"
+        class="savings-page__history"
+        aria-labelledby="transfer-history-heading">
+
+        <div class="savings-page__history-heading">
+          <div class="savings-page__section-icon savings-page__section-icon--small" aria-hidden="true">◷</div>
+          <h3 id="transfer-history-heading">{{ 'Recent savings history' | translate }}</h3>
+        </div>
+
+        <div class="savings-page__empty savings-page__empty--compact" *ngIf="transferHistory.length === 0">
+          <p>{{ 'No transactions to show.' | translate }}</p>
+        </div>
+
+        <article
+          class="savings-page__entry"
+          *ngFor="let item of transferHistory; let i = index"
+          [style.--account-index]="i">
+
+          <div class="savings-page__entry-main">
+            <strong>{{ item.st_entry_type | titlecase }}</strong>
+            <span>{{ item.st_amount | number:'1.0-4' }} · {{ item.st_reference_id }}</span>
+          </div>
+
+          <dl class="savings-page__entry-facts">
+            <div>
+              <dt>{{ 'Balance after' | translate }}</dt>
+              <dd>{{ item.st_balance_after | number:'1.0-4' }}</dd>
+            </div>
+
+            <div>
+              <dt>{{ 'Posted' | translate }}</dt>
+              <dd>{{ item.st_posted_at | date:'medium' }}</dd>
+            </div>
+          </dl>
+        </article>
       </section>
     </section>
+
   </main>
 </app-workspace-shell>
