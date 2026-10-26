@@ -1,23 +1,71 @@
 <app-workspace-shell>
-  <main class="glass-card glass-card--wide workflow-card">
-    <p class="workflow-eyebrow">Administrator review</p>
-    <h2>{{ application ? 'Loan application #' + application.id : 'Pending loan applications' }}</h2>
-    <a routerLink="/staff/loans" *ngIf="application">← Back to queue</a>
-    <p role="status" *ngIf="loading">Loading…</p>
-    <p role="alert" class="glass-error" *ngIf="error">{{ error }}</p>
-    <p role="status" *ngIf="message">{{ message }}</p>
-    <p *ngIf="!loading && !application && applications.length === 0">There are no pending applications.</p>
-    <div class="workflow-grid" *ngIf="!application">
-      <article class="workflow-tile" *ngFor="let item of applications">
-        <h3>Application #{{ item.id }}</h3>
-        <p>Customer #{{ item.customerId }} · {{ item.requestedAmount | number:'1.2-2' }} {{ item.currencyCode }}</p>
-        <p>{{ item.tenureMonths }} months · {{ item.status | titlecase }}</p>
-        <a [routerLink]="['/staff/loans', item.id]">Review application</a>
+  <main class="glass-card workflow-page">
+
+    <header class="workflow-page__hero">
+      <div class="workflow-page__hero-copy">
+        <p class="workflow-page__eyebrow">
+          <span class="workflow-page__eyebrow-dot"></span>
+          Administrator review
+        </p>
+
+        <h2>{{ application ? 'Loan application #' + application.id : 'Pending loan applications' }}<span class="workflow-page__gold">.</span></h2>
+
+        <a class="glass-btn glass-btn--ghost workflow-page__path" routerLink="/staff/loans" *ngIf="application">← Back to queue</a>
+      </div>
+
+      <div class="workflow-page__hero-art" aria-hidden="true">
+        <div class="workflow-page__hero-orbit"></div>
+        <div class="workflow-page__hero-orbit workflow-page__hero-orbit--inner"></div>
+        <div class="workflow-page__hero-symbol">₹</div>
+        <span class="workflow-page__hero-spark workflow-page__hero-spark--one"></span>
+        <span class="workflow-page__hero-spark workflow-page__hero-spark--two"></span>
+      </div>
+    </header>
+
+    <!-- NOTICES -->
+    <div class="workflow-page__notices" aria-live="polite">
+      <div class="workflow-page__loading-state" role="status" *ngIf="loading">
+        <span class="workflow-page__loader"></span>
+        Loading…
+      </div>
+      <p class="glass-error" role="alert" *ngIf="error">{{ error }}</p>
+      <p class="workflow-page__message" role="status" *ngIf="message">
+        <span aria-hidden="true">✓</span>
+        {{ message }}
+      </p>
+    </div>
+
+    <!-- QUEUE -->
+    <div class="workflow-page__empty" *ngIf="!loading && !application && applications.length === 0">
+      <div class="workflow-page__empty-icon" aria-hidden="true">₹</div>
+      <h4>There are no pending applications.</h4>
+    </div>
+
+    <div class="workflow-page__grid" *ngIf="!application">
+      <article class="workflow-page__tile" *ngFor="let item of applications; let i = index" [style.--account-index]="i">
+        <div class="workflow-page__tile-top">
+          <div class="workflow-page__tile-icon" aria-hidden="true">₹</div>
+          <div class="workflow-page__tile-identity">
+            <h3>Application #{{ item.id }}</h3>
+            <p>Customer #{{ item.customerId }} · {{ item.requestedAmount | number:'1.2-2' }} {{ item.currencyCode }}</p>
+          </div>
+          <span class="workflow-page__status">{{ item.status | titlecase }}</span>
+        </div>
+
+        <p class="workflow-page__tile-meta">{{ item.tenureMonths }} months · {{ item.status | titlecase }}</p>
+
+        <a class="workflow-page__tile-text-link" [routerLink]="['/staff/loans', item.id]">
+          Review application
+          <span aria-hidden="true">→</span>
+        </a>
       </article>
     </div>
-    <section *ngIf="application as item">
-      <p class="workflow-status">{{ item.status | titlecase }}</p>
-      <dl class="workflow-facts">
+
+    <!-- REVIEW DETAIL -->
+    <section class="workflow-page__panel" *ngIf="application as item">
+      <p class="workflow-page__status">{{ item.status | titlecase }}</p>
+
+      <dl class="workflow-page__facts">
         <div><dt>Customer</dt><dd>{{ item.customerName }} · {{ item.customerNumber }}</dd></div>
         <div><dt>KYC status</dt><dd>{{ customer?.kycStatus || 'Loading…' }}</dd></div>
         <div><dt>Risk category</dt><dd>{{ customer?.riskCategory || 'Loading…' }}</dd></div>
@@ -30,17 +78,38 @@
         <div *ngIf="item.rejectionReason"><dt>Rejection reason</dt><dd>{{ item.rejectionReason }}</dd></div>
         <div *ngIf="item.disbursementTransactionId"><dt>Credit transaction</dt><dd>#{{ item.disbursementTransactionId }}</dd></div>
       </dl>
-      <p>Review the customer’s KYC and risk information before deciding. Full customer details are available under Customers.</p>
-      <div class="workflow-links" *ngIf="item.status === 'PENDING_REVIEW'">
-        <button class="glass-btn" type="button" [disabled]="busy" (click)="action('approve')">Approve</button>
-        <form [formGroup]="rejectForm" (ngSubmit)="action('reject')" class="workflow-form">
-          <label>Reason for rejection <input formControlName="reason" maxlength="500"></label>
-          <button class="glass-btn glass-btn--ghost" type="submit" [disabled]="busy">Reject</button>
+
+      <p class="workflow-page__note">Review the customer’s KYC and risk information before deciding. Full customer details are available under Customers.</p>
+
+      <div class="workflow-page__actions" *ngIf="item.status === 'PENDING_REVIEW'">
+        <button class="glass-btn workflow-page__submit" type="button" [disabled]="busy" (click)="action('approve')">
+          Approve
+          <span aria-hidden="true">→</span>
+        </button>
+        <form [formGroup]="rejectForm" (ngSubmit)="action('reject')" class="workflow-page__reject-form">
+          <label class="glass-field">
+            <span class="glass-field__label">Reason for rejection</span>
+            <input formControlName="reason" maxlength="500">
+          </label>
+          <button class="glass-btn glass-btn--ghost workflow-page__reject" type="submit" [disabled]="busy">Reject</button>
         </form>
       </div>
-      <button *ngIf="item.status === 'APPROVED'" class="glass-btn" type="button" [disabled]="busy" (click)="action('disburse')">Disburse to selected savings account</button>
-      <h3>Status history</h3>
-      <ol class="workflow-history"><li *ngFor="let event of history">{{ event.status | titlecase }} · {{ event.createdAt | date:'medium' }} · Actor #{{ event.actorId }}<span *ngIf="event.reason"> · {{ event.reason }}</span></li></ol>
+
+      <div class="workflow-page__actions" *ngIf="item.status === 'APPROVED'">
+        <button class="glass-btn workflow-page__submit" type="button" [disabled]="busy" (click)="action('disburse')">
+          Disburse to selected savings account
+          <span aria-hidden="true">→</span>
+        </button>
+      </div>
+
+      <div class="workflow-page__history-heading">
+        <div class="workflow-page__section-icon workflow-page__section-icon--small" aria-hidden="true">◷</div>
+        <h3>Status history</h3>
+      </div>
+      <ol class="workflow-page__history">
+        <li *ngFor="let event of history; let i = index" [style.--account-index]="i">{{ event.status | titlecase }} · {{ event.createdAt | date:'medium' }} · Actor #{{ event.actorId }}<span *ngIf="event.reason"> · {{ event.reason }}</span></li>
+      </ol>
     </section>
+
   </main>
 </app-workspace-shell>
