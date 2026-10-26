@@ -115,6 +115,23 @@ class FdBatchSafetyIntegrationTest {
                 BigDecimal.class, statementAccount)), "daily accrual must use the frozen annual-rate snapshot");
         batches.runDaily(nextMonth);
         assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM fd_statements WHERE fs_account_id=?", Integer.class, statementAccount));
+
+        LocalDate firstJumpBoundary = nextMonth.plusMonths(1).withDayOfMonth(1);
+        LocalDate secondJumpBoundary = firstJumpBoundary.plusMonths(1);
+        LocalDate target = secondJumpBoundary.plusDays(10);
+        offset = Math.toIntExact(ChronoUnit.DAYS.between(today, target));
+        jdbc.update("UPDATE fd_demo_clock SET fdc_offset_days=? WHERE fdc_clock_id=1", offset);
+        long account = insertActiveFd("BATCH-JUMP-" + UUID.randomUUID().toString().replace("-", "").substring(0, 8),
+                today.minusDays(20), target.plusDays(40));
+        FdBatchService.DailyBatchResult firstRun = batches.runDaily(target);
+        assertEquals(0, firstRun.accountsFailed());
+        assertEquals(java.util.List.of(nextMonth, firstJumpBoundary, secondJumpBoundary), jdbc.query(
+                "SELECT fs_period_end FROM fd_statements WHERE fs_account_id=? ORDER BY fs_period_end",
+                (rs, row) -> rs.getTimestamp(1).toLocalDateTime().toLocalDate(), account));
+
+        FdBatchService.DailyBatchResult statementRetry = batches.runDaily(target);
+        assertEquals(0, statementRetry.accountsFailed());
+        assertEquals(3, jdbc.queryForObject("SELECT COUNT(*) FROM fd_statements WHERE fs_account_id=?", Integer.class, account));
     }
 
     private void assertLocalDateTimeRoundTripsAcrossJvmZones(long accountId) {

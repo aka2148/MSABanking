@@ -73,7 +73,7 @@ class KycIntegrationTest {
         assertEquals("****234F", p.get("proofNumberMasked").asText()); assertFalse(p.toString().contains("ABCDE1234F")); assertFalse(p.get("values").has("proofOfIdValue"));
         p = save(a, Map.of("proofOfIdType", "AADHAAR")); assertTrue(p.get("proofNumberMasked").isNull()); assertFalse(p.at("/completedFields/proofOfIdValue").asBoolean());
     }
-    @Test void draftStaysPendingUntilExplicitSubmitAndRejectsIncompleteOrRepeatedSubmit() throws Exception {
+    @Test void customerSubmissionStaysPendingUntilStaffReviewAndRecordsReviewer() throws Exception {
         Customer incomplete = customer(false);
         mvc.perform(post(URL + "/submit").header("Authorization", "Bearer " + incomplete.token()))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("Complete all 9 KYC fields before submitting."));
@@ -88,18 +88,35 @@ class KycIntegrationTest {
         assertEquals(0, eventCount(c, "AUTO_VERIFIED"));
         assertEquals(snapshotsBefore, snapshotCount(c));
 
-        JsonNode verified = submit(c);
-        assertEquals("VERIFIED", verified.get("kycStatus").asText());
-        assertEquals("COMPLETED", verified.get("cycleStatus").asText());
+        JsonNode submitted = submit(c);
+        assertEquals("PENDING", submitted.get("kycStatus").asText());
+        assertEquals("OPEN", submitted.get("cycleStatus").asText());
+        assertFalse(submitted.get("editingAllowed").asBoolean());
         assertEquals("HIGH", jdbc.queryForObject("SELECT cus_risk_category FROM customers WHERE cus_customer_id=?", String.class, c.id()));
         assertEquals("SALARIED", jdbc.queryForObject("SELECT cud_occupation FROM customer_details WHERE cud_customer_id=?", String.class, c.id()));
         assertEquals("1990-01-01", jdbc.queryForObject("SELECT CAST(cud_date_of_birth AS CHAR) FROM customer_details WHERE cud_customer_id=?", String.class, c.id()));
         assertEquals("Test Parent", jdbc.queryForObject("SELECT cud_father_or_spouse_name FROM customer_details WHERE cud_customer_id=?", String.class, c.id()));
-        assertEquals(1, eventCount(c, "AUTO_VERIFIED"));
+        assertEquals(0, eventCount(c, "AUTO_VERIFIED"));
+        assertEquals(1, eventCount(c, "KYC_SUBMITTED"));
         assertEquals(snapshotsBefore + 1, snapshotCount(c));
-        assertSnapshot(c, "VERIFIED", 2);
+        assertSnapshot(c, "PENDING", 2);
+        mvc.perform(put(URL + "/draft").header("Authorization", "Bearer " + c.token()).contentType("application/json").content(json.writeValueAsBytes(complete())))
+                .andExpect(status().isConflict());
         mvc.perform(post(URL + "/submit").header("Authorization", "Bearer " + c.token())).andExpect(status().isConflict())
-                .andExpect(jsonPath("$.message").value("Request re-KYC to update details."));
+                .andExpect(jsonPath("$.message").value("KYC has been submitted and is awaiting staff review."));
+        String officer = bankOfficerToken();
+        mvc.perform(patch("/api/v1/customers/" + c.id() + "/status").header("Authorization", "Bearer " + c.token())
+                        .contentType("application/json").content("{\"status\":\"VERIFIED\"}"))
+                .andExpect(status().isForbidden());
+        mvc.perform(patch("/api/v1/customers/" + c.id() + "/status").header("Authorization", "Bearer " + officer)
+                        .contentType("application/json").content("{\"status\":\"VERIFIED\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.kycStatus").value("VERIFIED"));
+        assertEquals(1, eventCount(c, "STAFF_VERIFIED"));
+        String officerUsername = json.readTree(mvc.perform(get("/api/v1/auth/me").header("Authorization", "Bearer " + officer))
+                .andReturn().getResponse().getContentAsString()).get("username").asText();
+        long officerId = jdbc.queryForObject("SELECT ucr_user_id FROM user_credentials WHERE ucr_username=?", Long.class, officerUsername);
+        assertEquals("reviewerUserId=" + officerId, jdbc.queryForObject("SELECT remarks FROM customer_kyc_events WHERE customer_id=? AND event_type='STAFF_VERIFIED'", String.class, c.id()));
+        assertSnapshot(c, "VERIFIED", 3);
     }
     private int eventCount(Customer c, String type) { return jdbc.queryForObject("SELECT COUNT(*) FROM customer_kyc_events WHERE customer_id=? AND event_type=?", Integer.class, c.id(), type); }
     private int snapshotCount(Customer c) { return jdbc.queryForObject("SELECT COUNT(*) FROM outbox_event o JOIN users u ON o.event_key=u.usr_user_uuid JOIN customers c ON c.cus_user_id=u.usr_user_id WHERE c.cus_customer_id=?", Integer.class, c.id()); }
@@ -110,16 +127,17 @@ class KycIntegrationTest {
     @Test void rekycConfirmsSavedMaskedNumberAndStaffPendingReopens() throws Exception {
         Customer c = customer(false);
         mvc.perform(post(URL + "/rekyc").header("Authorization", "Bearer " + c.token()).contentType("application/json").content("{\"remarks\":\"Update my details\"}")).andExpect(status().isConflict());
-        save(c, complete()); submit(c);
+        save(c, complete()); submit(c); staffReview(c, "VERIFIED");
         mvc.perform(post("/api/v1/auth/mpin/setup").header("Authorization", "Bearer " + c.token()).contentType("application/json").content("{\"password\":\"SkyRiver82!Mint\",\"mpin\":\"864209\"}")).andExpect(status().isNoContent());
         for (String remarks : List.of("", "short", "x".repeat(501), "<update details>"))
             mvc.perform(post(URL + "/rekyc").header("Authorization", "Bearer " + c.token()).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsBytes(Map.of("remarks", remarks,"mpin","864209")))).andExpect(status().isBadRequest());
         mvc.perform(post(URL + "/rekyc").header("Authorization", "Bearer " + c.token()).contentType("application/json").content("{\"remarks\":\" Update my details \",\"mpin\":\"864209\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.completionPercent").value(0)).andExpect(jsonPath("$.cycleNumber").value(2)).andExpect(jsonPath("$.values.occupation").value("SALARIED"));
-        assertSnapshot(c, "PENDING", 3); assertEquals(1, eventCount(c, "REKYC_REQUESTED"));
+        assertSnapshot(c, "PENDING", 4); assertEquals(1, eventCount(c, "REKYC_REQUESTED"));
         Map<String,Object> unchanged = complete(); unchanged.remove("proofOfIdValue"); unchanged.put("confirmSavedProof", true);
         assertEquals("PENDING", save(c, unchanged).get("kycStatus").asText());
-        assertEquals("VERIFIED", submit(c).get("kycStatus").asText()); assertSnapshot(c, "VERIFIED", 4);
+        assertEquals("PENDING", submit(c).get("kycStatus").asText()); assertSnapshot(c, "PENDING", 5);
+        staffReview(c, "VERIFIED"); assertSnapshot(c, "VERIFIED", 6);
         jdbc.update("UPDATE customers SET cus_kyc_status='PENDING' WHERE cus_customer_id=?", c.id());
         JsonNode p = getProfile(c); assertEquals(3, p.get("cycleNumber").asInt()); assertEquals(0, p.get("completionPercent").asInt());
         jdbc.update("UPDATE customers SET cus_kyc_status='REJECTED' WHERE cus_customer_id=?", c.id());
@@ -138,9 +156,34 @@ class KycIntegrationTest {
             assertEquals("PENDING", getProfile(c).get("kycStatus").asText());
             assertEquals("OPEN", getProfile(c).get("cycleStatus").asText());
             assertEquals(0, eventCount(c, "AUTO_VERIFIED"));
-            assertEquals("VERIFIED", submit(c).get("kycStatus").asText());
-            assertEquals(1, eventCount(c, "AUTO_VERIFIED")); assertSnapshot(c, "VERIFIED", 2);
+            assertEquals("PENDING", submit(c).get("kycStatus").asText());
+            assertEquals(0, eventCount(c, "AUTO_VERIFIED")); assertEquals(1, eventCount(c, "KYC_SUBMITTED"));
+            assertSnapshot(c, "PENDING", 2);
         } finally { pool.shutdownNow(); }
+    }
+    @Test void staffCanRejectOnlySubmittedKycAndCustomerCannotOverrideDecision() throws Exception {
+        Customer c = customer(false); save(c, complete()); submit(c);
+        String officer = bankOfficerToken();
+        mvc.perform(patch("/api/v1/customers/" + c.id() + "/status").header("Authorization", "Bearer " + officer)
+                        .contentType("application/json").content("{\"status\":\"REJECTED\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.kycStatus").value("REJECTED"));
+        assertEquals(1, eventCount(c, "STAFF_REJECTED"));
+        assertSnapshot(c, "REJECTED", 3);
+        mvc.perform(patch("/api/v1/customers/" + c.id() + "/status").header("Authorization", "Bearer " + c.token())
+                        .contentType("application/json").content("{\"status\":\"VERIFIED\"}"))
+                .andExpect(status().isForbidden());
+    }
+    private void staffReview(Customer customer, String decision) throws Exception {
+        mvc.perform(patch("/api/v1/customers/" + customer.id() + "/status").header("Authorization", "Bearer " + bankOfficerToken())
+                        .contentType("application/json").content("{\"status\":\"" + decision + "\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.kycStatus").value(decision));
+    }
+    private String bankOfficerToken() throws Exception {
+        Customer staff = customer(false);
+        long userId = jdbc.queryForObject("SELECT ucr_user_id FROM user_credentials WHERE ucr_username=?", Long.class, staff.username());
+        long roleId = jdbc.queryForObject("SELECT rol_role_id FROM roles WHERE rol_role_code='ROLE_BANK_OFFICER'", Long.class);
+        jdbc.update("INSERT INTO user_roles(ur_user_id,ur_role_id) VALUES(?,?)", userId, roleId);
+        return staff.token();
     }
     @Test void documentsValidateReplaceRemoveAndLockWithoutAffectingCompletion() throws Exception {
         Customer c = customer(false);

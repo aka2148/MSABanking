@@ -1,0 +1,538 @@
+openapi: 3.0.3
+info:
+  title: MoneyPal active services API
+  version: 1.0.0
+  description: >-
+    Active Docker Compose API for the Identity, Product, and FD Account services.
+    This file documents the lab demo paths used in the current microservice stack;
+    legacy BACKEND OpenAPI files describe a retired monolith.
+servers:
+  - url: http://localhost:8080
+    description: Local Nginx API gateway
+tags:
+  - name: Health
+  - name: Authentication
+  - name: Fixed deposits
+  - name: Reports
+  - name: Staff operations
+paths:
+  /gateway/health:
+    get:
+      tags: [Health]
+      summary: Gateway readiness across all three application services
+      responses:
+        '200': { description: Gateway and upstream services are ready }
+        '503': { description: At least one upstream service is unavailable }
+  /api/v1/auth/email/verification/send:
+    post:
+      tags: [Authentication]
+      summary: Send a registration email verification code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [email], properties: { email: { type: string, format: email } } }
+      responses:
+        '200': { description: Verification request accepted }
+        '429': { description: Request rate limited }
+  /api/v1/auth/email/verification/verify:
+    post:
+      tags: [Authentication]
+      summary: Verify the registration email code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [email, code], properties: { email: { type: string, format: email }, code: { type: string, minLength: 6, maxLength: 6 } } }
+      responses:
+        '200': { description: Email verified for registration }
+        '400': { description: Code is invalid or expired }
+  /api/v1/auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register a customer after email verification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password, email, fullName, address, city, state, postalCode]
+              properties:
+                username: { type: string, minLength: 4, maxLength: 30 }
+                password: { type: string, minLength: 12, maxLength: 100, description: Must satisfy the active shared password policy }
+                email: { type: string, format: email }
+                fullName: { type: string }
+                phone: { type: string }
+                address: { type: string }
+                city: { type: string }
+                state: { type: string }
+                postalCode: { type: string, pattern: '^[0-9]{6}$' }
+                legalEntityType: { type: string }
+      responses:
+        '201': { description: Customer account created and signed in }
+        '400': { description: Input invalid or email was not verified }
+        '409': { description: Username or email is already registered }
+  /api/v1/auth/login:
+    post:
+      tags: [Authentication]
+      summary: Sign in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [username, password], properties: { username: { type: string }, password: { type: string } } }
+      responses:
+        '200': { description: Bearer token or MFA challenge }
+        '401': { description: Credentials are invalid }
+        '403': { description: Account is inactive }
+  /api/v1/fd-products/eligible:
+    get:
+      tags: [Fixed deposits]
+      summary: List active FD offers, configured amount bands, currencies, and rate tiers
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: lang
+          schema: { type: string, default: en }
+      responses:
+        '200': { description: Eligible offers from Product Service }
+        '401': { description: Authentication required }
+  /api/v1/customers/me/kyc/submit:
+    post:
+      tags: [Authentication]
+      summary: Submit the authenticated customer's completed KYC for staff review
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: KYC remains PENDING and is locked for customer edits
+        '400': { description: Required KYC fields are incomplete or invalid }
+  /api/v1/customers/{customerId}/status:
+    patch:
+      tags: [Staff operations]
+      summary: Review submitted KYC as an authorized bank officer or administrator
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: customerId
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [VERIFIED, REJECTED] }
+      responses:
+        '200': { description: Recorded KYC decision and published current customer snapshot }
+        '403': { description: Caller is not an authorized reviewer }
+        '409': { description: Customer has not submitted KYC for review }
+  /api/calculator/estimate:
+    post:
+      tags: [Fixed deposits]
+      summary: Estimate interest and maturity using the supplied rate or a product reference
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [principal, termDays, compoundingFrequency]
+              properties:
+                principal: { type: number, format: double }
+                baseInterestRate: { type: number, format: double }
+                termDays: { type: integer, minimum: 1 }
+                category: { type: string, enum: [STANDARD, SENIOR_CITIZEN, EMPLOYEE] }
+                categories: { type: array, items: { type: string, enum: [STANDARD, SENIOR_CITIZEN, EMPLOYEE] } }
+                currencyCode: { type: string }
+                productId: { type: integer, format: int64 }
+                compoundingFrequency: { type: string }
+      responses:
+        '200': { description: Estimate response }
+        '400': { description: Invalid request or no matching configured rate }
+  /api/v1/fixed-deposits:
+    get:
+      tags: [Fixed deposits]
+      summary: List the authenticated customer's deposits
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Customer-owned deposits }
+    post:
+      tags: [Fixed deposits]
+      summary: Book a pending fixed deposit using an eligible product and owned savings account
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productId, savingsAccountId, principal, currencyCode, tenureMonths]
+              properties:
+                productId: { type: integer, format: int64 }
+                savingsAccountId: { type: integer, format: int64 }
+                principal: { type: number, format: double }
+                currencyCode: { type: string }
+                tenureMonths: { type: integer, minimum: 1 }
+      responses:
+        '201': { description: Pending deposit with stored terms and estimate }
+        '400': { description: Product, currency, amount, or term is not eligible }
+        '409': { description: Idempotency conflict }
+  /api/v1/fixed-deposits/{id}:
+    get:
+      tags: [Fixed deposits]
+      summary: Read an owned fixed deposit
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/AccountId' }]
+      responses:
+        '200': { description: Deposit details }
+        '404': { description: Deposit not found for this customer }
+  /api/v1/fixed-deposits/{id}/fund:
+    post:
+      tags: [Fixed deposits]
+      summary: Fund a pending deposit from the savings account locked at booking
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - in: header
+          name: X-MPIN-Proof
+          required: false
+          schema: { type: string }
+          description: Required when MPIN enforcement is enabled
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { savingsAccountId: { type: integer, format: int64 } } }
+      responses:
+        '200': { description: Funded deposit in ACTIVE status }
+        '404': { description: Deposit is not owned by the caller }
+        '409': { description: Deposit is not pending or funding cannot be completed }
+  /api/v1/fixed-deposits/{id}/transactions:
+    get:
+      tags: [Fixed deposits]
+      summary: Read owned deposit transaction and accrual history
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/AccountId' }]
+      responses:
+        '200': { description: Ordered transaction and accrual entries }
+        '404': { description: Deposit not found for this customer }
+  /api/v1/fixed-deposits/{id}/accruals:
+    get:
+      tags: [Fixed deposits]
+      summary: Read owned deposit accrual rows
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/AccountId' }]
+      responses:
+        '200': { description: Accrual history }
+  /api/v1/fixed-deposits/{id}/close:
+    post:
+      tags: [Fixed deposits]
+      summary: Close an owned matured deposit and record internal settlement
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - in: header
+          name: X-MPIN-Proof
+          required: false
+          schema: { type: string }
+      responses:
+        '200': { description: Closed deposit and recorded settlement outcome }
+        '409': { description: Deposit is not matured or verified posting records are missing }
+  /api/v1/savings-accounts:
+    get:
+      tags: [Fixed deposits]
+      summary: List the authenticated customer's savings accounts
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Customer-owned savings accounts }
+    post:
+      tags: [Fixed deposits]
+      summary: Open a customer savings account in an available currency
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema: { type: string, maxLength: 255 }
+          description: Reuse the same key and request body to safely replay an opening request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [currencyCode, displayName], properties: { currencyCode: { type: string }, displayName: { type: string } } }
+      responses:
+        '201': { description: Opened account with zero balance }
+        '400': { description: Currency is unavailable }
+        '503':
+          description: FD service is waiting for the authenticated user reference from Kafka; retry after the supplied Retry-After delay with the same Idempotency-Key
+  /api/v1/savings-accounts/transfers:
+    post:
+      tags: [Fixed deposits]
+      summary: Transfer between savings accounts with idempotency and an MPIN proof
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - in: header
+          name: X-MPIN-Proof
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fromAccountId, toAccountNumber, amount]
+              properties:
+                fromAccountId: { type: integer, format: int64 }
+                toAccountNumber: { type: string, maxLength: 64 }
+                amount: { type: number, format: double }
+                remark: { type: string, maxLength: 140 }
+      responses:
+        '200': { description: Transfer outcome }
+        '403': { description: Invalid MPIN proof or authorization }
+        '404': { description: Source account is not owned by the caller }
+        '409': { description: Transfer cannot be completed or key conflicts }
+  /api/v1/admin/fixed-deposits/accrual-batch:
+    post:
+      tags: [Staff operations]
+      summary: Run accrual for the selected or current business date
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: businessDate
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: Batch counts and per-account failures }
+        '403': { description: Staff role required }
+  /api/v1/admin/fixed-deposits/maturity-batch:
+    post:
+      tags: [Staff operations]
+      summary: Process maturity for the selected or current business date
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: businessDate
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: Batch counts and per-account failures }
+        '403': { description: Staff role required }
+  /api/admin/clock:
+    get:
+      tags: [Staff operations]
+      summary: Read system time and effective business date
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Clock status }
+  /api/admin/clock/advance:
+    post:
+      tags: [Staff operations]
+      summary: Advance the ADMIN-only simulated clock and run daily batch actions
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [days], properties: { days: { type: integer, minimum: 1, maximum: 3650 } } }
+      responses:
+        '200': { description: New clock state and batch counts }
+        '403': { description: ADMIN role required }
+  /api/reports/portfolio:
+    get:
+      tags: [Reports]
+      summary: Customer's own FD portfolio, or staff's own portfolio
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Portfolio rows with active currency totals }
+  /api/reports/portfolio/{username}:
+    get:
+      tags: [Reports]
+      summary: Staff view of a selected customer's FD portfolio
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: username
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Customer portfolio }
+        '403': { description: Staff role required }
+        '404': { description: Customer report not found }
+  /api/reports/portfolio.csv:
+    get:
+      tags: [Reports]
+      summary: Download the authenticated customer's own portfolio as CSV
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: CSV export, content: { text/csv: { schema: { type: string, format: binary } } } }
+  /api/reports/portfolio/{username}.csv:
+    get:
+      tags: [Reports]
+      summary: Staff download of a customer's portfolio as CSV
+      security: [{ bearerAuth: [] }]
+      parameters: [{ in: path, name: username, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: CSV export, content: { text/csv: { schema: { type: string, format: binary } } } }
+  /api/reports/fd-summary:
+    get:
+      tags: [Reports]
+      summary: Staff summary grouped by product, currency, and account status
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Currency-separated account counts, principal, accrual, and stored maturity amounts }
+        '403': { description: Staff role required }
+  /api/reports/fd-summary.csv:
+    get:
+      tags: [Reports]
+      summary: Download FD status summary as CSV
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: CSV export, content: { text/csv: { schema: { type: string, format: binary } } } }
+  /api/reports/maturity-summary:
+    get:
+      tags: [Reports]
+      summary: Staff summary of active accounts due on or within 30 calendar days of the current business date
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Maturity data grouped by date, product, and currency }
+        '403': { description: Staff role required }
+  /api/reports/maturity-summary.csv:
+    get:
+      tags: [Reports]
+      summary: Download maturity summary as CSV
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: CSV export, content: { text/csv: { schema: { type: string, format: binary } } } }
+  /api/reports/interest-history:
+    get:
+      tags: [Reports]
+      summary: Customer's own interest accrual history
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Accrued, cumulative, and capitalized amounts by account and business date }
+  /api/reports/interest-history/customer/{username}:
+    get:
+      tags: [Reports]
+      summary: Staff view of a customer's interest history
+      security: [{ bearerAuth: [] }]
+      parameters: [{ in: path, name: username, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Customer interest history }
+        '403': { description: Staff role required }
+  /api/reports/interest-history.csv:
+    get:
+      tags: [Reports]
+      summary: Download the authenticated customer's interest history as CSV
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: CSV export, content: { text/csv: { schema: { type: string, format: binary } } } }
+  /api/reports/interest-history/customer/{username}.csv:
+    get:
+      tags: [Reports]
+      summary: Staff download of a customer's interest history as CSV
+      security: [{ bearerAuth: [] }]
+      parameters: [{ in: path, name: username, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: CSV export, content: { text/csv: { schema: { type: string, format: binary } } } }
+  /api/reports/statements:
+    get:
+      tags: [Reports]
+      summary: Read statement records generated by the existing FD lifecycle writer
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Customer-owned statement metadata and in-period accrual totals }
+  /api/reports/statements/customer/{username}:
+    get:
+      tags: [Reports]
+      summary: Staff view of a customer's statement records
+      security: [{ bearerAuth: [] }]
+      parameters: [{ in: path, name: username, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Customer statement metadata and in-period accrual totals }
+        '403': { description: Staff role required }
+  /api/reports/statements.csv:
+    get:
+      tags: [Reports]
+      summary: Download owned statement records as CSV
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: CSV export, content: { text/csv: { schema: { type: string, format: binary } } } }
+  /api/reports/statements/customer/{username}.csv:
+    get:
+      tags: [Reports]
+      summary: Staff download of customer statement records as CSV
+      security: [{ bearerAuth: [] }]
+      parameters: [{ in: path, name: username, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: CSV export, content: { text/csv: { schema: { type: string, format: binary } } } }
+  /api/reports/notices:
+    get:
+      tags: [Reports]
+      summary: Read notice records generated by the existing FD lifecycle writer
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Customer-owned notice metadata }
+  /api/reports/notices/customer/{username}:
+    get:
+      tags: [Reports]
+      summary: Staff view of a customer's notice records
+      security: [{ bearerAuth: [] }]
+      parameters: [{ in: path, name: username, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: Customer notice metadata }
+        '403': { description: Staff role required }
+  /api/reports/notices.csv:
+    get:
+      tags: [Reports]
+      summary: Download owned notice records as CSV
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: CSV export, content: { text/csv: { schema: { type: string, format: binary } } } }
+  /api/reports/notices/customer/{username}.csv:
+    get:
+      tags: [Reports]
+      summary: Staff download of customer notice records as CSV
+      security: [{ bearerAuth: [] }]
+      parameters: [{ in: path, name: username, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: CSV export, content: { text/csv: { schema: { type: string, format: binary } } } }
+  /api/reports/operational:
+    get:
+      tags: [Reports]
+      summary: Staff overview of active FD currency totals and upcoming maturities
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Operational report grouped by currency }
+        '403': { description: Staff role required }
+  /api/reports/operational.csv:
+    get:
+      tags: [Reports]
+      summary: Download the operational report as CSV
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: CSV export, content: { text/csv: { schema: { type: string, format: binary } } } }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    AccountId:
+      in: path
+      name: id
+      required: true
+      schema: { type: integer, format: int64, minimum: 1 }
+    IdempotencyKey:
+      in: header
+      name: Idempotency-Key
+      required: true
+      schema: { type: string, maxLength: 255 }

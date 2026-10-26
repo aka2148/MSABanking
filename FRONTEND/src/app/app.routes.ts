@@ -25,6 +25,16 @@ export const routes: Routes = [
       import('./features/dashboard/dashboard-stub').then((m) => m.DashboardStub),
   },
   {
+    path: 'reports',
+    canActivate: [authGuard, customerGuard],
+    loadComponent: () => import('./features/reports/reports').then((m) => m.Reports),
+  },
+  {
+    path: 'staff/reports',
+    canActivate: [authGuard, staffGuard],
+    loadComponent: () => import('./features/reports/reports').then((m) => m.Reports),
+  },
+  {
     path: 'staff/fd-products',
     canActivate: [authGuard, staffGuard],
     loadComponent: () =>

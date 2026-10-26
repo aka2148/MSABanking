@@ -39,7 +39,7 @@ public class FixedDepositController {
 
     @PostMapping @ResponseStatus(HttpStatus.CREATED) @Transactional
     public FdView book(Authentication actor,@RequestHeader("Idempotency-Key") @NotBlank @Size(max=255) String key,@Valid @RequestBody BookingRequest request){
-        long userId=userId(actor);CustomerProductAccess.requireVerified(jdbc,userId);String hash=hash(request.productId+"|"+request.savingsAccountId+"|"+request.principal+"|"+request.currencyCode+"|"+request.tenureMonths);
+        long userId=userId(actor);CustomerProductAccess.requireVerified(userId);String hash=hash(request.productId+"|"+request.savingsAccountId+"|"+request.principal+"|"+request.currencyCode+"|"+request.tenureMonths);
         Long replay=claim("FD_BOOKING",userId,key,hash);if(replay!=null)return find(replay,userId);
         Map<String,Object> product=jdbc.query("SELECT fpr_product_code,fpr_product_name,fpr_status FROM fd_product_ref WHERE fpr_product_id=?",r->r.next()?Map.of("code",r.getString(1),"name",r.getString(2),"status",r.getString(3)):null,request.productId);
         if(product==null)throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Fixed deposit product not found");
@@ -75,7 +75,7 @@ public class FixedDepositController {
 
     @PostMapping("/{id}/fund") @Transactional
     public FdView fund(Authentication actor,@PathVariable long id,@RequestHeader("Idempotency-Key") @NotBlank @Size(max=255) String key,@RequestHeader(value="X-MPIN-Proof",required=false) String proof,@RequestBody(required=false) FundingChoice choice){
-        long userId=userId(actor);CustomerProductAccess.requireVerified(jdbc,userId);String hash=hash(Long.toString(id));Long replay=claim("FD_FUNDING",userId,key,hash);if(replay!=null)return find(replay,userId);
+        long userId=userId(actor);CustomerProductAccess.requireVerified(userId);String hash=hash(Long.toString(id));Long replay=claim("FD_FUNDING",userId,key,hash);if(replay!=null)return find(replay,userId);
         Map<String,Object> fd=jdbc.query("SELECT fa_primary_holder_id,fa_principal_amount,fa_currency_id,fa_status,fa_funding_savings_account_id FROM fd_accounts WHERE fa_account_id=? FOR UPDATE",r->r.next()?Map.of("owner",r.getLong(1),"principal",r.getBigDecimal(2),"currency",r.getLong(3),"status",r.getString(4),"savings",r.getLong(5)):null,id);
         if(fd==null)throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Fixed deposit not found");
         if(((Number)fd.get("owner")).longValue()!=userId)throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Fixed deposit not found");

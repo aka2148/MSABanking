@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Inject, Injectable, InjectionToken, inject } from '@angular/core';
-import { Observable, catchError, map, switchMap, tap, throwError } from 'rxjs';
+import { Observable, catchError, map, retry, switchMap, tap, throwError, timer } from 'rxjs';
 import { API_BASE_URL, apiUrl } from './api-config';
 import {
   AccountResponse,
@@ -86,7 +86,16 @@ export class FdService {
 
   createSavings(request: { display_name: string; currency_code: string }, key: string): Observable<SavingsAccount> {
     return this.http.post<SavingsAccount>(this.path('/savings-accounts'), { displayName: request.display_name, currencyCode: request.currency_code },
-      { headers: { 'Idempotency-Key': key } });
+      { headers: { 'Idempotency-Key': key } }).pipe(retry({
+        count: 3,
+        delay: (error: unknown, retryCount: number) => {
+          if (!(error instanceof HttpErrorResponse) || error.status !== 503
+              || error.error?.code !== 'USER_REFERENCE_NOT_READY') return throwError(() => error);
+          const seconds = Number(error.headers.get('Retry-After'));
+          const wait = Number.isFinite(seconds) ? Math.min(Math.max(seconds, 1), 2) : 1;
+          return timer(wait * 1000);
+        },
+      }));
   }
 
   listProducts(): Observable<ProductOffer[]> {

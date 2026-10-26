@@ -81,6 +81,8 @@ public class FdProductTemplateBootstrap implements ApplicationRunner {
                 } else {
                     log.info("Approved template {} is already present and ACTIVE; skipping duplicate setup.", STANDARD_PRODUCT_CODE);
                 }
+                // Re-emit current active snapshots so a fresh FD reference database can catch up.
+                fdOfferController.publishActiveSnapshots();
                 return;
             }
 
@@ -146,6 +148,8 @@ public class FdProductTemplateBootstrap implements ApplicationRunner {
 
             FdOfferController.OfferResponse activated = fdOfferController.activate(created.catalogProductId());
             log.info("Activated {} offer with ID: {}. Status: {}", STANDARD_PRODUCT_CODE, activated.catalogProductId(), activated.status());
+            // Include the new template and every other active FD product in the startup snapshot.
+            fdOfferController.publishActiveSnapshots();
         } finally {
             org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(previousAuth);
         }

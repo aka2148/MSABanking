@@ -2,6 +2,7 @@ package com.bank.fdservice;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
@@ -55,7 +57,13 @@ class FdBookingAndCalculatorFinancialTest {
         lifecycleController = new FdLifecycleController(jdbc, null, json, clock, mpin, postings, lifecycleRecords);
 
         when(actor.getName()).thenReturn("test-user");
-        when(actor.getDetails()).thenReturn(Map.of("userId", userId));
+        when(actor.getDetails()).thenReturn(Map.of("userId", userId, "kycStatus", "VERIFIED", "riskCategory", "LOW"));
+        SecurityContextHolder.getContext().setAuthentication(actor);
+    }
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
     }
 
     private String sha256(String s) {
@@ -168,8 +176,7 @@ class FdBookingAndCalculatorFinancialTest {
     @Test
     @DisplayName("Booking: Rejects unverified KYC customer with 403 FORBIDDEN")
     void bookingRejectsUnverifiedCustomer() {
-        when(jdbc.query(contains("fur_kyc_status"), any(ResultSetExtractor.class), eq(userId)))
-                .thenReturn("Your KYC verification is still pending.");
+        when(actor.getDetails()).thenReturn(Map.of("userId", userId, "kycStatus", "PENDING", "riskCategory", "LOW"));
 
         FixedDepositController.BookingRequest req = new FixedDepositController.BookingRequest(
                 1L, 10L, new BigDecimal("1000.00"), "INR", 12);

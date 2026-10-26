@@ -1,6 +1,7 @@
 package com.bank.identitycustomer;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.AfterAll;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -13,10 +14,15 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import com.sun.net.httpserver.HttpServer;
 
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.Date;
 import java.sql.Statement;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Pattern;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -25,6 +31,7 @@ import io.jsonwebtoken.security.Keys;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -35,6 +42,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class IdentityCustomerMigrationTest {
     private static final String TEST_JWT_SECRET = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWYwMTIzNDU2Nzg5YWJjZGVmMDEyMzQ1Njc4OWFiY2RlZg==";
+    private static final AtomicReference<String> TEST_EMAIL_OTP = new AtomicReference<>();
+    private static final HttpServer MAIL_STUB = createMailStub();
 
     @Container
     private static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.4")
@@ -49,12 +58,39 @@ class IdentityCustomerMigrationTest {
         properties.add("spring.datasource.password", MYSQL::getPassword);
         properties.add("app.jwt.secret", () -> TEST_JWT_SECRET);
         properties.add("app.security.mfa-encryption-key", () -> TEST_JWT_SECRET);
+        properties.add("app.auth.password-reset-api-url", () -> "http://127.0.0.1:" + MAIL_STUB.getAddress().getPort() + "/send");
+        properties.add("app.auth.password-reset-api-key", () -> "integration-test-key");
+        properties.add("app.auth.password-reset-from", () -> "MoneyPal Tests <noreply@example.test>");
+    }
+
+    @AfterAll
+    static void stopMailStub() {
+        MAIL_STUB.stop(0);
+    }
+
+    private static HttpServer createMailStub() {
+        try {
+            HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+            server.createContext("/send", exchange -> {
+                String payload = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+                var matcher = Pattern.compile("verification code is (\\d{6})").matcher(payload);
+                if (!matcher.find()) {
+                    exchange.sendResponseHeaders(400, -1);
+                } else {
+                    TEST_EMAIL_OTP.set(matcher.group(1));
+                    exchange.sendResponseHeaders(201, -1);
+                }
+                exchange.close();
+            });
+            server.start();
+            return server;
+        } catch (java.io.IOException ex) {
+            throw new ExceptionInInitializerError(ex);
+        }
     }
 
     @Autowired
     private JdbcTemplate jdbc;
-    @Autowired private AuthController authController;
-
     @Autowired private MockMvc mvc;
 
     @Test
@@ -64,11 +100,12 @@ class IdentityCustomerMigrationTest {
                 Integer.class);
 
         assertEquals(1, appliedMigrations);
-        assertEquals(9,jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1",Integer.class));
+        assertEquals(11,jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1",Integer.class));
         assertTrue(tableExists("users"));
         assertTrue(tableExists("user_credentials"));
         assertTrue(tableExists("customers"));
         assertTrue(tableExists("outbox_event"));
+        assertTrue(tableExists("customer_email_registry"));
         assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM roles WHERE rol_role_code='ROLE_BANK_OFFICER'", Integer.class));
     }
 
@@ -81,6 +118,32 @@ class IdentityCustomerMigrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username").value(username))
                 .andExpect(jsonPath("$.fullName").value("Demo Customer"));
+        mvc.perform(get("/api/v1/auth/session").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.username").value(username))
+                .andExpect(jsonPath("$.kycStatus").value("PENDING"))
+                .andExpect(jsonPath("$.roles[0]").value("ROLE_CUSTOMER"));
+        assertEquals(1,jdbc.queryForObject("SELECT cem_is_verified FROM customer_emails e JOIN customers c ON c.cus_customer_id=e.cem_customer_id JOIN user_credentials u ON u.ucr_user_id=c.cus_user_id WHERE u.ucr_username=?",Integer.class,username));
+        Long userId = jdbc.queryForObject("SELECT ucr_user_id FROM user_credentials WHERE ucr_username=?",Long.class,username);
+        Integer version = jdbc.queryForObject("SELECT usr_event_version FROM users WHERE usr_user_id=?",Integer.class,userId);
+        UserSnapshots.publishInitialUserSnapshot(jdbc,userId);
+        assertEquals(version,jdbc.queryForObject("SELECT usr_event_version FROM users WHERE usr_user_id=?",Integer.class,userId));
+        assertTrue(jdbc.queryForObject("SELECT COUNT(*) FROM outbox_event WHERE event_key=(SELECT usr_user_uuid FROM users WHERE usr_user_id=?) AND topic='user.snapshot'",Integer.class,userId) >= 2);
+    }
+
+    @Test
+    void logoutRevokesCurrentSessionAndEmailRegistryIsUnique() throws Exception {
+        String username = newUsername();
+        String token = register(username);
+        mvc.perform(post("/api/v1/auth/logout").header("Authorization", "Bearer " + token))
+                .andExpect(status().isNoContent());
+        mvc.perform(get("/api/v1/auth/session").header("Authorization", "Bearer " + token))
+                .andExpect(status().is4xxClientError());
+
+        String normalized = "claim-" + UUID.randomUUID() + "@example.test";
+        jdbc.update("INSERT INTO customer_email_registry(cer_normalized_email) VALUES(?)", normalized);
+        assertThrows(org.springframework.dao.DuplicateKeyException.class,
+                () -> jdbc.update("INSERT INTO customer_email_registry(cer_normalized_email) VALUES(?)", normalized));
     }
 
     @Test
@@ -126,6 +189,9 @@ class IdentityCustomerMigrationTest {
         long userId=key.getKey().longValue();
         jdbc.update("INSERT INTO user_credentials(ucr_user_id,ucr_username,ucr_password_hash) VALUES(?,?,?)",userId,username,"test-hash");
         String admin=bankOfficerToken();
+        mvc.perform(post("/api/v1/customers").header("Authorization","Bearer "+admin)
+                        .contentType("application/json").content("{\"userId\":"+userId+",\"fullName\":\"Admin Created Customer\",\"kycStatus\":\"VERIFIED\"}"))
+                .andExpect(status().isBadRequest());
         String created=mvc.perform(post("/api/v1/customers").header("Authorization","Bearer "+admin)
                         .contentType("application/json").content("{\"userId\":"+userId+",\"fullName\":\"Admin Created Customer\"}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.username").value(username))
@@ -141,7 +207,14 @@ class IdentityCustomerMigrationTest {
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/v1/customers/"+customerId+"/status")
                         .header("Authorization","Bearer "+admin).contentType("application/json")
                         .content("{\"status\":\"VERIFIED\",\"riskCategory\":\"MEDIUM\"}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.kycStatus").value("VERIFIED"));
+                .andExpect(status().isConflict());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/v1/customers/"+customerId)
+                        .header("Authorization","Bearer "+admin).contentType("application/json")
+                        .content("{\"kycStatus\":\"VERIFIED\"}"))
+                .andExpect(status().isConflict());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/v1/customers/"+customerId+"/status")
+                        .header("Authorization","Bearer "+admin).contentType("application/json").content("{\"riskCategory\":\"MEDIUM\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.kycStatus").value("PENDING"));
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/v1/customers/"+customerId+"/status")
                         .header("Authorization","Bearer "+admin).contentType("application/json").content("{\"riskCategory\":\"INVALID\"}"))
                 .andExpect(status().isBadRequest());
@@ -150,7 +223,7 @@ class IdentityCustomerMigrationTest {
                 .andExpect(status().isBadRequest());
         var snapshot=com.fasterxml.jackson.databind.json.JsonMapper.builder().build().readTree(jdbc.queryForObject(
                 "SELECT payload FROM outbox_event WHERE event_key=(SELECT usr_user_uuid FROM users WHERE usr_user_id=?) ORDER BY source_version DESC LIMIT 1",String.class,userId));
-        assertEquals("VERIFIED",snapshot.path("user").path("kycStatus").asText());
+        assertEquals("PENDING",snapshot.path("user").path("kycStatus").asText());
         assertEquals("MEDIUM",snapshot.path("user").path("riskCategory").asText());
         assertEquals(3,snapshot.path("sourceVersion").asInt());
     }
@@ -170,10 +243,17 @@ class IdentityCustomerMigrationTest {
     private String newUsername() { return "demo_" + UUID.randomUUID().toString().substring(0, 8); }
 
     private String register(String username) throws Exception {
-        @SuppressWarnings("unchecked") java.util.Map<String,java.time.Instant> verified = (java.util.Map<String,java.time.Instant>) org.springframework.test.util.ReflectionTestUtils.getField(authController,"verifiedEmails");
-        verified.put(username+"@example.test",java.time.Instant.now().plusSeconds(600));
+        String email = username + "@example.test";
+        mvc.perform(post("/api/v1/auth/email/verification/send").contentType("application/json")
+                        .content("{\"email\":\"" + email + "\"}"))
+                .andExpect(status().isOk());
+        String code = TEST_EMAIL_OTP.getAndSet(null);
+        assertTrue(code != null && code.matches("\\d{6}"));
+        mvc.perform(post("/api/v1/auth/email/verification/verify").contentType("application/json")
+                        .content("{\"email\":\"" + email + "\",\"code\":\"" + code + "\"}"))
+                .andExpect(status().isOk());
         String response=mvc.perform(post("/api/v1/auth/register").contentType("application/json")
-                        .content("{\"username\":\""+username+"\",\"password\":\"SkyRiver82!Mint\",\"email\":\""+username+"@example.test\",\"fullName\":\"Demo Customer\",\"address\":\"12 Sample Road\",\"city\":\"Sample City\",\"state\":\"Sample State\",\"postalCode\":\"560001\",\"role\":\"ADMIN\"}"))
+                        .content("{\"username\":\""+username+"\",\"password\":\"SkyRiver82!Mint\",\"email\":\""+email+"\",\"fullName\":\"Demo Customer\",\"address\":\"12 Sample Road\",\"city\":\"Sample City\",\"state\":\"Sample State\",\"postalCode\":\"560001\",\"role\":\"ADMIN\"}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.roles[0]").value("ROLE_CUSTOMER"))
                 .andReturn().getResponse().getContentAsString();
         return com.fasterxml.jackson.databind.json.JsonMapper.builder().build().readTree(response).get("token").asText();

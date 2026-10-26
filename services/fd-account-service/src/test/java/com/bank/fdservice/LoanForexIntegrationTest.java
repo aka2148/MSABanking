@@ -8,14 +8,19 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -26,6 +31,7 @@ import java.util.Date;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -49,6 +55,9 @@ class LoanForexIntegrationTest {
     }
     @Autowired MockMvc mvc;
     @Autowired JdbcTemplate jdbc;
+    @MockBean IdentitySessionClient identitySessionClient;
+
+    @BeforeEach void stubIdentitySession() { IdentitySessionTestSupport.stub(identitySessionClient, SECRET); }
     private final ObjectMapper json=new ObjectMapper();
 
     @Test void loanReviewDisbursementAndForexRequestsRespectOwnershipAndRetries() throws Exception {
@@ -119,6 +128,9 @@ class LoanForexIntegrationTest {
         user.put("userId",customer); user.put("userUuid",UUID.randomUUID().toString()); user.put("status","ACTIVE");
         long version=0;
         for (String kyc : new String[]{null,"PENDING","REJECTED","VERIFIED"}) {
+            org.mockito.Mockito.doReturn(new IdentitySessionClient.Session(customer, "test-" + customer,
+                    java.util.List.of("ROLE_CUSTOMER"), kyc, "VERIFIED".equals(kyc) ? "HIGH" : "LOW"))
+                    .when(identitySessionClient).validate(org.mockito.ArgumentMatchers.anyString());
             if (kyc!=null) {
                 user.put("kycStatus",kyc); user.put("riskCategory","VERIFIED".equals(kyc)?"HIGH":"LOW");
                 consumer.userSnapshot(json.writeValueAsString(java.util.Map.of("sourceVersion",++version,"user",user)),ack);
@@ -132,7 +144,19 @@ class LoanForexIntegrationTest {
         user.put("kycStatus","REJECTED");
         consumer.userSnapshot(json.writeValueAsString(java.util.Map.of("sourceVersion",version-1,"user",user)),ack);
         assertEquals("VERIFIED",jdbc.queryForObject("SELECT fur_kyc_status FROM fd_user_ref WHERE fur_user_id=?",String.class,customer));
-        CustomerProductAccess.requireVerified(jdbc,customer);
+        org.mockito.Mockito.doReturn(new IdentitySessionClient.Session(customer, "test-" + customer,
+                java.util.List.of("ROLE_CUSTOMER"), "REJECTED", "LOW"))
+                .when(identitySessionClient).validate(org.mockito.ArgumentMatchers.anyString());
+        mvc.perform(post(paths[0]).header("Authorization",actor).header("Idempotency-Key","stale-kyc")
+                        .contentType(MediaType.APPLICATION_JSON).content(bodies[0]))
+                .andExpect(status().isForbidden());
+        var currentIdentity = new UsernamePasswordAuthenticationToken("test-" + customer, null,
+                java.util.List.of(new SimpleGrantedAuthority("ROLE_CUSTOMER")));
+        currentIdentity.setDetails(java.util.Map.of("userId", customer, "kycStatus", "REJECTED", "riskCategory", "LOW"));
+        SecurityContextHolder.getContext().setAuthentication(currentIdentity);
+        assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> CustomerProductAccess.requireVerified(customer));
+        SecurityContextHolder.clearContext();
     }
 
     private long openSavings(long user,String currency) {

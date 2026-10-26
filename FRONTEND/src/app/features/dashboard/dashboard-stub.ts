@@ -27,10 +27,12 @@ import { OnInit } from '@angular/core';
           <a *ngIf="!canManageProducts" routerLink="/savings"><span> {{ 'Savings accounts' | translate }} </span><small> {{ 'Open and manage savings' | translate }} </small></a>
           <a *ngIf="!canManageProducts" routerLink="/fd"><span> {{ 'Fixed deposits' | translate }} </span><small> {{ 'Browse eligible offers' | translate }} </small></a>
           <a *ngIf="!canManageProducts" routerLink="/fd/accounts"><span> {{ 'My deposits' | translate }} </span><small> {{ 'View account activity' | translate }} </small></a>
+          <a *ngIf="!canManageProducts" routerLink="/reports"><span> {{ 'FD reports' | translate }} </span><small> {{ 'Review interest history, statements and notices' | translate }} </small></a>
           <a *ngIf="canManageProducts" routerLink="/staff/product-builder" [queryParams]="{ new: 1 }"><span> {{ 'Product configuration' | translate }} </span><small> {{ 'Create products from templates or a custom setup' | translate }} </small></a>
           <a *ngIf="canManageProducts" routerLink="/staff/fd-products"><span> {{ 'FD offer management' | translate }} </span><small> {{ 'Activate and update existing fixed-deposit offers' | translate }} </small></a>
           <a *ngIf="canManageProducts" routerLink="/staff/customers"><span> {{ 'Customers' | translate }} </span><small> {{ 'Profiles and KYC status' | translate }} </small></a>
           <a *ngIf="canManageProducts" routerLink="/staff/fd"><span> {{ 'FD accounts' | translate }} </span><small> {{ 'Deposit status and maturity' | translate }} </small></a>
+          <a *ngIf="canManageProducts" routerLink="/staff/reports"><span> {{ 'FD reports' | translate }} </span><small> {{ 'Review account summaries, statements and notices' | translate }} </small></a>
           <a *ngIf="canManageProducts" routerLink="/staff/savings"><span> {{ 'Savings operations' | translate }} </span><small> {{ 'Balances and teller activity' | translate }} </small></a>
           <a *ngIf="canManageProducts" routerLink="/compliance"><span> {{ 'Compliance' | translate }} </span><small> {{ 'Rates and effective dates' | translate }} </small></a>
           <a *ngIf="isAdmin" routerLink="/staff/operations/clock"><span> {{ 'Operations' | translate }} </span><small> {{ 'Administrative tools' | translate }} </small></a>

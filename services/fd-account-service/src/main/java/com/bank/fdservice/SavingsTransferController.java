@@ -48,7 +48,7 @@ public class SavingsTransferController {
         Integer owned = jdbc.query("SELECT 1 FROM savings_accounts WHERE sa_account_id=? AND sa_holder_id=?",
                 rs -> rs.next() ? 1 : null, request.fromAccountId(), userId);
         if (owned == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Savings account not found");
-        CustomerProductAccess.requireVerified(jdbc, userId);
+        CustomerProductAccess.requireVerified(userId);
         validateRemark(request.remark());
         String hash = requestHash(request);
         SavingsTransferService.TransferResponse replay = transfers.replayIfPresent(userId, key, hash, request.fromAccountId());

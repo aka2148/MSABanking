@@ -21,6 +21,8 @@ The three services own separate schemas. They share user and product snapshots t
 
 `BACKEND/` is the retained legacy Spring Boot modular monolith. It is not part of the active Compose request path.
 
+Current report APIs and demo requests are documented in [`docs/openapi/moneypal-active.yaml`](docs/openapi/moneypal-active.yaml) and [`docs/postman/MoneyPal-active-stack.postman_collection.json`](docs/postman/MoneyPal-active-stack.postman_collection.json). See [`docs/ARCHITECTURE_AND_DEPLOYMENT.md`](docs/ARCHITECTURE_AND_DEPLOYMENT.md), [`docs/TEST_PLAN.md`](docs/TEST_PLAN.md), and [`docs/DEMO_GUIDE.md`](docs/DEMO_GUIDE.md) for the active Compose topology, verification plan, and lab walkthrough.
+
 ## Install
 
 For the standard Docker setup, install:

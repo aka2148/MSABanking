@@ -118,6 +118,12 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     ports:
       - "8081:8081"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8081/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 30s
     restart: unless-stopped
 
   product-service:
@@ -133,11 +139,18 @@ services:
       PRODUCT_DB_URL: ${PRODUCT_DB_URL:-jdbc:mysql://product-db:3306/moneypal_product?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true}
       PRODUCT_DB_USERNAME: ${PRODUCT_DB_USERNAME:-${MYSQL_APP_USER}}
       PRODUCT_DB_PASSWORD: ${PRODUCT_DB_PASSWORD:-${MYSQL_APP_PASSWORD}}
+      IDENTITY_SERVICE_URL: ${IDENTITY_SERVICE_URL:-http://identity-customer-service:8081}
       JWT_SECRET: ${JWT_SECRET}
       KAFKA_ENABLED: "true"
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     ports:
       - "8082:8082"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8082/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 30s
     restart: unless-stopped
 
   fd-account-service:
@@ -154,6 +167,7 @@ services:
       FD_DB_USERNAME: ${FD_DB_USERNAME:-${MYSQL_APP_USER}}
       FD_DB_PASSWORD: ${FD_DB_PASSWORD:-${MYSQL_APP_PASSWORD}}
       PRODUCT_SERVICE_URL: http://product-service:8082
+      IDENTITY_SERVICE_URL: ${IDENTITY_SERVICE_URL:-http://identity-customer-service:8081}
       JWT_SECRET: ${JWT_SECRET}
       KAFKA_ENABLED: "true"
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
@@ -162,6 +176,12 @@ services:
       APP_MPIN_REQUIRED: ${APP_MPIN_REQUIRED:-true}
     ports:
       - "8083:8083"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8083/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 30s
     restart: unless-stopped
 
   kafka-ui:
@@ -184,17 +204,17 @@ services:
     image: moneypal-demo-api-gateway
     depends_on:
       identity-customer-service:
-        condition: service_started
+        condition: service_healthy
       product-service:
-        condition: service_started
+        condition: service_healthy
       fd-account-service:
-        condition: service_started
+        condition: service_healthy
     volumes:
       - ./services/api-gateway/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
       - "8080:8080"
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8080/gateway/health | grep -q UP"]
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/gateway/health"]
       interval: 5s
       timeout: 3s
       retries: 12
@@ -208,7 +228,7 @@ services:
     image: moneypal-demo-frontend
     depends_on:
       api-gateway:
-        condition: service_started
+        condition: service_healthy
     ports:
       - "4200:80"
     healthcheck:

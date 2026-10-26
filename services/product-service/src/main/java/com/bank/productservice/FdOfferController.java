@@ -171,6 +171,17 @@ public class FdOfferController {
         try{jdbc.update("INSERT INTO outbox_event(event_key,event_type,topic,source_version,payload) VALUES(?,?,?,?,CAST(? AS JSON))",Long.toString(id),"PRODUCT_CATALOG","product.catalog",product.get("pro_event_version"),json.writeValueAsString(payload));}catch(Exception e){throw new IllegalStateException("Unable to write catalog event",e);}
     }
 
+    void publishActiveSnapshots() {
+        Set<Integer> categoryIds = fdCategories.ids();
+        if (categoryIds.isEmpty()) return;
+        String placeholders = String.join(",", Collections.nCopies(categoryIds.size(), "?"));
+        List<Long> activeIds = jdbc.queryForList("SELECT pro_product_id FROM product WHERE pro_status='ACTIVE' AND pro_category_id IN (" + placeholders + ") ORDER BY pro_product_id", Long.class, categoryIds.toArray());
+        for (long id : activeIds) {
+            jdbc.update("UPDATE product SET pro_event_version=1 WHERE pro_product_id=? AND pro_event_version=0", id);
+            writeOutbox(id);
+        }
+    }
+
     public record OfferRequest(@NotBlank @Size(max=50) String productCode,@NotBlank @Size(max=255) String productName,@NotNull @Min(1) Long categoryId,@Size(max=1000) String description,String baseCurrencyCode,@NotEmpty @Valid List<CurrencySchedule> currencies,LocalDate effectiveFrom,LocalDate effectiveTo){
         public OfferRequest(String productCode, String productName, Long categoryId, String description, String baseCurrencyCode, List<CurrencySchedule> currencies) {
             this(productCode, productName, categoryId, description, baseCurrencyCode, currencies, null, null);

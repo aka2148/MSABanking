@@ -14,6 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.test.web.servlet.MvcResult;
@@ -48,12 +49,14 @@ class LedgerInvariantIntegrationTest {
     }
     @Autowired MockMvc mvc;
     @Autowired JdbcTemplate jdbc;
+    @MockBean IdentitySessionClient identitySessionClient;
     @Autowired PostingService postings;
     @Autowired PlatformTransactionManager transactionManager;
     long customer = 77101, other = 77102, staff = 77103, usd = 1, jpy = 2, source, destination, otherSource, jpyAccount;
     String customerToken, otherToken, staffToken, adminToken;
 
     @BeforeEach void seed() {
+        IdentitySessionTestSupport.stub(identitySessionClient, SECRET);
         jdbc.update("DELETE FROM fd_operation_idempotency WHERE foi_actor_key IN (?,?,?,?)", "77101", "77102", "77103", "77104");
         jdbc.update("DELETE FROM fd_journal_lines WHERE jl_journal_id IN (SELECT fj_id FROM fd_journals WHERE fj_key LIKE 'TELLER_%' OR fj_key LIKE 'TRANSFER:TRF-%')");
         jdbc.update("DELETE FROM fd_journals WHERE fj_key LIKE 'TELLER_%' OR fj_key LIKE 'TRANSFER:TRF-%'");
@@ -100,6 +103,9 @@ class LedgerInvariantIntegrationTest {
         assertMoney("100.00", source); assertMoney("25.00", destination); assertMoney("100", jpyAccount);
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM savings_transactions WHERE st_reference_id LIKE 'TRF-%'", Integer.class));
         jdbc.update("UPDATE fd_user_ref SET fur_kyc_status='PENDING' WHERE fur_user_id=?", customer);
+        org.mockito.Mockito.doReturn(new IdentitySessionClient.Session(customer, "test-" + customer,
+                java.util.List.of("ROLE_CUSTOMER"), "PENDING", "LOW"))
+                .when(identitySessionClient).validate(org.mockito.ArgumentMatchers.anyString());
         mvc.perform(transfer("kyc", source, accountNumber(destination), "1.00", null)).andExpect(status().isForbidden());
         assertMoney("100.00", source);
     }
@@ -120,7 +126,13 @@ class LedgerInvariantIntegrationTest {
         mvc.perform(post("/fd/v1/staff/savings-accounts/{id}/withdraw", source).header("Authorization", staffToken).header("X-MPIN-Proof",proof(customer,Long.toString(staff),"WITHDRAWAL",MpinProofVerifier.canonical("WITHDRAWAL",source,new java.math.BigDecimal("1000.00")))).header("Idempotency-Key","teller-overdraft").contentType(MediaType.APPLICATION_JSON).content("{\"amount\":1000.00}"))
                 .andExpect(status().isConflict());
         assertMoney("90.00", source);
+        mvc.perform(post("/fd/v1/staff/savings-accounts/{id}/deposit", source)
+                        .header("Authorization", staffToken).header("Idempotency-Key", "teller-out-of-range")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"amount\":10000000000000000.00}"))
+                .andExpect(status().isBadRequest());
+        assertMoney("90.00", source);
         assertEquals(2, jdbc.queryForObject("SELECT COUNT(*) FROM fd_journals WHERE fj_operation IN ('TELLER_DEPOSIT','TELLER_WITHDRAWAL')", Integer.class));
+        assertEquals(2, jdbc.queryForObject("SELECT COUNT(*) FROM savings_transactions WHERE st_reference_id LIKE 'STAFF-%'", Integer.class));
         assertEquals(2, jdbc.queryForObject("SELECT COUNT(*) FROM fd_journals WHERE fj_created_by=?", Integer.class, Long.toString(staff)));
     }
 

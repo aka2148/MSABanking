@@ -3,9 +3,11 @@ package com.bank.fdservice;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -87,24 +89,49 @@ public class SavingsAccountController {
     }
 
     @PostMapping @ResponseStatus(HttpStatus.CREATED) @Transactional
-    public SavingsAccountView openMine(Authentication actor,@Valid @RequestBody OpenAccountRequest request){
-        return create(userId(actor),request);
+    public SavingsAccountView openMine(Authentication actor,@Valid @RequestBody OpenAccountRequest request,
+            @RequestHeader(value="Idempotency-Key",required=false) @Size(max=255) String key){
+        long ownerId=userId(actor);
+        return create(ownerId,request,"CUSTOMER:"+ownerId,operationKey(key));
     }
 
     @PostMapping("/admin") @ResponseStatus(HttpStatus.CREATED) @Transactional @PreAuthorize("hasAnyRole('BANK_OFFICER','ADMIN')")
-    public SavingsAccountView openForCustomer(@Valid @RequestBody AdminOpenAccountRequest request){
-        return create(request.userId,new OpenAccountRequest(request.currencyCode,request.displayName));
+    public SavingsAccountView openForCustomer(Authentication actor,@Valid @RequestBody AdminOpenAccountRequest request,
+            @RequestHeader(value="Idempotency-Key",required=false) @Size(max=255) String key){
+        return create(request.userId,new OpenAccountRequest(request.currencyCode,request.displayName),"STAFF:"+actor.getName(),operationKey(key));
     }
 
-    private SavingsAccountView create(long ownerId,OpenAccountRequest request){
+    @ExceptionHandler(CustomerReferenceNotReadyException.class)
+    public ResponseEntity<Map<String,String>> customerReferenceNotReady(){
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).header("Retry-After","1")
+                .body(Map.of("code","USER_REFERENCE_NOT_READY","message","Customer reference is synchronizing. Retry shortly."));
+    }
+
+    private SavingsAccountView create(long ownerId,OpenAccountRequest request,String actorKey,String key){
+        String requestHash=hash(ownerId+"|"+request.currencyCode.trim().toUpperCase(java.util.Locale.ROOT)+"|"+request.displayName.trim());
+        try{jdbc.update("INSERT INTO fd_operation_idempotency(foi_operation_scope,foi_actor_key,foi_idempotency_key,foi_request_hash,foi_status) VALUES('SAVINGS_ACCOUNT_OPENING',?,?,?,'PENDING')",actorKey,key,requestHash);}
+        catch(DuplicateKeyException e){
+            Map<String,Object> existing=jdbc.queryForMap("SELECT foi_request_hash,foi_status,foi_aggregate_id FROM fd_operation_idempotency WHERE foi_operation_scope='SAVINGS_ACCOUNT_OPENING' AND foi_actor_key=? AND foi_idempotency_key=?",actorKey,key);
+            if(!requestHash.equals(existing.get("foi_request_hash")))throw new ResponseStatusException(HttpStatus.CONFLICT,"Idempotency key was already used for a different savings-account request");
+            if("COMPLETED".equals(existing.get("foi_status"))&&existing.get("foi_aggregate_id")!=null)return find(((Number)existing.get("foi_aggregate_id")).longValue(),ownerId);
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Savings-account request is already in progress");
+        }
         Integer owner=jdbc.query("SELECT 1 FROM fd_user_ref WHERE fur_user_id=? AND fur_user_status='ACTIVE'",rs->rs.next()?1:null,ownerId);
-        if(owner==null)throw new ResponseStatusException(HttpStatus.CONFLICT,"Customer reference is not available in the FD service yet");
+        if(owner==null)throw new CustomerReferenceNotReadyException();
         Long currencyId=jdbc.query("SELECT fcr_currency_id FROM fd_currency_ref WHERE UPPER(fcr_iso_code)=UPPER(?)",rs->rs.next()?rs.getLong(1):null,request.currencyCode.trim());
         if(currencyId==null)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Currency is not available in the FD service yet");
         String accountNumber="SA-"+UUID.randomUUID().toString().replace("-","").substring(0,16).toUpperCase();
         jdbc.update("INSERT INTO savings_accounts(sa_account_number,sa_holder_id,sa_currency_id,sa_display_name,sa_balance,sa_status,sa_created_date) VALUES(?,?,?,?,?,'ACTIVE',UTC_TIMESTAMP(6))",accountNumber,ownerId,currencyId,request.displayName.trim(),BigDecimal.ZERO);
         long id=jdbc.queryForObject("SELECT LAST_INSERT_ID()",Long.class);
+        jdbc.update("UPDATE fd_operation_idempotency SET foi_status='COMPLETED',foi_aggregate_id=?,foi_response_reference=?,foi_completed_at=UTC_TIMESTAMP(6) WHERE foi_operation_scope='SAVINGS_ACCOUNT_OPENING' AND foi_actor_key=? AND foi_idempotency_key=?",id,Long.toString(id),actorKey,key);
         return find(id,ownerId);
+    }
+
+    private String operationKey(String key){
+        if(key==null)return UUID.randomUUID().toString();
+        String normalized=key.trim();
+        if(normalized.isEmpty())throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Idempotency-Key must not be blank");
+        return normalized;
     }
 
     private SavingsAccountView find(long id,long owner){return jdbc.query("SELECT s.sa_account_id,s.sa_account_number,s.sa_display_name,s.sa_currency_id,c.fcr_iso_code,s.sa_balance,s.sa_status,s.sa_created_date FROM savings_accounts s JOIN fd_currency_ref c ON c.fcr_currency_id=s.sa_currency_id WHERE s.sa_account_id=? AND s.sa_holder_id=?",rs->{if(!rs.next())throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Savings account not found");return view(rs);},id,owner);}
@@ -122,6 +149,7 @@ public class SavingsAccountController {
     public record SavingsCurrencyView(String currencyCode,String currencyName,int decimalPlaces){}
     public record AdminOpenAccountRequest(long userId,@NotBlank @Size(max=10) String currencyCode,@NotBlank @Size(max=80) String displayName){}
     public record DemoOptions(boolean enabled){}
-    public record DemoOpeningRequest(@NotNull @DecimalMin("0.01") BigDecimal amount){}
+    public record DemoOpeningRequest(@NotNull @DecimalMin("0.01") @Digits(integer = 16, fraction = 8) BigDecimal amount){}
     public record SavingsAccountView(@com.fasterxml.jackson.annotation.JsonProperty("account_id") long accountId,@com.fasterxml.jackson.annotation.JsonProperty("account_number") String accountNumber,@com.fasterxml.jackson.annotation.JsonProperty("display_name") String displayName,long currencyId,@com.fasterxml.jackson.annotation.JsonProperty("currency_code") String currencyCode,BigDecimal balance,String status,@com.fasterxml.jackson.annotation.JsonProperty("created_date") String createdDate){}
+    private static final class CustomerReferenceNotReadyException extends RuntimeException {}
 }

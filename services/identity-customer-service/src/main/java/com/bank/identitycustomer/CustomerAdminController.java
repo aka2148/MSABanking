@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,7 +21,8 @@ import java.util.UUID;
 public class CustomerAdminController {
     private final JdbcTemplate jdbc;
     private final CustomerRiskConfiguration customerRisk;
-    public CustomerAdminController(JdbcTemplate jdbc, CustomerRiskConfiguration customerRisk) { this.jdbc=jdbc; this.customerRisk=customerRisk; }
+    private final KycService kyc;
+    public CustomerAdminController(JdbcTemplate jdbc, CustomerRiskConfiguration customerRisk, KycService kyc) { this.jdbc=jdbc; this.customerRisk=customerRisk; this.kyc=kyc; }
 
     @GetMapping
     public CustomerPage list(@RequestParam(defaultValue="0") int page,
@@ -63,9 +65,11 @@ public class CustomerAdminController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,"User not found");
         if(!jdbc.queryForList("SELECT cus_customer_id FROM customers WHERE cus_user_id=?",Long.class,request.userId).isEmpty())
             throw new ResponseStatusException(HttpStatus.CONFLICT,"User already has a customer profile");
+        if(present(request.kycStatus)&&!"PENDING".equalsIgnoreCase(request.kycStatus.trim()))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"New customer profiles must start with KYC status PENDING.");
         String number=present(request.customerNumber)?request.customerNumber.trim():"CUS-"+UUID.randomUUID().toString().replace("-","").substring(0,12).toUpperCase();
         String risk = request.riskCategory == null ? customerRisk.defaultCategory() : validatedRisk(request.riskCategory);
-        jdbc.update("INSERT INTO customers(cus_user_id,cus_customer_number,cus_legal_entity_type,cus_kyc_status,cus_risk_category) VALUES(?,?,?,?,?)",request.userId,number,request.legalEntityType,present(request.kycStatus)?request.kycStatus:"PENDING",risk);
+        jdbc.update("INSERT INTO customers(cus_user_id,cus_customer_number,cus_legal_entity_type,cus_kyc_status,cus_risk_category) VALUES(?,?,?,?,?)",request.userId,number,request.legalEntityType,"PENDING",risk);
         long id=jdbc.queryForObject("SELECT LAST_INSERT_ID()",Long.class);
         String name=present(request.fullName)?request.fullName.trim():username(request.userId);
         jdbc.update("INSERT INTO customer_details(cud_customer_id,cud_full_name) VALUES(?,?)",id,name);
@@ -74,10 +78,11 @@ public class CustomerAdminController {
     }
 
     @PutMapping("/{customerId}")
-    @Transactional public CustomerResponse update(@PathVariable long customerId,@RequestBody UpdateCustomer request) {
-        findCustomer(customerId);
+    @Transactional public CustomerResponse update(@PathVariable long customerId,@RequestBody UpdateCustomer request, Authentication actor) {
+        CustomerResponse existing=findCustomer(customerId);
         if(request.legalEntityType!=null) jdbc.update("UPDATE customers SET cus_legal_entity_type=? WHERE cus_customer_id=?",request.legalEntityType,customerId);
-        if(request.kycStatus!=null) jdbc.update("UPDATE customers SET cus_kyc_status=? WHERE cus_customer_id=?",request.kycStatus,customerId);
+        if(request.kycStatus!=null&&!request.kycStatus.trim().equalsIgnoreCase(existing.kycStatus()))
+            kyc.reviewByStaff(customerId,request.kycStatus,actor.getName());
         if(request.riskCategory!=null) jdbc.update("UPDATE customers SET cus_risk_category=? WHERE cus_customer_id=?",validatedRisk(request.riskCategory),customerId);
         if(request.fullName!=null) {
             List<Long> detailIds=jdbc.queryForList("SELECT cud_detail_id FROM customer_details WHERE cud_customer_id=? ORDER BY cud_detail_id LIMIT 1",Long.class,customerId);
@@ -90,9 +95,10 @@ public class CustomerAdminController {
 
     @PatchMapping("/{customerId}/status")
     @Transactional
-    public CustomerResponse updateStatus(@PathVariable long customerId,@RequestBody Map<String,String> body) {
+    public CustomerResponse updateStatus(@PathVariable long customerId,@RequestBody Map<String,String> body, Authentication actor) {
         String status=body.get("status"),risk=body.get("riskCategory");
-        if(status!=null) jdbc.update("UPDATE customers SET cus_kyc_status=? WHERE cus_customer_id=?",status,customerId);
+        CustomerResponse existing=findCustomer(customerId);
+        if(status!=null&&!status.trim().equalsIgnoreCase(existing.kycStatus())) kyc.reviewByStaff(customerId,status,actor.getName());
         if(risk!=null) jdbc.update("UPDATE customers SET cus_risk_category=? WHERE cus_customer_id=?",validatedRisk(risk),customerId);
         UserSnapshots.writeUserSnapshot(jdbc, jdbc.queryForObject("SELECT cus_user_id FROM customers WHERE cus_customer_id=?", Long.class, customerId));
         return findCustomer(customerId);

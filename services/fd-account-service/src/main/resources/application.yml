@@ -25,6 +25,8 @@ spring:
     listener:
       ack-mode: manual
 app:
+  identity:
+    base-url: ${IDENTITY_SERVICE_URL:http://localhost:8081}
   demo-clock:
     business-zone: UTC
   fd:

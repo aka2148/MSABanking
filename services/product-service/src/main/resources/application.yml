@@ -16,6 +16,8 @@ spring:
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 app:
+  identity:
+    base-url: ${IDENTITY_SERVICE_URL:http://localhost:8081}
   kafka:
     enabled: ${KAFKA_ENABLED:false}
     outbox-poll-ms: ${KAFKA_OUTBOX_POLL_MS:1000}

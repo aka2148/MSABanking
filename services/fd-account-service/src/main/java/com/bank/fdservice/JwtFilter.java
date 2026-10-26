@@ -1,24 +1,53 @@
 package com.bank.fdservice;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.io.Decoders;
-import io.jsonwebtoken.security.Keys;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+
 import java.io.IOException;
-import java.util.Arrays;
-@Component public class JwtFilter extends OncePerRequestFilter {
-  private final byte[] key;
-  public JwtFilter(@Value("${app.jwt.secret}") String secret){key=Decoders.BASE64.decode(secret);}
-  @Override protected void doFilterInternal(HttpServletRequest req,HttpServletResponse res,FilterChain chain)throws ServletException,IOException{
-    String h=req.getHeader("Authorization");if(h!=null&&h.startsWith("Bearer "))try{Claims c=Jwts.parserBuilder().setSigningKey(Keys.hmacShaKeyFor(key)).build().parseClaimsJws(h.substring(7)).getBody();String r=c.get("roles",String.class);var a=r==null?java.util.List.<SimpleGrantedAuthority>of():Arrays.stream(r.split(",")).map(String::trim).filter(v->!v.isBlank()).map(SimpleGrantedAuthority::new).toList();var auth=new UsernamePasswordAuthenticationToken(c.getSubject(),null,a);auth.setDetails(java.util.Map.of("userId",c.get("userId",Number.class).longValue()));SecurityContextHolder.getContext().setAuthentication(auth);}catch(RuntimeException ignored){SecurityContextHolder.clearContext();}chain.doFilter(req,res);
-  }
+import java.util.HashMap;
+import java.util.Locale;
+
+@Component
+public class JwtFilter extends OncePerRequestFilter {
+    private final IdentitySessionClient sessions;
+
+    public JwtFilter(IdentitySessionClient sessions) { this.sessions = sessions; }
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws ServletException, IOException {
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            try {
+                IdentitySessionClient.Session session = sessions.validate(header.substring(7));
+                var authorities = session.roles().stream().filter(role -> role != null && !role.isBlank())
+                        .map(role -> role.trim().toUpperCase(Locale.ROOT))
+                        .map(role -> role.startsWith("ROLE_") ? role : "ROLE_" + role)
+                        .distinct().map(SimpleGrantedAuthority::new).toList();
+                var authentication = new UsernamePasswordAuthenticationToken(session.username(), null, authorities);
+                var details = new HashMap<String, Object>();
+                details.put("userId", session.userId());
+                details.put("kycStatus", session.kycStatus() == null ? "" : session.kycStatus());
+                details.put("riskCategory", session.riskCategory() == null ? "" : session.riskCategory());
+                authentication.setDetails(details);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            } catch (IdentitySessionClient.InvalidIdentitySessionException ex) {
+                SecurityContextHolder.clearContext();
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid, expired, or revoked bearer token");
+                return;
+            } catch (IdentitySessionClient.IdentityServiceUnavailableException ex) {
+                SecurityContextHolder.clearContext();
+                response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Identity service is unavailable");
+                return;
+            }
+        }
+        chain.doFilter(request, response);
+    }
 }

@@ -41,8 +41,13 @@ public class KycService {
     }
     private void editable(Map<String, Object> c, Map<String, Object> p) {
         if ("REJECTED".equals(c.get("cus_kyc_status"))) throw conflict("Please consult your bank officer about your rejected KYC.");
+        if (submitted(p, id(c))) throw conflict("KYC has been submitted and is awaiting staff review.");
         if (!"PENDING".equals(c.get("cus_kyc_status")) || !"OPEN".equals(p.get("cycle_status")))
             throw conflict("Request re-KYC to update details.");
+    }
+    private boolean submitted(Map<String, Object> p, long customerId) {
+        return jdbc.queryForObject("SELECT COUNT(*) FROM customer_kyc_events WHERE customer_id=? AND cycle_number=? AND event_type='KYC_SUBMITTED'",
+                Integer.class, customerId, ((Number)p.get("cycle_number")).intValue()) > 0;
     }
     private ResponseStatusException conflict(String message) { return new ResponseStatusException(HttpStatus.CONFLICT, message); }
 
@@ -98,14 +103,30 @@ public class KycService {
         if (confirmed(p).size() != KycValidation.FIELDS.size())
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Complete all 9 KYC fields before submitting.");
         Map<String, String> values = values(p);
-        jdbc.update("UPDATE customers SET cus_kyc_status='VERIFIED' WHERE cus_customer_id=?", id(c));
-        jdbc.update("UPDATE customer_kyc_profile SET cycle_status='COMPLETED' WHERE customer_id=?", id(c));
         jdbc.update("UPDATE customer_details SET cud_date_of_birth=?,cud_father_or_spouse_name=?,cud_occupation=?,cud_updated_date=UTC_TIMESTAMP(6) WHERE cud_customer_id=?",
                 values.get("dateOfBirth"), values.get("fatherOrSpouseName"), values.get("occupation"), id(c));
-        event(c, p, "AUTO_VERIFIED", null);
+        event(c, p, "KYC_SUBMITTED", null);
         UserSnapshots.writeUserSnapshot(jdbc, ((Number)c.get("cus_user_id")).longValue());
-        c.put("cus_kyc_status", "VERIFIED");
         return response(c, profile(c), username, Map.of());
+    }
+
+    @Transactional
+    public void reviewByStaff(long customerId, String requestedDecision, String reviewerUsername) {
+        String decision = requestedDecision == null ? "" : requestedDecision.trim().toUpperCase(Locale.ROOT);
+        if (!Set.of("VERIFIED", "REJECTED").contains(decision))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Staff KYC decision must be VERIFIED or REJECTED.");
+        List<Map<String, Object>> rows = jdbc.queryForList("SELECT * FROM customers WHERE cus_customer_id=? FOR UPDATE", customerId);
+        if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Customer not found");
+        Map<String, Object> c = rows.get(0), p = profile(c);
+        if (!"PENDING".equals(c.get("cus_kyc_status")) || !submitted(p, customerId))
+            throw conflict("Only a submitted KYC application can be reviewed.");
+        Long reviewerId = jdbc.query("SELECT ucr_user_id FROM user_credentials WHERE ucr_username=?",
+                rs -> rs.next() ? rs.getLong(1) : null, reviewerUsername);
+        if (reviewerId == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Reviewer identity is unavailable.");
+        jdbc.update("UPDATE customers SET cus_kyc_status=? WHERE cus_customer_id=?", decision, customerId);
+        jdbc.update("UPDATE customer_kyc_profile SET cycle_status='COMPLETED',updated_at=UTC_TIMESTAMP(6) WHERE customer_id=?", customerId);
+        c.put("cus_kyc_status", decision);
+        event(c, p, "VERIFIED".equals(decision) ? "STAFF_VERIFIED" : "STAFF_REJECTED", "reviewerUserId=" + reviewerId);
     }
 
     @Transactional
@@ -173,10 +194,10 @@ public class KycService {
         result.put("completionPercent", flags.values().stream().filter(Boolean::booleanValue).count() * 100 / 9);
         result.put("completedFields", flags);
         saved.remove("proofOfIdValue"); result.put("values", saved); result.put("proofNumberMasked", p.get("proof_number_masked"));
-        result.put("editingAllowed", "PENDING".equals(c.get("cus_kyc_status")) && "OPEN".equals(p.get("cycle_status")));
+        result.put("editingAllowed", "PENDING".equals(c.get("cus_kyc_status")) && "OPEN".equals(p.get("cycle_status")) && !submitted(p, id(c)));
         result.put("fieldErrors", errors);
         result.put("document", p.get("document_name") == null ? null : Map.of("name", p.get("document_name"), "size", p.get("document_size"), "contentType", p.get("document_content_type")));
-        result.put("verifiedAt", jdbc.query("SELECT created_at FROM customer_kyc_events WHERE customer_id=? AND event_type='AUTO_VERIFIED' ORDER BY id DESC LIMIT 1", rs -> rs.next() ? rs.getTimestamp(1).toInstant().toString() : null, id(c)));
+        result.put("verifiedAt", jdbc.query("SELECT created_at FROM customer_kyc_events WHERE customer_id=? AND event_type IN ('AUTO_VERIFIED','STAFF_VERIFIED') ORDER BY id DESC LIMIT 1", rs -> rs.next() ? rs.getTimestamp(1).toInstant().toString() : null, id(c)));
         Map<String, Object> account = new LinkedHashMap<>();
         account.put("username", username); account.put("customerNumber", c.get("cus_customer_number"));
         account.put("fullName", jdbc.query("SELECT cud_full_name FROM customer_details WHERE cud_customer_id=? ORDER BY cud_detail_id LIMIT 1", rs -> rs.next() ? rs.getString(1) : null, id(c)));

@@ -93,7 +93,8 @@
                     <include>V3__bank_officer_role.sql</include><include>V4__restore_audit_metadata.sql</include>
                     <include>V5__kyc_profile.sql</include><include>V6__remove_redundant_audit_columns.sql</include>
                     <include>V7__signup_address_details.sql</include><include>V8__default_risk_category.sql</include>
-                    <include>V9__customer_mpin.sql</include>
+                    <include>V9__customer_mpin.sql</include><include>V10__verified_email_registry.sql</include>
+                    <include>V11__kyc_staff_review_events.sql</include>
                 </includes>
             </resource>
         </resources>

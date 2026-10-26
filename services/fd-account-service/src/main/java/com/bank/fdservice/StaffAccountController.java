@@ -2,6 +2,7 @@ package com.bank.fdservice;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -93,5 +94,5 @@ public class StaffAccountController {
     public record Page<T>(List<T> content, int number, int size, long totalElements) {}
     public record FdRow(long id, String accountNumber, String status, BigDecimal principal, String currency, BigDecimal rate, int tenureMonths, String openedAt, String maturityAt, String customerName, String productName) {}
     public record SavingsRow(long id, String accountNumber, String displayName, BigDecimal balance, String currency, int decimalPlaces, String status, String createdAt, String customerName,long customerUserId,long transactionCount) {}
-    public record MoneyRequest(@NotNull @DecimalMin("0.01") BigDecimal amount, @Size(max = 500) String remarks) {}
+    public record MoneyRequest(@NotNull @DecimalMin("0.01") @Digits(integer = 16, fraction = 8) BigDecimal amount, @Size(max = 500) String remarks) {}
 }

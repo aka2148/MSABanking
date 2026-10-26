@@ -16,7 +16,7 @@
       </section>
       <p *ngIf="p.kycStatus === 'REJECTED'" class="glass-error">{{ 'Please consult your bank officer about your rejected KYC.' | translate }}</p>
       <ng-container *ngIf="!p.editingAllowed">
-        <h2>{{ (p.kycStatus === 'VERIFIED' ? 'KYC verified' : 'KYC rejected') | translate }}</h2>
+        <h2>{{ (p.kycStatus === 'VERIFIED' ? 'KYC verified' : (p.kycStatus === 'PENDING' ? 'KYC submitted for staff review' : 'KYC rejected')) | translate }}</h2>
         <p>{{ 'Proof of ID type' | translate }}: {{ proofLabel() | translate }}</p>
         <p>{{ 'ID number' | translate }}: {{ p.proofNumberMasked || '—' }}</p>
         <p *ngIf="p.verifiedAt && p.kycStatus === 'VERIFIED'">{{ 'Verified on' | translate }}: {{ p.verifiedAt | date:'medium' }}</p>

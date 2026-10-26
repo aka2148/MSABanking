@@ -50,10 +50,14 @@ public class FdBatchAccountProcessor {
             }
         }
 
-        boolean openedBeforePeriodEnd = ((LocalDateTime) fd.get("opened")).toLocalDate().isBefore(date);
-        if (date.getDayOfMonth() == 1 && openedBeforePeriodEnd && isStatementEligible(status, matured)) {
-            LocalDate periodStart = date.minusMonths(1).withDayOfMonth(1);
-            lifecycleRecords.recordMonthlyStatementIfMissing(id, periodStart, date);
+        LocalDate opened = ((LocalDateTime) fd.get("opened")).toLocalDate();
+        if (isStatementEligible(status, matured)) {
+            LocalDate periodEnd = opened.plusMonths(1).withDayOfMonth(1);
+            while (!periodEnd.isAfter(date)) {
+                LocalDate periodStart = periodEnd.minusMonths(1).withDayOfMonth(1);
+                lifecycleRecords.recordMonthlyStatementIfMissing(id, periodStart, periodEnd);
+                periodEnd = periodEnd.plusMonths(1);
+            }
         }
         return new DailyAccountResult(accrualRows, matured);
     }

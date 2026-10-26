@@ -24,6 +24,8 @@ import org.springframework.http.HttpStatusCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.Date;
 import java.util.List;
@@ -76,7 +78,7 @@ public class AuthController {
     @PostMapping("/email/verification/send")
     public Message sendEmailVerification(@Valid @RequestBody EmailOtpSendRequest request) {
         String email = request.email.trim().toLowerCase(java.util.Locale.ROOT);
-        if (jdbc.queryForObject("SELECT COUNT(*) FROM customer_emails WHERE LOWER(cem_email_address)=?", Integer.class, email) > 0)
+        if (jdbc.queryForObject("SELECT COUNT(*) FROM customer_emails WHERE LOWER(TRIM(cem_email_address))=?", Integer.class, email) > 0)
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already registered.");
         if (mailApiKey == null || mailApiKey.isBlank())
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Email verification is not configured. Contact the bank team.");
@@ -160,36 +162,37 @@ public class AuthController {
         String username = request.username.trim();
         if (jdbc.queryForObject("SELECT COUNT(*) FROM user_credentials WHERE LOWER(ucr_username)=LOWER(?)", Integer.class, username) > 0)
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username is already taken");
-        if (!strongPassword(request.password, username)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Use a strong password that is different from your username.");
-        if (jdbc.queryForObject("SELECT COUNT(*) FROM customer_emails WHERE LOWER(cem_email_address)=?", Integer.class, normalizedEmail) > 0)
+        if (!PasswordPolicy.isStrong(request.password, username)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, PasswordPolicy.ERROR_MESSAGE);
+        if (jdbc.queryForObject("SELECT COUNT(*) FROM customer_emails WHERE LOWER(TRIM(cem_email_address))=?", Integer.class, normalizedEmail) > 0)
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already registered.");
-        verifiedEmails.remove(normalizedEmail);
-        jdbc.update("INSERT INTO users(usr_user_type,usr_status) VALUES('CUSTOMER','ACTIVE')");
-        long userId = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
-        jdbc.update("INSERT INTO user_credentials(ucr_user_id,ucr_username,ucr_password_hash,ucr_password_changed_at) VALUES(?,?,?,UTC_TIMESTAMP(6))", userId, username, passwords.encode(request.password));
-        Integer roleCount = jdbc.queryForObject("SELECT COUNT(*) FROM roles WHERE rol_role_code='ROLE_CUSTOMER'", Integer.class);
-        if (roleCount == null || roleCount == 0) jdbc.update("INSERT INTO roles(rol_role_code,rol_role_name) VALUES('ROLE_CUSTOMER','Customer')");
-        long roleId = jdbc.queryForObject("SELECT rol_role_id FROM roles WHERE rol_role_code='ROLE_CUSTOMER'", Long.class);
-        jdbc.update("INSERT INTO user_roles(ur_user_id,ur_role_id) VALUES(?,?)", userId, roleId);
-        jdbc.update("INSERT INTO customers(cus_user_id,cus_customer_number,cus_legal_entity_type,cus_risk_category) VALUES(?,?,?,?)", userId, "CUS-"+UUID.randomUUID().toString().replace("-", "").substring(0,12).toUpperCase(), request.legalEntityType, customerRisk.defaultCategory());
-        long customerId = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
-        jdbc.update("INSERT INTO customer_details(cud_customer_id,cud_full_name) VALUES(?,?)", customerId, request.fullName);
-        jdbc.update("INSERT INTO customer_emails(cem_customer_id,cem_email_address,cem_contact_type,cem_is_primary_signup,cem_is_primary) VALUES(?,?,'PRIMARY',1,1)", customerId, normalizedEmail);
-        if (request.phone != null && !request.phone.isBlank()) jdbc.update("INSERT INTO customer_phone_numbers(cph_customer_id,cph_phone_number,cph_contact_type,cph_is_primary_signup,cph_is_primary) VALUES(?,?,'PRIMARY',1,1)", customerId, request.phone);
-        jdbc.update("INSERT INTO customer_addresses(cad_customer_id,cad_address_type,cad_address_line,cad_city,cad_state,cad_postal_code,cad_is_primary,cad_is_verified,cad_created_by) VALUES(?,'PRIMARY',?,?,?,?,1,0,?)", customerId, request.address, request.city, request.state, request.postalCode, username);
-        UserSnapshots.writeUserSnapshot(jdbc, userId);
-        return response(username, normalizedEmail, List.of("ROLE_CUSTOMER"));
-    }
-
-    private boolean strongPassword(String password, String username) {
-        if (password == null || password.length() < 12 || password.length() > 100) return false;
-        String lower = password.toLowerCase(java.util.Locale.ROOT);
-        String user = username == null ? "" : username.toLowerCase(java.util.Locale.ROOT);
-        if (!user.isBlank() && lower.contains(user)) return false;
-        if (!password.matches(".*[a-z].*") || !password.matches(".*[A-Z].*") || !password.matches(".*\\d.*")
-                || !password.matches(".*[^A-Za-z0-9].*")) return false;
-        return List.of("password", "qwerty", "letmein", "welcome", "admin", "iloveyou", "12345678")
-                .stream().noneMatch(lower::contains);
+        try {
+            // The unique registry turns the pre-check above into a race-safe claim.
+            jdbc.update("INSERT INTO customer_email_registry(cer_normalized_email) VALUES(?)", normalizedEmail);
+            jdbc.update("INSERT INTO users(usr_user_type,usr_status) VALUES('CUSTOMER','ACTIVE')");
+            long userId = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+            jdbc.update("INSERT INTO user_credentials(ucr_user_id,ucr_username,ucr_password_hash,ucr_password_changed_at) VALUES(?,?,?,UTC_TIMESTAMP(6))", userId, username, passwords.encode(request.password));
+            Integer roleCount = jdbc.queryForObject("SELECT COUNT(*) FROM roles WHERE rol_role_code='ROLE_CUSTOMER'", Integer.class);
+            if (roleCount == null || roleCount == 0) jdbc.update("INSERT INTO roles(rol_role_code,rol_role_name) VALUES('ROLE_CUSTOMER','Customer')");
+            long roleId = jdbc.queryForObject("SELECT rol_role_id FROM roles WHERE rol_role_code='ROLE_CUSTOMER'", Long.class);
+            jdbc.update("INSERT INTO user_roles(ur_user_id,ur_role_id) VALUES(?,?)", userId, roleId);
+            jdbc.update("INSERT INTO customers(cus_user_id,cus_customer_number,cus_legal_entity_type,cus_risk_category) VALUES(?,?,?,?)", userId, "CUS-"+UUID.randomUUID().toString().replace("-", "").substring(0,12).toUpperCase(), request.legalEntityType, customerRisk.defaultCategory());
+            long customerId = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+            jdbc.update("INSERT INTO customer_details(cud_customer_id,cud_full_name) VALUES(?,?)", customerId, request.fullName);
+            jdbc.update("INSERT INTO customer_emails(cem_customer_id,cem_email_address,cem_contact_type,cem_is_primary_signup,cem_is_primary,cem_is_verified,cem_verification_method) VALUES(?,?,'PRIMARY',1,1,1,'EMAIL_OTP')", customerId, normalizedEmail);
+            if (request.phone != null && !request.phone.isBlank()) jdbc.update("INSERT INTO customer_phone_numbers(cph_customer_id,cph_phone_number,cph_contact_type,cph_is_primary_signup,cph_is_primary) VALUES(?,?,'PRIMARY',1,1)", customerId, request.phone);
+            jdbc.update("INSERT INTO customer_addresses(cad_customer_id,cad_address_type,cad_address_line,cad_city,cad_state,cad_postal_code,cad_is_primary,cad_is_verified,cad_created_by) VALUES(?,'PRIMARY',?,?,?,?,1,0,?)", customerId, request.address, request.city, request.state, request.postalCode, username);
+            UserSnapshots.writeUserSnapshot(jdbc, userId);
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override public void afterCommit() { verifiedEmails.remove(normalizedEmail, verificationExpiry); }
+                });
+            } else {
+                verifiedEmails.remove(normalizedEmail, verificationExpiry);
+            }
+            return response(username, normalizedEmail, List.of("ROLE_CUSTOMER"));
+        } catch (DuplicateKeyException ex) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email or username is already registered.");
+        }
     }
 
     @PostMapping("/login")
@@ -287,13 +290,25 @@ public class AuthController {
     @GetMapping("/me") @PreAuthorize("isAuthenticated()") public CustomerResponse me(Authentication authentication) {
         return jdbc.query("SELECT c.cus_customer_id,c.cus_customer_number,c.cus_legal_entity_type,c.cus_kyc_status,c.cus_risk_category,d.cud_full_name FROM user_credentials u JOIN customers c ON c.cus_user_id=u.ucr_user_id LEFT JOIN customer_details d ON d.cud_customer_id=c.cus_customer_id WHERE u.ucr_username=?",rs->{if(!rs.next())throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Customer not found");return new CustomerResponse(rs.getLong(1),rs.getString(2),authentication.getName(),rs.getString(6),rs.getString(4),rs.getString(5),rs.getString(3));},authentication.getName());
     }
+    @GetMapping("/session") @PreAuthorize("isAuthenticated()")
+    public SessionResponse currentSession(Authentication authentication) {
+        Map<String,Object> row = jdbc.query("SELECT u.ucr_user_id,c.cus_kyc_status,c.cus_risk_category " +
+                        "FROM user_credentials u LEFT JOIN customers c ON c.cus_user_id=u.ucr_user_id WHERE u.ucr_username=?",
+                rs -> rs.next() ? Map.of("userId", rs.getLong(1), "kycStatus", rs.getString(2) == null ? "" : rs.getString(2),
+                        "riskCategory", rs.getString(3) == null ? "" : rs.getString(3)) : null,
+                authentication.getName());
+        if (row == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Current session is no longer valid.");
+        List<String> roles = authentication.getAuthorities().stream().map(a -> a.getAuthority()).sorted().toList();
+        return new SessionResponse(((Number) row.get("userId")).longValue(), authentication.getName(), roles,
+                (String) row.get("kycStatus"), (String) row.get("riskCategory"));
+    }
     @PostMapping("/change-password") @PreAuthorize("isAuthenticated()") @ResponseStatus(HttpStatus.NO_CONTENT) @Transactional
     public void changePassword(Authentication authentication,@Valid @RequestBody ChangePasswordRequest request) {
         List<Map<String,Object>> rows=jdbc.queryForList("SELECT ucr_user_id,ucr_password_hash FROM user_credentials WHERE ucr_username=?",authentication.getName());
         if(rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"User not found");
         Map<String,Object> row=rows.get(0);
         if(!passwords.matches(request.currentPassword,(String)row.get("ucr_password_hash"))) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Current password is incorrect");
-        if(request.newPassword==null || request.newPassword.length()<8 || request.newPassword.length()>100) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"New password must be 8 to 100 characters");
+        if(!PasswordPolicy.isStrong(request.newPassword, authentication.getName())) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, PasswordPolicy.ERROR_MESSAGE);
         if(passwords.matches(request.newPassword,(String)row.get("ucr_password_hash")) || jdbc.queryForList("SELECT uph_password_hash FROM user_password_history WHERE uph_user_id=? ORDER BY uph_changed_at DESC LIMIT 5",String.class,row.get("ucr_user_id")).stream().anyMatch(old->passwords.matches(request.newPassword,old))) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Choose a password you have not used before");
         jdbc.update("INSERT INTO user_password_history(uph_user_id,uph_password_hash) VALUES(?,?)",row.get("ucr_user_id"),row.get("ucr_password_hash"));
         jdbc.update("UPDATE user_credentials SET ucr_password_hash=?,ucr_password_changed_at=UTC_TIMESTAMP(6),ucr_must_change_password=0,ucr_token_version=ucr_token_version+1 WHERE ucr_user_id=?",passwords.encode(request.newPassword),row.get("ucr_user_id"));
@@ -316,11 +331,12 @@ public class AuthController {
     private record EmailChallenge(String code,Instant expiresAt,Instant sentAt,int attempts) {}
     private record Sender(String name, String email) {}
     public record LoginRequest(@NotBlank @JsonAlias({"identifier","email"}) String username,@NotBlank String password) {}
-    public record ChangePasswordRequest(@NotBlank String currentPassword,@NotBlank String newPassword) {}
+    public record ChangePasswordRequest(@NotBlank String currentPassword,@NotBlank @Size(min=12,max=100) String newPassword) {}
     public record MfaCodeRequest(@NotBlank String code) {}
     public record MfaLoginRequest(@NotBlank String challengeToken,@NotBlank String code) {}
     public record MfaEnrollment(String secret,String provisioningUri) {}
     public record CustomerResponse(Long id,String customerNumber,String username,String fullName,String kycStatus,String riskCategory,String legalEntityType) {}
+    public record SessionResponse(long userId,String username,List<String> roles,String kycStatus,String riskCategory) {}
     public record JwtResponse(boolean success,String token,String type,String username,String email,List<String> roles,boolean mfaRequired,String mfaToken) {
         public JwtResponse(boolean success,String token,String username,String email,List<String> roles){this(success,token,"Bearer",username,email,roles,false,null);}
         public JwtResponse(boolean success,String token,String type,String username,String email,List<String> roles){this(success,token,type,username,email,roles,false,null);}

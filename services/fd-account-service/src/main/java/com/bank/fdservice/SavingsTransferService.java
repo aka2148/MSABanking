@@ -35,7 +35,7 @@ public class SavingsTransferService {
     @Transactional
     public TransferResponse transfer(long actorId, String actorUsername, String key, String hash,
                                      SavingsTransferController.TransferRequest request,String mpinJti) {
-        CustomerProductAccess.requireVerified(jdbc, actorId);
+        CustomerProductAccess.requireVerified(actorId);
         try {
             jdbc.update("INSERT INTO fd_operation_idempotency(foi_operation_scope,foi_actor_key,foi_idempotency_key,foi_request_hash,foi_status) VALUES('SAVINGS_TRANSFER',?,?,?,'PENDING')",
                     Long.toString(actorId), key, hash);

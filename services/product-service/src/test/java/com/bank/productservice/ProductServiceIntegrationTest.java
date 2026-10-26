@@ -5,6 +5,7 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -12,6 +13,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -34,6 +39,20 @@ class ProductServiceIntegrationTest {
     @Container private static final MySQLContainer<?> MYSQL=new MySQLContainer<>("mysql:8.4").withDatabaseName("moneypal_product").withUsername("product_test").withPassword("a-long-random-test-password");
     @DynamicPropertySource static void props(DynamicPropertyRegistry p){p.add("spring.datasource.url",MYSQL::getJdbcUrl);p.add("spring.datasource.username",MYSQL::getUsername);p.add("spring.datasource.password",MYSQL::getPassword);p.add("app.jwt.secret",()->SECRET);}
     @Autowired MockMvc mvc; @Autowired JdbcTemplate jdbc;
+    @Autowired FdOfferController fdOfferController;
+    @MockBean IdentitySessionClient identitySessionClient;
+
+    @BeforeEach void stubIdentitySession() { ProductIdentitySessionTestSupport.stub(identitySessionClient, SECRET); }
+
+    @Test void startupReplayEmitsSnapshotsForActiveFixedDepositProducts() {
+        jdbc.update("DELETE FROM outbox_event WHERE topic='product.catalog' AND event_key=(SELECT CAST(pro_product_id AS CHAR) FROM product WHERE pro_product_code='FD_STANDARD' LIMIT 1)");
+        var previous = SecurityContextHolder.getContext().getAuthentication();
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken("test-bootstrap", null,
+                java.util.List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
+        try { fdOfferController.publishActiveSnapshots(); }
+        finally { SecurityContextHolder.getContext().setAuthentication(previous); }
+        assertTrue(jdbc.queryForObject("SELECT COUNT(*) FROM outbox_event e JOIN product p ON e.event_key=CAST(p.pro_product_id AS CHAR) WHERE e.topic='product.catalog' AND p.pro_product_code='FD_STANDARD'",Integer.class) > 0);
+    }
 
     @Test void migrationsCreateOwnedSchemaAndLocalization(){
         assertEquals(8,jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1",Integer.class));

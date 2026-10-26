@@ -6,6 +6,7 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -15,6 +16,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -60,12 +62,24 @@ class FdFlowIntegrationTest {
     @Autowired
     private MockMvc mvc;
 
+    @MockBean private IdentitySessionClient identitySessionClient;
+
+    @BeforeEach void stubIdentitySession() { IdentitySessionTestSupport.stub(identitySessionClient, JWT_SECRET); }
+
     @Test
     @DisplayName("End-to-End Flow: Product Catalog Snapshot -> Calculator Estimation -> FD Booking -> FD Funding & Consistent Journals")
     void completeProductToCalculatorBookingAndFundingFlow() throws Exception {
         var mapper = new ObjectMapper();
         long customerId = 888L;
         String customerToken = token(customerId, "ROLE_CUSTOMER");
+        String savingsOpenKey = "savings-open-888";
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/savings-accounts")
+                        .header("Authorization", "Bearer " + customerToken).header("Idempotency-Key", savingsOpenKey).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"currencyCode\":\"INR\",\"displayName\":\"Race Test\"}"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isServiceUnavailable())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Retry-After", "1"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.code").value("USER_REFERENCE_NOT_READY"));
 
         // 1. Seed Customer Reference (KYC verified, low risk)
         jdbc.update("INSERT INTO fd_user_ref(fur_user_id,fur_user_uuid,fur_full_name,fur_user_status,fur_kyc_status,fur_risk_category) " +
@@ -121,6 +135,21 @@ class FdFlowIntegrationTest {
         assertEquals("INR", jdbc.queryForObject("SELECT fcr_iso_code FROM fd_currency_ref WHERE fcr_currency_id=?", String.class, currencyId));
         assertEquals(new BigDecimal("1.0000"), jdbc.queryForObject("SELECT premature_penalty_points FROM fd_product_currency_ref WHERE product_id=? AND currency_id=?", BigDecimal.class, catalogProductId, currencyId));
         assertEquals(new BigDecimal("0.0650"), jdbc.queryForObject("SELECT annual_rate FROM fd_product_rate_ref WHERE product_id=? AND currency_id=? AND minimum_tenure_months=12", BigDecimal.class, catalogProductId, currencyId));
+
+        String openRequest = "{\"currencyCode\":\"INR\",\"displayName\":\"Race Test\"}";
+        String opened = mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/savings-accounts")
+                        .header("Authorization", "Bearer " + customerToken).header("Idempotency-Key", savingsOpenKey)
+                        .contentType(MediaType.APPLICATION_JSON).content(openRequest))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        long openedId = mapper.readTree(opened).get("account_id").asLong();
+        String replay = mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/savings-accounts")
+                        .header("Authorization", "Bearer " + customerToken).header("Idempotency-Key", savingsOpenKey)
+                        .contentType(MediaType.APPLICATION_JSON).content(openRequest))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        assertEquals(openedId, mapper.readTree(replay).get("account_id").asLong());
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM savings_accounts WHERE sa_holder_id=? AND sa_display_name='Race Test'", Integer.class, customerId));
 
         // Create savings account with INR 50,000 balance
         jdbc.update("INSERT INTO savings_accounts(sa_account_number,sa_holder_id,sa_currency_id,sa_display_name,sa_balance,sa_status,sa_created_date) " +

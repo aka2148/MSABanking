@@ -1,0 +1,155 @@
+{
+  "info": {
+    "name": "MoneyPal active microservices demo",
+    "description": "Requests for the active Compose stack. Supply tokens and product/account values from the running app. This collection does not define product rates, limits, or account identifiers.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "token", "value": "" },
+    { "key": "adminToken", "value": "" },
+    { "key": "adminUsername", "value": "" },
+    { "key": "adminPassword", "value": "" },
+    { "key": "username", "value": "" },
+    { "key": "password", "value": "" },
+    { "key": "email", "value": "" },
+    { "key": "verificationCode", "value": "" },
+    { "key": "fullName", "value": "" },
+    { "key": "address", "value": "" },
+    { "key": "city", "value": "" },
+    { "key": "state", "value": "" },
+    { "key": "postalCode", "value": "" },
+    { "key": "productId", "value": "" },
+    { "key": "savingsAccountId", "value": "" },
+    { "key": "fdId", "value": "" },
+    { "key": "customerUsername", "value": "" },
+    { "key": "customerId", "value": "" },
+    { "key": "businessDate", "value": "" },
+    { "key": "principal", "value": "" },
+    { "key": "currencyCode", "value": "" },
+    { "key": "tenureMonths", "value": "" },
+    { "key": "termDays", "value": "" },
+    { "key": "compoundingFrequency", "value": "" },
+    { "key": "daysUntilMaturity", "value": "" },
+    { "key": "recipientAccountNumber", "value": "" },
+    { "key": "transferAmount", "value": "" },
+    { "key": "mpin", "value": "" },
+    { "key": "mpinProof", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Readiness and authentication",
+      "item": [
+        { "name": "Gateway readiness", "request": { "method": "GET", "url": "{{baseUrl}}/gateway/health" } },
+        { "name": "Send registration email OTP", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"email\":\"{{email}}\"}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/v1/auth/email/verification/send" } },
+        { "name": "Verify registration email OTP", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"email\":\"{{email}}\",\"code\":\"{{verificationCode}}\"}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/v1/auth/email/verification/verify" } },
+        { "name": "Register customer after email verification", "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["if (pm.response.code === 201) {", "  const body = pm.response.json();", "  if (body.token) pm.collectionVariables.set('token', body.token);", "  if (body.username) pm.collectionVariables.set('customerUsername', body.username);", "}"] } }], "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\",\n  \"email\": \"{{email}}\",\n  \"fullName\": \"{{fullName}}\",\n  \"address\": \"{{address}}\",\n  \"city\": \"{{city}}\",\n  \"state\": \"{{state}}\",\n  \"postalCode\": \"{{postalCode}}\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/v1/auth/register" } },
+        {
+          "name": "Login",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["if (pm.response.code === 200) {", "  const body = pm.response.json();", "  if (body.token) pm.collectionVariables.set('token', body.token);", "}"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/v1/auth/login" }
+        },
+        { "name": "Read my customer ID", "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["if (pm.response.code === 200) pm.collectionVariables.set('customerId', pm.response.json().id);"] } }], "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/api/v1/auth/me" } },
+        { "name": "Save KYC draft", "request": { "method": "PUT", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"dateOfBirth\":\"1990-01-01\",\"gender\":\"FEMALE\",\"relationship\":\"FATHER\",\"fatherOrSpouseName\":\"Synthetic Parent\",\"occupation\":\"SALARIED\",\"countryOfOrigin\":\"IN\",\"proofOfIdType\":\"PAN\",\"proofOfIdValue\":\"ABCDE1234F\",\"idIssueDate\":\"2010-01-01\"}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/v1/customers/me/kyc/draft" } },
+        { "name": "Submit KYC for staff review", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/api/v1/customers/me/kyc/submit" } }
+      ]
+    },
+    {
+      "name": "Product, calculator, and customer FD lifecycle",
+      "item": [
+        { "name": "Eligible FD offers", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/api/v1/fd-products/eligible" } },
+        {
+          "name": "Calculate from selected offer terms",
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"principal\": {{principal}},\n  \"termDays\": {{termDays}},\n  \"currencyCode\": \"{{currencyCode}}\",\n  \"productId\": {{productId}},\n  \"compoundingFrequency\": \"{{compoundingFrequency}}\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/calculator/estimate" }
+        },
+        {
+          "name": "My savings accounts",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/api/v1/savings-accounts" }
+        },
+        {
+          "name": "Open a savings account",
+          "event": [{ "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["pm.request.headers.upsert({ key: 'Idempotency-Key', value: pm.variables.replaceIn('{{$guid}}') });"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"currencyCode\":\"{{currencyCode}}\",\"displayName\":\"FD funding source\"}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/v1/savings-accounts" }
+        },
+        {
+          "name": "Book pending FD",
+          "event": [{ "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["pm.request.headers.upsert({ key: 'Idempotency-Key', value: pm.variables.replaceIn('{{$guid}}') });"] } }, { "listen": "test", "script": { "type": "text/javascript", "exec": ["if (pm.response.code === 201) {", "  const body = pm.response.json();", "  if (body.account_id) pm.collectionVariables.set('fdId', body.account_id);", "}"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"productId\": {{productId}},\n  \"savingsAccountId\": {{savingsAccountId}},\n  \"principal\": {{principal}},\n  \"currencyCode\": \"{{currencyCode}}\",\n  \"tenureMonths\": {{tenureMonths}}\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/v1/fixed-deposits" }
+        },
+        {
+          "name": "List my FDs",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/api/v1/fixed-deposits" }
+        },
+        {
+          "name": "Issue one-use MPIN proof for FD funding",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["if (pm.response.code === 200) pm.collectionVariables.set('mpinProof', pm.response.json().proofToken);"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"mpin\":\"{{mpin}}\",\"purpose\":\"FD_FUNDING\",\"fields\":{\"accountId\":{{fdId}},\"amount\":{{principal}}}}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/v1/auth/mpin/verify" }
+        },
+        {
+          "name": "Fund pending FD",
+          "event": [{ "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["pm.request.headers.upsert({ key: 'Idempotency-Key', value: pm.variables.replaceIn('{{$guid}}') });"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "X-MPIN-Proof", "value": "{{mpinProof}}" }], "body": { "mode": "raw", "raw": "{\"savingsAccountId\":{{savingsAccountId}}}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/v1/fixed-deposits/{{fdId}}/fund" }
+        },
+        {
+          "name": "Issue one-use MPIN proof to close matured FD",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["if (pm.response.code === 200) pm.collectionVariables.set('mpinProof', pm.response.json().proofToken);"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"mpin\":\"{{mpin}}\",\"purpose\":\"FD_CLOSE\",\"fields\":{\"accountId\":{{fdId}}}}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/v1/auth/mpin/verify" }
+        },
+        {
+          "name": "Close matured FD",
+          "event": [{ "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["pm.request.headers.upsert({ key: 'Idempotency-Key', value: pm.variables.replaceIn('{{$guid}}') });"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "X-MPIN-Proof", "value": "{{mpinProof}}" }], "url": "{{baseUrl}}/api/v1/fixed-deposits/{{fdId}}/close" }
+        },
+        {
+          "name": "FD transaction history",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/api/v1/fixed-deposits/{{fdId}}/transactions" }
+        },
+        {
+          "name": "FD accrual history",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/api/v1/fixed-deposits/{{fdId}}/accruals" }
+        },
+        {
+          "name": "Issue one-use MPIN proof for savings transfer",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["if (pm.response.code === 200) pm.collectionVariables.set('mpinProof', pm.response.json().proofToken);"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"mpin\":\"{{mpin}}\",\"purpose\":\"TRANSFER\",\"fields\":{\"fromAccountId\":{{savingsAccountId}},\"toAccountNumber\":\"{{recipientAccountNumber}}\",\"amount\":{{transferAmount}}}}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/v1/auth/mpin/verify" }
+        },
+        {
+          "name": "Savings transfer",
+          "event": [{ "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["pm.request.headers.upsert({ key: 'Idempotency-Key', value: pm.variables.replaceIn('{{$guid}}') });"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "X-MPIN-Proof", "value": "{{mpinProof}}" }], "body": { "mode": "raw", "raw": "{\"fromAccountId\":{{savingsAccountId}},\"toAccountNumber\":\"{{recipientAccountNumber}}\",\"amount\":{{transferAmount}},\"remark\":\"Lab demo transfer\"}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/v1/savings-accounts/transfers" }
+        },
+        {
+          "name": "My FD portfolio CSV",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/api/reports/portfolio.csv" }
+        },
+        {
+          "name": "My interest history CSV",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/api/reports/interest-history.csv" }
+        },
+        {
+          "name": "My statements CSV",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/api/reports/statements.csv" }
+        },
+        {
+          "name": "My notices CSV",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }], "url": "{{baseUrl}}/api/reports/notices.csv" }
+        }
+      ]
+    },
+    {
+      "name": "Staff operations and reports",
+      "item": [
+        { "name": "Admin login", "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["if (pm.response.code === 200 && pm.response.json().token) pm.collectionVariables.set('adminToken', pm.response.json().token);"] } }], "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"username\":\"{{adminUsername}}\",\"password\":\"{{adminPassword}}\"}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/v1/auth/login" } },
+        { "name": "Review submitted KYC", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"status\":\"VERIFIED\"}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/v1/customers/{{customerId}}/status" } },
+        { "name": "FD status summary", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/reports/fd-summary" } },
+        { "name": "FD summary CSV", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/reports/fd-summary.csv" } },
+        { "name": "Maturity summary CSV", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/reports/maturity-summary.csv" } },
+        { "name": "Customer portfolio JSON", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/reports/portfolio/{{customerUsername}}" } },
+        { "name": "Business clock status", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/admin/clock" } },
+        { "name": "Advance clock and run daily batches", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"days\": {{daysUntilMaturity}}}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/admin/clock/advance" } },
+        { "name": "Accrual batch for explicit date", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/fixed-deposits/accrual-batch?businessDate={{businessDate}}" } },
+        { "name": "Maturity batch for explicit date", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": "{{baseUrl}}/api/v1/admin/fixed-deposits/maturity-batch?businessDate={{businessDate}}" } }
+      ]
+    }
+  ]
+}
