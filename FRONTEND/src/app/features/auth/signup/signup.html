@@ -1,6 +1,5 @@
 <app-workspace-shell [guest]="true" [focalX]="focalX" [focalY]="focalY">
   <main class="glass-card glass-card--wide signup-card">
-    <p class="signup-card__eyebrow"> {{ 'Join MoneyPal' | translate }} </p>
     <h2> {{ 'Create your account' | translate }} </h2>
     <p class="glass-card__sub"> {{ '{0} - step {1} of {2}' | translate: [(stepLabels[currentStep] | translate), (currentStep + 1), (stepKeys.length)] }} </p>
 
@@ -95,7 +94,7 @@
 
           <div class="glass-field-row">
             <label class="glass-field">
-            <span class="glass-field__label"> {{ 'City / locality' | translate }} </span>
+              <span class="glass-field__label"> {{ 'City / locality' | translate }} </span>
               <app-glass-select formControlName="city" [options]="cityOptions" [translateOptions]="false" [placeholder]="'Select city' | translate"></app-glass-select>
               <span class="glass-field__error" *ngIf="showError(accountGroup,'city')"> {{ (errorText(accountGroup,'city','City')) | translate }} </span>
             </label>
