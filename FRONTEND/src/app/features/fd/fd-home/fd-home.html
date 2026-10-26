@@ -1,66 +1,112 @@
 <app-workspace-shell>
-  <main class="glass-card glass-card--wide fd-home-card">
-    <header class="fd-home-card__header">
-      <div>
-        <p class="fd-eyebrow"> {{ 'Fixed deposits' | translate }} </p>
-        <h2> {{ 'Fixed deposits' | translate }} </h2>
-        <p class="glass-card__sub"> {{ 'Choose a currency and rate option for a new deposit, or open one you have already booked.' | translate }} </p>
+  <main class="glass-card fd-page">
+
+    <header class="fd-page__hero">
+      <div class="fd-page__hero-copy">
+        <p class="fd-page__eyebrow">
+          <span class="fd-page__eyebrow-dot"></span>
+          {{ 'Fixed deposits' | translate }}
+        </p>
+
+        <h2>{{ 'Fixed deposits' | translate }}<span class="fd-page__gold">.</span></h2>
+
+        <p class="fd-page__intro">
+          {{ 'Choose a currency and rate option for a new deposit, or open one you have already booked.' | translate }}
+        </p>
+
+        <nav class="fd-page__paths" [attr.aria-label]="'Fixed deposit shortcuts' | translate">
+          <a class="glass-btn glass-btn--ghost fd-page__path" routerLink="/savings">
+            {{ 'Savings accounts' | translate }}
+          </a>
+          <a class="glass-btn fd-page__path fd-page__path--primary" routerLink="/fd" fragment="products">
+            {{ 'Browse products' | translate }}
+            <span aria-hidden="true">↗</span>
+          </a>
+          <a class="glass-btn glass-btn--ghost fd-page__path" routerLink="/fd/accounts">
+            {{ 'My deposits' | translate }}
+          </a>
+          <a class="glass-btn glass-btn--ghost fd-page__path" routerLink="/fd/accounts/lookup">
+            {{ 'Open existing deposit' | translate }}
+          </a>
+        </nav>
       </div>
-      <nav class="fd-home-card__paths" [attr.aria-label]="'Fixed deposit shortcuts' | translate">
-        <a class="glass-btn glass-btn--ghost" routerLink="/savings"> {{ 'Savings accounts' | translate }} </a>
-        <a class="glass-btn" routerLink="/fd" fragment="products"> {{ 'Browse products' | translate }} </a>
-        <a class="glass-btn glass-btn--ghost" routerLink="/fd/accounts"> {{ 'My deposits' | translate }} </a>
-        <a class="glass-btn glass-btn--ghost" routerLink="/fd/accounts/lookup"> {{ 'Open existing deposit' | translate }} </a>
-      </nav>
+
+      <div class="fd-page__hero-art" aria-hidden="true">
+        <div class="fd-page__hero-orbit"></div>
+        <div class="fd-page__hero-orbit fd-page__hero-orbit--inner"></div>
+        <div class="fd-page__hero-symbol">%</div>
+        <span class="fd-page__hero-spark fd-page__hero-spark--one"></span>
+        <span class="fd-page__hero-spark fd-page__hero-spark--two"></span>
+      </div>
     </header>
 
-    <section id="products" class="fd-products" aria-labelledby="products-heading">
-      <div class="fd-section-heading">
-        <div>
-          <p class="fd-eyebrow"> {{ 'Eligible offers' | translate }} </p>
-          <h3 id="products-heading"> {{ 'Browse products' | translate }} </h3>
+    <!-- PRODUCTS -->
+    <section id="products" class="fd-page__panel fd-products" aria-labelledby="products-heading">
+      <div class="fd-page__section-heading">
+        <div class="fd-page__section-icon" aria-hidden="true">◈</div>
+        <div class="fd-page__section-title">
+          <p class="fd-page__eyebrow">{{ 'Eligible offers' | translate }}</p>
+          <h3 id="products-heading">{{ 'Browse products' | translate }}</h3>
         </div>
-        <button type="button" class="glass-link fd-retry" *ngIf="errorMessage" (click)="loadProducts()" [disabled]="loading"> {{ (loading ? 'Retrying…' : 'Retry') | translate }} </button>
+        <button type="button" class="glass-link fd-page__retry" *ngIf="errorMessage" (click)="loadProducts()" [disabled]="loading">
+          {{ (loading ? 'Retrying…' : 'Retry') | translate }}
+        </button>
       </div>
 
-      <p class="fd-state" *ngIf="loading" role="status"> {{ 'Loading eligible products…' | translate }} </p>
-      <div class="glass-error" *ngIf="errorMessage" role="alert"> {{ (errorMessage) | translate }} </div>
-      <p class="fd-state" *ngIf="!loading && !errorMessage && products.length === 0"> {{ 'No eligible FD offers are available for your account right now.' | translate }} </p>
+      <div class="fd-page__loading-state" *ngIf="loading" role="status">
+        <span class="fd-page__loader"></span>
+        {{ 'Loading eligible products…' | translate }}
+      </div>
 
-      <div class="fd-product-grid" *ngIf="!loading && !errorMessage && products.length > 0">
-        <article class="fd-product-card" *ngFor="let product of products">
-          <div class="fd-product-card__topline">
-            <div>
+      <div class="glass-error" *ngIf="errorMessage" role="alert">{{ (errorMessage) | translate }}</div>
+
+      <div class="fd-page__empty" *ngIf="!loading && !errorMessage && products.length === 0">
+        <div class="fd-page__empty-icon" aria-hidden="true">%</div>
+        <h4>{{ 'No eligible FD offers are available for your account right now.' | translate }}</h4>
+      </div>
+
+      <div class="fd-page__product-grid" *ngIf="!loading && !errorMessage && products.length > 0">
+        <article
+          class="fd-page__product"
+          *ngFor="let product of products; let i = index"
+          [style.--account-index]="i">
+
+          <div class="fd-page__product-top">
+            <div class="fd-page__product-icon" aria-hidden="true">%</div>
+            <div class="fd-page__product-identity">
               <h4>{{ product.product_name }}</h4>
             </div>
-            <div class="fd-product-card__currencies">
-              <span class="fd-product-card__currency" *ngFor="let currency of product.currency_offers">{{ currency.currency_code }}</span>
+            <div class="fd-page__currencies">
+              <span class="fd-page__pill" *ngFor="let currency of product.currency_offers">{{ currency.currency_code }}</span>
             </div>
           </div>
 
-          <section class="fd-product-card__terms" *ngFor="let currency of product.currency_offers">
-            <div class="fd-product-card__currency-heading">
+          <section class="fd-page__terms" *ngFor="let currency of product.currency_offers">
+            <div class="fd-page__terms-heading">
               <div>
-                <h5> {{ '{0} deposit' | translate: [(currency.currency_code)] }} </h5>
-                <p> {{ 'Deposit {0}–{1} {2}' | translate: [(currency.minimum_amount | number:'1.2-2'), (currency.maximum_amount | number:'1.2-2'), (currency.currency_code)] }} </p>
+                <h5>{{ '{0} deposit' | translate: [(currency.currency_code)] }}</h5>
+                <p>{{ 'Deposit {0}–{1} {2}' | translate: [(currency.minimum_amount | number:'1.2-2'), (currency.maximum_amount | number:'1.2-2'), (currency.currency_code)] }}</p>
               </div>
-              <span class="fd-product-card__currency">{{ currency.currency_code }}</span>
+              <span class="fd-page__pill">{{ currency.currency_code }}</span>
             </div>
-            <div class="fd-rate-option-grid">
-              <article class="fd-rate-option" *ngFor="let tier of currency.rate_tiers">
-                <div class="fd-rate-option__term">
-                  <span> {{ 'Term' | translate }} </span>
-                  <strong> {{ '{0} months' | translate: [(tier.maximum_tenure_months)] }} </strong>
+
+            <div class="fd-page__rate-grid">
+              <article class="fd-page__rate" *ngFor="let tier of currency.rate_tiers">
+                <div class="fd-page__rate-term">
+                  <span>{{ 'Term' | translate }}</span>
+                  <strong>{{ '{0} months' | translate: [(tier.maximum_tenure_months)] }}</strong>
                 </div>
-                <div class="fd-rate-option__rate">
-                  <span> {{ 'Annual rate' | translate }} </span>
+                <div class="fd-page__rate-value">
+                  <span>{{ 'Annual rate' | translate }}</span>
                   <strong>{{ tier.annual_rate * 100 | number:'1.2-2' }}%</strong>
                 </div>
-                <p> {{ '{0} compounding · paid {1}' | translate: [(formatFrequency(tier.compounding_frequency) | translate), (formatFrequency(tier.payout_frequency) | translate)] }} </p>
-                <button type="button" class="glass-btn glass-btn--full"
+                <p>{{ '{0} compounding · paid {1}' | translate: [(formatFrequency(tier.compounding_frequency) | translate), (formatFrequency(tier.payout_frequency) | translate)] }}</p>
+                <button type="button" class="glass-btn glass-btn--full fd-page__choose"
                         [disabled]="loading || selectingOptionKey !== null"
                         [attr.aria-label]="'Choose {0} month {1} option' | translate: [tier.maximum_tenure_months, currency.currency_code]"
-                        (click)="chooseRateTier(product, currency, tier)"> {{ (selectingOptionKey === optionKey(product, currency, tier) ? 'Opening…' : 'Choose this option') | translate }} </button>
+                        (click)="chooseRateTier(product, currency, tier)">
+                  {{ (selectingOptionKey === optionKey(product, currency, tier) ? 'Opening…' : 'Choose this option') | translate }}
+                </button>
               </article>
             </div>
           </section>
@@ -68,5 +114,6 @@
         </article>
       </div>
     </section>
+
   </main>
 </app-workspace-shell>
