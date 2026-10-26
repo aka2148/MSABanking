@@ -1,55 +1,145 @@
 <app-workspace-shell>
-  <main class="glass-card glass-card--wide deposits-card">
-    <a class="glass-link deposits-back" routerLink="/fd"> {{ '← Fixed deposits' | translate }} </a>
-    <header class="deposits-heading">
-      <div>
-        <p class="fd-eyebrow"> {{ 'Customer deposits' | translate }} </p>
-        <h2> {{ 'My deposits' | translate }} </h2>
-        <p class="glass-card__sub"> {{ 'Fixed deposits associated with your customer account.' | translate }} </p>
+  <main class="glass-card workflow-page deposits-page">
+    <header class="workflow-page__hero deposits-page__hero">
+      <div class="workflow-page__hero-copy">
+        <p class="workflow-page__eyebrow">
+          <span class="workflow-page__eyebrow-dot"></span>
+          {{ 'Customer deposits' | translate }}
+        </p>
+
+        <h2>{{ 'My deposits' | translate }}<span class="workflow-page__gold">.</span></h2>
+        <p class="workflow-page__intro">{{ 'Fixed deposits associated with your customer account.' | translate }}</p>
+
+        <nav class="workflow-page__paths">
+          <a class="glass-btn glass-btn--ghost workflow-page__path workflow-page__path--primary"
+             routerLink="/fd" fragment="products">
+            {{ 'Browse products' | translate }}
+          </a>
+          <a class="glass-btn glass-btn--ghost workflow-page__path"
+             routerLink="/fd">
+            {{ '← Fixed deposits' | translate }}
+          </a>
+        </nav>
       </div>
-      <a class="glass-btn" routerLink="/fd" fragment="products"> {{ 'Browse products' | translate }} </a>
+
+      <div class="workflow-page__hero-art" aria-hidden="true">
+        <div class="workflow-page__hero-orbit"></div>
+        <div class="workflow-page__hero-orbit workflow-page__hero-orbit--inner"></div>
+        <div class="workflow-page__hero-symbol">₹</div>
+        <span class="workflow-page__hero-spark workflow-page__hero-spark--one"></span>
+        <span class="workflow-page__hero-spark workflow-page__hero-spark--two"></span>
+      </div>
     </header>
 
-    <section *ngIf="pendingBookingReview" class="pending-review" role="status">
-      <p> {{ 'A booking request may have completed even if its confirmation did not reach this browser.' | translate }} </p>
-      <p> {{ 'Review this deposit list before allowing a different booking request.' | translate }} </p>
-      <button type="button" class="glass-btn glass-btn--ghost" (click)="clearPendingBookingAfterReview()"> {{ 'I checked my deposits; allow a new booking' | translate }} </button>
+    <!-- PENDING BOOKING REVIEW -->
+    <section *ngIf="pendingBookingReview" class="pending-review deposits-page__pending" role="status">
+      <div class="deposits-page__notice-icon" aria-hidden="true">!</div>
+      <div class="deposits-page__pending-copy">
+        <p>{{ 'A booking request may have completed even if its confirmation did not reach this browser.' | translate }}</p>
+        <p>{{ 'Review this deposit list before allowing a different booking request.' | translate }}</p>
+        <button type="button" class="glass-btn glass-btn--ghost workflow-page__path"
+                (click)="clearPendingBookingAfterReview()">
+          {{ 'I checked my deposits; allow a new booking' | translate }}
+          <span aria-hidden="true">→</span>
+        </button>
+      </div>
     </section>
 
-    <p class="deposits-state" *ngIf="loading" role="status"> {{ 'Loading your deposits…' | translate }} </p>
-    <div class="glass-error" *ngIf="errorMessage" role="alert"> {{ (errorMessage) | translate }} <button type="button" class="glass-link" (click)="load()" [disabled]="loading"> {{ 'Retry' | translate }} </button>
+    <!-- NOTICES -->
+    <div class="workflow-page__notices" aria-live="polite">
+      <div class="workflow-page__loading-state" *ngIf="loading" role="status">
+        <span class="workflow-page__loader"></span>
+        {{ 'Loading your deposits…' | translate }}
+      </div>
+      <div class="glass-error deposits-page__error" *ngIf="errorMessage" role="alert">
+        {{ errorMessage | translate }}
+        <button type="button" class="glass-link deposits-page__retry" (click)="load()" [disabled]="loading">
+          {{ 'Retry' | translate }} <span aria-hidden="true">↻</span>
+        </button>
+      </div>
     </div>
 
-    <section *ngIf="loaded && !loading && !errorMessage && accounts.length === 0" class="deposits-empty">
-      <h3> {{ 'No fixed deposits yet' | translate }} </h3>
-      <p> {{ 'When you book a deposit, it will appear here.' | translate }} </p>
-      <a class="glass-btn" routerLink="/fd" fragment="products"> {{ 'Browse FD products' | translate }} </a>
+    <!-- EMPTY STATE -->
+    <section *ngIf="loaded && !loading && !errorMessage && accounts.length === 0"
+             class="workflow-page__empty deposits-page__empty">
+      <div class="workflow-page__empty-icon" aria-hidden="true">₹</div>
+      <h4>{{ 'No fixed deposits yet' | translate }}</h4>
+      <p>{{ 'When you book a deposit, it will appear here.' | translate }}</p>
+      <a class="glass-btn workflow-page__tile-link" routerLink="/fd" fragment="products">
+        {{ 'Browse FD products' | translate }} <span aria-hidden="true">→</span>
+      </a>
     </section>
 
-    <section *ngIf="!loading && !errorMessage && accounts.length > 0" [attr.aria-label]="'Your fixed deposits' | translate">
-      <p class="deposits-count">{{ '{0} deposits' | translate: [totalRecords] }}</p>
-      <article class="deposit-row" *ngFor="let account of accounts">
-        <div class="deposit-row__heading">
-          <div>
-            <p class="fd-eyebrow">{{ account.product_code }}</p>
-            <h3>{{ account.product_name }}</h3>
-            <p class="deposit-number">{{ account.account_number }}</p>
-          </div>
-          <span class="fd-status" [attr.data-status]="account.status">{{ account.status }}</span>
+    <!-- DEPOSIT LIST -->
+    <section class="deposits-page__list"
+             *ngIf="!loading && !errorMessage && accounts.length > 0"
+             [attr.aria-label]="'Your fixed deposits' | translate">
+      <div class="deposits-page__list-heading">
+        <div>
+          <p class="workflow-page__eyebrow deposits-page__section-eyebrow">
+            <span class="workflow-page__eyebrow-dot"></span>
+            {{ 'Your portfolio' | translate }}
+          </p>
+          <h3>{{ 'My deposits' | translate }}</h3>
         </div>
-        <dl class="deposit-terms">
-          <div><dt> {{ 'Principal' | translate }} </dt><dd>{{ account.principal_amount | currency:account.currency_code:'symbol':'1.2-2' }}</dd></div>
-          <div><dt> {{ 'Term' | translate }} </dt><dd> {{ '{0} months' | translate: [(account.tenure_months)] }} </dd></div>
-          <div><dt> {{ 'Annual rate' | translate }} </dt><dd>{{ formatRate(account.annual_rate) }}</dd></div>
-          <div><dt> {{ 'Maturity date' | translate }} </dt><dd>{{ account.maturity_date ? (account.maturity_date | date:'mediumDate') : '—' }}</dd></div>
-        </dl>
-        <a class="glass-btn glass-btn--ghost" [routerLink]="['/fd/accounts', account.account_id]" [attr.aria-label]="'View deposit ' + account.account_number"> {{ 'View deposit' | translate }} </a>
-      </article>
+        <span class="deposits-page__count">{{ '{0} deposits' | translate: [totalRecords] }}</span>
+      </div>
 
-      <nav class="deposits-pagination" *ngIf="totalPages > 1" [attr.aria-label]="'Deposit pages' | translate">
-        <button type="button" class="glass-btn glass-btn--ghost" (click)="load(page - 1)" [disabled]="page <= 1 || loading"> {{ 'Previous' | translate }} </button>
-        <span> {{ 'Page {0} of {1}' | translate: [(page), (totalPages)] }} </span>
-        <button type="button" class="glass-btn glass-btn--ghost" (click)="load(page + 1)" [disabled]="page >= totalPages || loading"> {{ 'Next' | translate }} </button>
+      <div class="deposits-page__grid">
+        <article class="workflow-page__tile deposit-row"
+                 *ngFor="let account of accounts; let i = index"
+                 [style.--account-index]="i">
+          <div class="workflow-page__tile-top deposit-row__heading">
+            <div class="workflow-page__tile-icon deposit-row__icon" aria-hidden="true">₹</div>
+            <div class="workflow-page__tile-identity deposit-row__identity">
+              <p class="deposits-page__product-code">{{ account.product_code }}</p>
+              <h3>{{ account.product_name }}</h3>
+              <p class="deposit-number">{{ account.account_number }}</p>
+            </div>
+            <span class="fd-status deposits-page__status"
+                  [attr.data-status]="account.status">{{ account.status }}</span>
+          </div>
+
+          <dl class="deposit-terms workflow-page__facts">
+            <div>
+              <dt>{{ 'Principal' | translate }}</dt>
+              <dd>{{ account.principal_amount | currency:account.currency_code:'symbol':'1.2-2' }}</dd>
+            </div>
+            <div>
+              <dt>{{ 'Term' | translate }}</dt>
+              <dd>{{ '{0} months' | translate: [(account.tenure_months)] }}</dd>
+            </div>
+            <div>
+              <dt>{{ 'Annual rate' | translate }}</dt>
+              <dd>{{ formatRate(account.annual_rate) }}</dd>
+            </div>
+            <div>
+              <dt>{{ 'Maturity date' | translate }}</dt>
+              <dd>{{ account.maturity_date ? (account.maturity_date | date:'mediumDate') : '—' }}</dd>
+            </div>
+          </dl>
+
+          <a class="glass-btn workflow-page__tile-link deposit-row__link"
+             [routerLink]="['/fd/accounts', account.account_id]"
+             [attr.aria-label]="'View deposit ' + account.account_number">
+            {{ 'View deposit' | translate }} <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+
+      <!-- PAGINATION -->
+      <nav class="deposits-pagination deposits-page__pagination"
+           *ngIf="totalPages > 1"
+           [attr.aria-label]="'Deposit pages' | translate">
+        <button type="button" class="glass-btn glass-btn--ghost workflow-page__path"
+                (click)="load(page - 1)" [disabled]="page <= 1 || loading">
+          <span aria-hidden="true">←</span> {{ 'Previous' | translate }}
+        </button>
+        <span>{{ 'Page {0} of {1}' | translate: [(page), (totalPages)] }}</span>
+        <button type="button" class="glass-btn glass-btn--ghost workflow-page__path"
+                (click)="load(page + 1)" [disabled]="page >= totalPages || loading">
+          {{ 'Next' | translate }} <span aria-hidden="true">→</span>
+        </button>
       </nav>
     </section>
   </main>
