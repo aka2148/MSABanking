@@ -123,4 +123,56 @@ No currencies have reached the FD service yet. Wait for a product catalog update
 No currencies are available for savings accounts yet. Refresh after the product catalog loads.|बचत खातों के लिए अभी मुद्राएँ नहीं हैं। उत्पाद सूची लोड होने पर ताज़ा करें।|ಉಳಿತಾಯ ಖಾತೆಗಳಿಗೆ ಕರೆನ್ಸಿಗಳು ಲಭ್ಯವಿಲ್ಲ. ಉತ್ಪನ್ನ ಪಟ್ಟಿ ಲೋಡ್ ಆದ ನಂತರ ರಿಫ್ರೆಶ್ ಮಾಡಿ.|普通預金の通貨がありません。商品一覧の読み込み後に更新してください。|لا توجد عملات لحسابات التوفير بعد. حدّث بعد تحميل المنتجات.|Aún no hay monedas para cuentas de ahorro. Recarga tras cargar el catálogo.
 Demo opening funds recorded. This action credits each savings account once.|प्रदर्शन का शुरुआती धन दर्ज हुआ। हर बचत खाते में यह एक बार जमा होता है।|ಪ್ರದರ್ಶನ ಆರಂಭಿಕ ಹಣ ದಾಖಲಾಗಿದೆ. ಪ್ರತಿ ಉಳಿತಾಯ ಖಾತೆಗೆ ಒಮ್ಮೆ ಜಮೆ ಆಗುತ್ತದೆ.|デモ初期資金を記録しました。各口座に一度だけ入金されます。|سُجل الرصيد التجريبي. يُضاف مرة واحدة لكل حساب توفير.|Se registraron los fondos iniciales de demostración. Se abonan una vez por cuenta.
 Savings account {0} created.|बचत खाता {0} बना।|ಉಳಿತಾಯ ಖಾತೆ {0} ರಚಿಸಲಾಗಿದೆ.|普通預金口座 {0} を作成しました。|أُنشئ حساب التوفير {0}.|Se creó la cuenta de ahorro {0}.
+
+Currency watch|मुद्रा पर नज़र|ಕರೆನ್ಸಿ ವೀಕ್ಷಣೆ|通貨ウォッチ|مراقبة العملات|Seguimiento de divisas
+Global markets|वैश्विक बाज़ार|ಜಾಗತಿಕ ಮಾರುಕಟ್ಟೆಗಳು|世界市場|الأسواق العالمية|Mercados globales
+Financial news|वित्तीय समाचार|ಹಣಕಾಸು ಸುದ್ದಿ|金融ニュース|الأخبار المالية|Noticias financieras
+Latest financial news|ताज़ा वित्तीय समाचार|ಇತ್ತೀಚಿನ ಹಣಕಾಸು ಸುದ್ದಿ|最新の金融ニュース|أحدث الأخبار المالية|Últimas noticias financieras
+India monetary policy|भारत की मौद्रिक नीति|ಭಾರತದ ಹಣಕಾಸು ನೀತಿ|インドの金融政策|السياسة النقدية الهندية|Política monetaria de India
+European Central Bank|यूरोपीय केंद्रीय बैंक|ಯುರೋಪಿಯನ್ ಕೇಂದ್ರ ಬ್ಯಾಂಕ್|欧州中央銀行|البنك المركزي الأوروبي|Banco Central Europeo
+Global economic outlook|वैश्विक आर्थिक परिदृश्य|ಜಾಗತಿಕ ಆರ್ಥಿಕ ಮುನ್ನೋಟ|世界経済の見通し|التوقعات الاقتصادية العالمية|Perspectivas económicas mundiales
+Development and emerging markets|विकास और उभरते बाज़ार|ಅಭಿವೃದ್ಧಿ ಮತ್ತು ಉದಯೋನ್ಮುಖ ಮಾರುಕಟ್ಟೆಗಳು|開発と新興市場|التنمية والأسواق الناشئة|Desarrollo y mercados emergentes
+Business and financial markets|व्यापार और वित्तीय बाज़ार|ವ್ಯಾಪಾರ ಮತ್ತು ಹಣಕಾಸು ಮಾರುಕಟ್ಟೆಗಳು|ビジネスと金融市場|الأعمال والأسواق المالية|Negocios y mercados financieros
+KYC completion|KYC पूर्णता|KYC ಪೂರ್ಣಗೊಳಿಸುವಿಕೆ|KYC完了状況|اكتمال التحقق من الهوية|Progreso de KYC
+Savings accounts|बचत खाते|ಉಳಿತಾಯ ಖಾತೆಗಳು|普通預金口座|حسابات التوفير|Cuentas de ahorro
+Fixed deposits|सावधि जमा|ಸ್ಥಿರ ಠೇವಣಿಗಳು|定期預金|الودائع الثابتة|Depósitos a plazo fijo
+My deposits|मेरी जमाएँ|ನನ್ನ ಠೇವಣಿಗಳು|自分の預金|ودائعي|Mis depósitos
+FD reports|FD रिपोर्ट|FD ವರದಿಗಳು|定期預金レポート|تقارير الودائع الثابتة|Informes de depósitos a plazo
+Reference rate date|संदर्भ दर की तारीख|ಉಲ್ಲೇಖ ದರದ ದಿನಾಂಕ|参照レートの日付|تاريخ السعر المرجعي|Fecha del tipo de referencia
+Loading exchange rates…|विनिमय दरें लोड हो रही हैं…|ವಿನಿಮಯ ದರಗಳನ್ನು ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ…|為替レートを読み込み中…|جارٍ تحميل أسعار الصرف…|Cargando tipos de cambio…
+Exchange rates unavailable|विनिमय दरें उपलब्ध नहीं हैं|ವಿನಿಮಯ ದರಗಳು ಲಭ್ಯವಿಲ್ಲ|為替レートを利用できません|أسعار الصرف غير متاحة|Tipos de cambio no disponibles
+Global markets|वैश्विक बाज़ार|ಜಾಗತಿಕ ಮಾರುಕಟ್ಟೆಗಳು|世界市場|الأسواق العالمية|Mercados globales
+Read financial news|वित्तीय समाचार पढ़ें|ಹಣಕಾಸು ಸುದ್ದಿ ಓದಿ|金融ニュースを読む|اقرأ الأخبار المالية|Leer noticias financieras
+Explore savings accounts|बचत खाते देखें|ಉಳಿತಾಯ ಖಾತೆಗಳನ್ನು ಅನ್ವೇಷಿಸಿ|普通預金口座を見る|استكشف حسابات التوفير|Explorar cuentas de ahorro
+Explore fixed deposits|सावधि जमा देखें|ಸ್ಥಿರ ಠೇವಣಿಗಳನ್ನು ಅನ್ವೇಷಿಸಿ|定期預金を見る|استكشف الودائع الثابتة|Explorar depósitos a plazo
+View my deposits|मेरी जमाएँ देखें|ನನ್ನ ಠೇವಣಿಗಳನ್ನು ವೀಕ್ಷಿಸಿ|自分の預金を見る|عرض ودائعي|Ver mis depósitos
+View FD reports|FD रिपोर्ट देखें|FD ವರದಿಗಳನ್ನು ವೀಕ್ಷಿಸಿ|定期預金レポートを見る|عرض تقارير الودائع الثابتة|Ver informes de depósitos a plazo
+
+Reference exchange rates and global finance brief|संदर्भ विनिमय दरें और वैश्विक वित्तीय जानकारी|ಉಲ್ಲೇಖ ವಿನಿಮಯ ದರಗಳು ಮತ್ತು ಜಾಗತಿಕ ಹಣಕಾಸು ಮಾಹಿತಿ|参考為替レートと世界の金融情報|أسعار الصرف المرجعية وموجز التمويل العالمي|Tipos de cambio de referencia e información financiera global
+Your profile|आपकी प्रोफ़ाइल|ನಿಮ್ಮ ಪ್ರೊಫೈಲ್|あなたのプロフィール|ملفك الشخصي|Tu perfil
+Track your identity verification progress.|अपनी पहचान सत्यापन की प्रगति देखें।|ನಿಮ್ಮ ಗುರುತು ಪರಿಶೀಲನೆಯ ಪ್ರಗತಿಯನ್ನು ಗಮನಿಸಿ.|本人確認の進捗状況を確認できます。|تابع تقدم التحقق من هويتك.|Consulta el progreso de la verificación de tu identidad.
+KYC verified|KYC सत्यापित|KYC ಪರಿಶೀಲಿಸಲಾಗಿದೆ|KYC確認済み|تم التحقق من الهوية|KYC verificado
+View KYC|KYC देखें|KYC ವೀಕ್ಷಿಸಿ|KYCを確認|عرض التحقق من الهوية|Ver KYC
+The world of money|पैसों की दुनिया|ಹಣದ ಜಗತ್ತು|お金の世界|عالم المال|El mundo del dinero
+Financial news desk|वित्तीय समाचार केंद्र|ಹಣಕಾಸು ಸುದ್ದಿ ವಿಭಾಗ|金融ニュースデスク|مكتب الأخبار المالية|Centro de noticias financieras
+Markets, currencies and economic developments · Reuters|बाज़ार, मुद्राएँ और आर्थिक घटनाक्रम · Reuters|ಮಾರುಕಟ್ಟೆಗಳು, ಕರೆನ್ಸಿಗಳು ಮತ್ತು ಆರ್ಥಿಕ ಬೆಳವಣಿಗೆಗಳು · Reuters|市場、通貨、経済動向 · Reuters|الأسواق والعملات والتطورات الاقتصادية · رويترز|Mercados, divisas y novedades económicas · Reuters
+Official releases and policy updates · Reserve Bank of India|आधिकारिक घोषणाएँ और नीतिगत अपडेट · भारतीय रिज़र्व बैंक|ಅಧಿಕೃತ ಪ್ರಕಟಣೆಗಳು ಮತ್ತು ನೀತಿ ನವೀಕರಣಗಳು · ಭಾರತೀಯ ರಿಸರ್ವ್ ಬ್ಯಾಂಕ್|公式発表と政策更新 · インド準備銀行|البيانات الرسمية وتحديثات السياسات · بنك الاحتياطي الهندي|Comunicados oficiales y actualizaciones de políticas · Banco de la Reserva de la India
+Rates, inflation and euro-area announcements · ECB|दरें, महँगाई और यूरो क्षेत्र की घोषणाएँ · ECB|ದರಗಳು, ಹಣದುಬ್ಬರ ಮತ್ತು ಯೂರೋ ವಲಯದ ಪ್ರಕಟಣೆಗಳು · ECB|金利、インフレ、ユーロ圏の発表 · ECB|أسعار الفائدة والتضخم وإعلانات منطقة اليورو · البنك المركزي الأوروبي|Tipos de interés, inflación y anuncios de la zona euro · BCE
+Economic forecasts, financial stability and policy updates · IMF|आर्थिक पूर्वानुमान, वित्तीय स्थिरता और नीतिगत अपडेट · IMF|ಆರ್ಥಿಕ ಮುನ್ಸೂಚನೆಗಳು, ಹಣಕಾಸು ಸ್ಥಿರತೆ ಮತ್ತು ನೀತಿ ನವೀಕರಣಗಳು · IMF|経済予測、金融安定、政策更新 · IMF|التوقعات الاقتصادية والاستقرار المالي وتحديثات السياسات · صندوق النقد الدولي|Previsiones económicas, estabilidad financiera y actualizaciones de políticas · FMI
+Global development, growth and emerging-market updates · World Bank|वैश्विक विकास, वृद्धि और उभरते बाज़ारों की जानकारी · World Bank|ಜಾಗತಿಕ ಅಭಿವೃದ್ಧಿ, ಬೆಳವಣಿಗೆ ಮತ್ತು ಉದಯೋನ್ಮುಖ ಮಾರುಕಟ್ಟೆಗಳ ಮಾಹಿತಿ · 世界銀行|التنمية العالمية والنمو وتحديثات الأسواق الناشئة · البنك الدولي|Desarrollo global, crecimiento y novedades de mercados emergentes · Banco Mundial
+Business headlines, market movements and investor coverage · CNBC|व्यापार समाचार, बाज़ार की गतिविधियाँ और निवेशकों से जुड़ी खबरें · CNBC|ವ್ಯಾಪಾರ ಮುಖ್ಯಾಂಶಗಳು, ಮಾರುಕಟ್ಟೆ ಚಲನೆಗಳು ಮತ್ತು ಹೂಡಿಕೆದಾರರ ಸುದ್ದಿ · CNBC|ビジネスの見出し、市場動向、投資家向け情報 · CNBC|أبرز أخبار الأعمال وتحركات الأسواق وتغطية المستثمرين · CNBC|Noticias empresariales, movimientos del mercado e información para inversores · CNBC
+Opens the publishers' latest coverage. Headlines are not embedded in MoneyPal.|प्रकाशकों की नवीनतम खबरें खोलता है। समाचार शीर्षक MoneyPal में सीधे शामिल नहीं हैं।|ಪ್ರಕಾಶಕರ ಇತ್ತೀಚಿನ ಸುದ್ದಿಗಳನ್ನು ತೆರೆಯುತ್ತದೆ. ಸುದ್ದಿಶೀರ್ಷಿಕೆಗಳು MoneyPal ಒಳಗೆ ನೇರವಾಗಿ ಸೇರಿಲ್ಲ.|各出版社の最新記事を開きます。見出しはMoneyPal内に埋め込まれていません。|يفتح أحدث التغطيات لدى الناشرين. العناوين غير مضمّنة داخل MoneyPal.|Abre las últimas publicaciones de los medios. Los titulares no están integrados en MoneyPal.
+Your finances|आपकी वित्तीय जानकारी|ನಿಮ್ಮ ಹಣಕಾಸು|あなたの財務|شؤونك المالية|Tus finanzas
+Quick access|त्वरित पहुँच|ತ್ವರಿತ ಪ್ರವೇಶ|クイックアクセス|الوصول السريع|Acceso rápido
+
+Global markets|वैश्विक बाज़ार|ಜಾಗತಿಕ ಮಾರುಕಟ್ಟೆಗಳು|世界市場|الأسواق العالمية|Mercados globales
+Daily reference rates|दैनिक संदर्भ दरें|ದೈನಂದಿನ ಉಲ್ಲೇಖ ದರಗಳು|毎日の参照レート|أسعار الصرف المرجعية اليومية|Tipos de referencia diarios
+Your profile|आपकी प्रोफ़ाइल|ನಿಮ್ಮ ಪ್ರೊಫೈಲ್|あなたのプロフィール|ملفك الشخصي|Tu perfil
+The world of money|पैसों की दुनिया|ಹಣದ ಜಗತ್ತು|お金の世界|عالم المال|El mundo del dinero
+Your finances|आपकी वित्तीय जानकारी|ನಿಮ್ಮ ಹಣಕಾಸು|شؤونك المالية|شؤونك المالية|Tus finanzas
+Reference|संदर्भ|ಉಲ್ಲೇಖ|参照|مرجعي|Referencia
+Reference rates dated {0} · Source: Frankfurter|संदर्भ दरें दिनांक {0} · स्रोत: Frankfurter|ಉಲ್ಲೇಖ ದರಗಳ ದಿನಾಂಕ {0} · ಮೂಲ: Frankfurter|参照レートの日付：{0} · 出典：Frankfurter|أسعار الصرف المرجعية بتاريخ {0} · المصدر: Frankfurter|Tipos de referencia del {0} · Fuente: Frankfurter
+KYC verified|KYC सत्यापित|KYC ಪರಿಶೀಲಿಸಲಾಗಿದೆ|KYC確認済み|تم التحقق من الهوية|KYC verificado
+View KYC|KYC देखें|KYC ವೀಕ್ಷಿಸಿ|KYCを確認|عرض التحقق من الهوية|Ver KYC
+Opens the publishers' latest coverage. Headlines are not embedded in MoneyPal.|प्रकाशकों की नवीनतम खबरें खोलता है। समाचार शीर्षक MoneyPal में सीधे शामिल नहीं हैं।|ಪ್ರಕಾಶಕರ ಇತ್ತೀಚಿನ ಸುದ್ದಿಗಳನ್ನು ತೆರೆಯುತ್ತದೆ. ಸುದ್ದಿಶೀರ್ಷಿಕೆಗಳು MoneyPal ಒಳಗೆ ನೇರವಾಗಿ ಸೇರಿಲ್ಲ.|各出版社の最新記事を開きます。見出しはMoneyPal内に埋め込まれていません。|يفتح أحدث التغطيات لدى الناشرين. العناوين غير مضمّنة داخل MoneyPal.|Abre las últimas publicaciones de los medios. Los titulares no están integrados en MoneyPal.
 `;
