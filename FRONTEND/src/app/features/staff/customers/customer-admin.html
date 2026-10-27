@@ -1,35 +1,50 @@
 <app-workspace-shell>
   <main class="glass-card glass-card--wide customer-admin">
     <a routerLink="/dashboard" class="glass-link"> {{ '← Staff overview' | translate }} </a>
+
+    <!-- HERO -->
     <header class="customer-admin__header">
-      <div>
+      <div class="customer-admin__hero-copy">
         <p class="fd-eyebrow"> {{ 'Staff workspace' | translate }} </p>
-        <h2> {{ 'Customer management' | translate }} </h2>
+        <h2> {{ 'Customer management' | translate }}<span class="customer-admin__gold">.</span> </h2>
         <p class="glass-card__sub"> {{ 'Search customer profiles and update their name, risk category, and entity type.' | translate }} </p>
+        <span class="fd-admin-badge"> {{ 'STAFF ONLY' | translate }} </span>
       </div>
-      <span class="fd-admin-badge"> {{ 'STAFF ONLY' | translate }} </span>
+
+      <div class="customer-admin__hero-art" aria-hidden="true">
+        <div class="customer-admin__hero-orbit"></div>
+        <div class="customer-admin__hero-orbit customer-admin__hero-orbit--inner"></div>
+        <div class="customer-admin__hero-symbol">♙</div>
+        <span class="customer-admin__hero-spark customer-admin__hero-spark--one"></span>
+        <span class="customer-admin__hero-spark customer-admin__hero-spark--two"></span>
+      </div>
     </header>
 
+    <!-- SEARCH -->
     <form class="customer-search" (ngSubmit)="load(0)">
       <label class="glass-field">
         <span class="glass-field__label"> {{ 'Search name, customer ID, or username' | translate }} </span>
         <input name="search" [(ngModel)]="search" maxlength="120" autocomplete="off" />
       </label>
-      <button class="glass-btn" type="submit" [disabled]="loading"> {{ 'Search' | translate }} </button>
+      <button class="glass-btn customer-search__submit" type="submit" [disabled]="loading"> {{ 'Search' | translate }} </button>
     </form>
 
+    <!-- NOTICES -->
     <p class="glass-error" *ngIf="error" role="alert">{{ error | translate }}</p>
     <p class="customer-admin__success" *ngIf="message" role="status">{{ message | translate }}</p>
     <p class="fd-state" *ngIf="loading" role="status"> {{ 'Loading customers…' | translate }} </p>
 
-    <section *ngIf="!loading && page" [attr.aria-label]="'Customer results' | translate">
+    <!-- RESULTS -->
+    <section class="customer-admin__results" *ngIf="!loading && page" [attr.aria-label]="'Customer results' | translate">
       <p class="customer-admin__count"> {{ '{0} customer profile(s)' | translate: [(page.totalElements)] }} </p>
       <p class="fd-admin-info customer-admin__empty" *ngIf="page.content.length === 0"> {{ 'No customers matched this search. Try a name, customer ID or username.' | translate }} </p>
-      <article class="customer-row" *ngFor="let customer of page.content">
+
+      <article class="customer-row" *ngFor="let customer of page.content; let i = index" [style.--account-index]="i">
         <div class="customer-row__identity">
           <strong>{{ customer.fullName || 'Name not set' }}</strong>
           <span>{{ customer.customerNumber }} · {{ customer.username }}</span>
         </div>
+
         <div class="customer-row__fields">
           <label class="glass-field">
             <span class="glass-field__label"> {{ 'Full name' | translate }} </span>
@@ -50,13 +65,15 @@
             <app-glass-select [options]="entityOptions" [(ngModel)]="customer.legalEntityType" [name]="'entity-' + customer.id" />
           </label>
         </div>
+
         <div class="customer-row__actions">
-          <button class="glass-btn glass-btn--ghost" type="button" [disabled]="savingId === customer.id" (click)="save(customer)" [attr.aria-label]="'Save changes for {0}' | translate: [customer.fullName || customer.customerNumber]"> {{ (savingId === customer.id ? 'Saving…' : 'Save changes') | translate }} </button>
-          <button class="glass-btn glass-btn--ghost" type="button" [disabled]="resettingId === customer.id" (click)="resetMpin(customer)">{{(resetConfirmId===customer.id?'Confirm MPIN reset':'Reset MPIN')|translate}}</button>
+          <button class="glass-btn glass-btn--ghost customer-row__save" type="button" [disabled]="savingId === customer.id" (click)="save(customer)" [attr.aria-label]="'Save changes for {0}' | translate: [customer.fullName || customer.customerNumber]"> {{ (savingId === customer.id ? 'Saving…' : 'Save changes') | translate }} </button>
+          <button class="glass-btn glass-btn--ghost customer-row__reset" type="button" [disabled]="resettingId === customer.id" (click)="resetMpin(customer)">{{(resetConfirmId===customer.id?'Confirm MPIN reset':'Reset MPIN')|translate}}</button>
           <p *ngIf="resetConfirmId===customer.id">{{'Resetting MPIN removes the existing PIN and requires the customer to set a new one.'|translate}}</p>
           <a *ngIf="customer.kycAwaitingReview" routerLink="/staff/kyc" [queryParams]="{customerId:customer.id}" class="glass-btn glass-btn--ghost">{{'Review KYC'|translate}}</a>
         </div>
       </article>
+
       <nav class="customer-pages" *ngIf="page.totalPages > 1" [attr.aria-label]="'Customer pages' | translate">
         <button class="glass-btn glass-btn--ghost" type="button" [disabled]="page.first" (click)="load(page.number - 1)"> {{ 'Previous' | translate }} </button>
         <span> {{ 'Page {0} of {1}' | translate: [(page.number + 1), (page.totalPages)] }} </span>
