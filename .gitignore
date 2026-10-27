@@ -1,4 +1,29 @@
-**/target/
+# Generated Maven and Angular output (all modules)
+target/
+dist/
+node_modules/
+.angular/
+
+# Local environment files; keep configuration templates versioned
 .env
-.env.*.local
-.env.tmp
+.env.*
+!.env.example
+!.env.*.example
+!.env.sample
+!.env.*.sample
+!.env.template
+!.env.*.template
+
+# Temporary build/test logs
+*.log
+*.log.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+# Retained evidence referenced by the audit reports
+!/audit-reports/evidence/runtime-logs/*.log
+
+# Local Eclipse / Maven IDE metadata
+.project
+.classpath
+.settings/

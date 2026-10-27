@@ -1,4 +1,6 @@
+# Angular dependencies, build output, and cache
 node_modules/
 dist/
 .angular/
 target/
+# Shared environment and log rules are in the root .gitignore.

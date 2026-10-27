@@ -1,1 +1,3 @@
-/target/
+# Maven output, including nested modules
+target/
+# Shared environment, log, and Eclipse rules are in the root .gitignore.
