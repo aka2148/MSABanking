@@ -88,7 +88,7 @@ public class CustomerOfferController {
                             && bands.stream().noneMatch(b -> b.currencyCode().equals(c.code())))) return null;
             return new Offer(((Number) row.get("pro_product_id")).longValue(), (String) row.get("pro_product_code"),
                     (String) row.get("pro_product_name"), (String) row.get("pro_description"), required, base,
-                    currencies, bands, "FOREX".equals(required) ? "Indicative request only; no live exchange quote" : "Admin review required");
+                    currencies, bands, "FOREX".equals(required) ? "Own-account conversion using a static demo reference rate" : "Admin review required");
         } catch (Exception ex) {
             return null;
         }

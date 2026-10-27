@@ -26,19 +26,24 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Loan decisions and indicative forex requests live beside the savings ledger they affect. */
+/** Loan decisions and customer-owned forex conversions live beside the savings ledger they affect. */
 @RestController
 public class LoanForexController {
+    private static final BigDecimal FOREX_BANK_FEE_RATE = new BigDecimal("0.01");
     private final JdbcTemplate jdbc;
     private final RestClient products;
     private final MpinProofVerifier mpin;
     private final PostingService postings;
+    private final Map<String,BigDecimal> demoReferenceRates;
 
-    public LoanForexController(JdbcTemplate jdbc, @Value("${app.product.base-url:http://localhost:8082}") String productUrl,MpinProofVerifier mpin,PostingService postings) {
+    public LoanForexController(JdbcTemplate jdbc, @Value("${app.product.base-url:http://localhost:8082}") String productUrl,
+            MpinProofVerifier mpin, PostingService postings,
+            @Value("${app.forex.reference-rates:INR/USD=83.25}") String referenceRates) {
         this.jdbc = jdbc;
         this.products = RestClient.create(productUrl);
         this.mpin=mpin;
         this.postings=postings;
+        this.demoReferenceRates=parseDemoReferenceRates(referenceRates);
     }
 
     @GetMapping("/api/v1/loans")
@@ -159,35 +164,116 @@ public class LoanForexController {
         if(rows.isEmpty())throw notFound();return rows.get(0);
     }
 
+    @GetMapping("/api/v1/forex-quote")
+    public ForexQuote forexQuote(Authentication actor,HttpServletRequest http,
+            @RequestParam @Min(1) long productId,@RequestParam @DecimalMin("0.01") BigDecimal amount,
+            @RequestParam @NotBlank String fundingCurrencyCode,@RequestParam @NotBlank String destinationCurrencyCode,
+            @RequestParam @Min(1) long sourceSavingsAccountId,@RequestParam @Min(1) long destinationSavingsAccountId) {
+        long customer=userId(actor);
+        CustomerProductAccess.requireVerified(customer);
+        requireCustomerActive(customer);
+        ForexTerms terms=forexTerms(productId,amount,fundingCurrencyCode,destinationCurrencyCode,http);
+        ForexAccountChoice source=requireForexAccounts(customer,sourceSavingsAccountId,destinationSavingsAccountId,terms.funding(),terms.destination());
+        if(source.balance().compareTo(terms.totalDebit())<0) throw conflict("Insufficient funds for the conversion and fee");
+        return new ForexQuote(terms.amount(),terms.funding().code(),terms.destination().code(),terms.referenceRate(),
+                terms.markupRate(),terms.customerRate(),terms.fee(),terms.totalDebit(),terms.destinationAmount(),"STATIC_DEMO");
+    }
+
     @PostMapping("/api/v1/forex-requests") @ResponseStatus(HttpStatus.CREATED) @Transactional
     public Map<String,Object> forexRequest(Authentication actor,HttpServletRequest http,
-            @RequestHeader("Idempotency-Key") @NotBlank @Size(max=255) String key,@RequestHeader(value="X-MPIN-Proof",required=false) String proof,@Valid @RequestBody ForexRequest request) {
+            @RequestHeader("Idempotency-Key") @NotBlank @Size(max=255) String key,
+            @RequestHeader(value="X-MPIN-Proof",required=false) String proof,@Valid @RequestBody ForexRequest request) {
         long customer=userId(actor);
         CustomerProductAccess.requireVerified(customer);
         Long replay=jdbc.query("SELECT fr_id FROM forex_requests WHERE fr_customer_id=? AND fr_idempotency_key=?",rs->rs.next()?rs.getLong(1):null,customer,key);
         if (replay!=null) {
             Map<String,Object> existing=forexOne(actor,replay);
+            Object oldSource=existing.get("sourceSavingsAccountId"),oldDestination=existing.get("destinationSavingsAccountId");
             if (((Number)existing.get("productId")).longValue()!=request.productId()
                     || ((BigDecimal)existing.get("amount")).compareTo(request.amount())!=0
                     || !request.fundingCurrencyCode().equalsIgnoreCase((String)existing.get("fundingCurrency"))
-                    || !request.destinationCurrencyCode().equalsIgnoreCase((String)existing.get("destinationCurrency"))) throw conflict("Idempotency key already belongs to another forex request");
+                    || !request.destinationCurrencyCode().equalsIgnoreCase((String)existing.get("destinationCurrency"))
+                    || !(oldSource instanceof Number sourceId) || sourceId.longValue()!=request.sourceSavingsAccountId()
+                    || !(oldDestination instanceof Number destinationId) || destinationId.longValue()!=request.destinationSavingsAccountId()
+                    || !sameDecimal(existing.get("referenceRate"),request.referenceRate())
+                    || !sameDecimal(existing.get("markupRate"),request.markupRate())
+                    || !sameDecimal(existing.get("customerRate"),request.customerRate())
+                    || !sameDecimal(existing.get("fee"),request.fee())
+                    || !sameDecimal(existing.get("totalDebit"),request.totalDebit())
+                    || !sameDecimal(existing.get("destinationAmount"),request.destinationAmount()))
+                throw conflict("Idempotency key already belongs to another forex conversion");
             return existing;
         }
-        String proofJti=mpin.verify(actor,proof,"FOREX_REQUEST",customer,MpinProofVerifier.canonical("FOREX_REQUEST",request.productId(),request.amount(),request.fundingCurrencyCode(),request.destinationCurrencyCode()));
+        String proofJti=mpin.verify(actor,proof,"FOREX_REQUEST",customer,MpinProofVerifier.canonical("FOREX_REQUEST",
+                request.productId(),request.amount(),request.fundingCurrencyCode(),request.destinationCurrencyCode(),
+                request.sourceSavingsAccountId(),request.destinationSavingsAccountId(),request.referenceRate(),request.markupRate(),
+                request.customerRate(),request.fee(),request.totalDebit(),request.destinationAmount()));
         requireCustomerActive(customer);
-        JsonNode offer=offer("FOREX",request.productId(),http);
-        String base=offer.path("baseCurrencyCode").asText();
-        if (!base.equalsIgnoreCase(request.fundingCurrencyCode()) || base.equalsIgnoreCase(request.destinationCurrencyCode())) throw bad("Select the configured funding and destination currencies");
-        Currency funding=currency(offer,base);
-        Currency destination=currency(offer,request.destinationCurrencyCode());
-        BigDecimal amount=amount(request.amount(),funding);
-        BigDecimal markup=rate(offer,destination.code(),amount);
+        ForexTerms terms=forexTerms(request.productId(),request.amount(),request.fundingCurrencyCode(),request.destinationCurrencyCode(),http);
+        if(!sameDecimal(terms.referenceRate(),request.referenceRate())||!sameDecimal(terms.markupRate(),request.markupRate())
+                ||!sameDecimal(terms.customerRate(),request.customerRate())||!sameDecimal(terms.fee(),request.fee())
+                ||!sameDecimal(terms.totalDebit(),request.totalDebit())||!sameDecimal(terms.destinationAmount(),request.destinationAmount()))
+            throw conflict("Forex quote changed; calculate a new quote before confirming");
+        ForexAccountChoice source=requireForexAccounts(customer,request.sourceSavingsAccountId(),request.destinationSavingsAccountId(),terms.funding(),terms.destination());
+        if(source.balance().compareTo(terms.totalDebit())<0) throw conflict("Insufficient funds for the conversion and fee");
         mpin.consume(proofJti,customer,"FOREX_REQUEST");
         try {
-            jdbc.update("INSERT INTO forex_requests(fr_customer_id,fr_product_id,fr_product_name,fr_funding_currency_id,fr_destination_currency_id,fr_amount,fr_markup_rate,fr_fee,fr_idempotency_key) VALUES(?,?,?,?,?,?,?,0,?)",
-                    customer,request.productId(),offer.path("productName").asText(),funding.id(),destination.id(),amount,markup,key);
-        } catch (DuplicateKeyException ex) { throw conflict("Forex request is already being processed"); }
-        return forexOne(actor,jdbc.queryForObject("SELECT LAST_INSERT_ID()",Long.class));
+            jdbc.update("INSERT INTO forex_requests(fr_customer_id,fr_product_id,fr_product_name,fr_funding_currency_id,fr_destination_currency_id,fr_amount,fr_markup_rate,fr_fee,fr_reference_rate,fr_customer_rate,fr_destination_amount,fr_total_debit,fr_source_savings_account_id,fr_destination_savings_account_id,fr_status,fr_idempotency_key) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,'COMPLETED',?)",
+                    customer,request.productId(),terms.productName(),terms.funding().id(),terms.destination().id(),terms.amount(),
+                    terms.markupRate(),terms.fee(),terms.referenceRate(),terms.customerRate(),terms.destinationAmount(),terms.totalDebit(),
+                    request.sourceSavingsAccountId(),request.destinationSavingsAccountId(),key);
+        } catch (DuplicateKeyException ex) { throw conflict("Forex conversion is already being processed"); }
+        long id=jdbc.queryForObject("SELECT LAST_INSERT_ID()",Long.class);
+        postings.postForexConversion(customer,request.sourceSavingsAccountId(),request.destinationSavingsAccountId(),
+                terms.funding().id(),terms.destination().id(),terms.amount(),terms.fee(),terms.destinationAmount(),
+                "FOREX:"+id,actor.getName());
+        return forexOne(actor,id);
+    }
+
+    private ForexTerms forexTerms(long productId,BigDecimal requestedAmount,String fundingCode,String destinationCode,HttpServletRequest http) {
+        JsonNode offer=offer("FOREX",productId,http);
+        String base=offer.path("baseCurrencyCode").asText();
+        if (!base.equalsIgnoreCase(fundingCode) || base.equalsIgnoreCase(destinationCode)) throw bad("Select the configured funding and destination currencies");
+        Currency funding=currency(offer,base);
+        Currency destination=currency(offer,destinationCode);
+        BigDecimal principal=amount(requestedAmount,funding);
+        BigDecimal markup=rate(offer,destination.code(),principal);
+        BigDecimal reference=demoReferenceRates.get(funding.code()+"/"+destination.code());
+        if(reference==null) throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                "No static demo reference rate is configured for "+funding.code()+"/"+destination.code());
+        BigDecimal customerRate=reference.multiply(BigDecimal.ONE.add(markup)).setScale(12,RoundingMode.HALF_UP);
+        BigDecimal converted=principal.divide(customerRate,destination.decimals(),RoundingMode.HALF_UP);
+        amount(converted,destination);
+        BigDecimal fee=principal.multiply(FOREX_BANK_FEE_RATE).setScale(funding.decimals(),RoundingMode.HALF_UP);
+        BigDecimal totalDebit=principal.add(fee).setScale(funding.decimals(),RoundingMode.UNNECESSARY);
+        return new ForexTerms(offer.path("productName").asText(),funding,destination,principal,markup,reference,customerRate,fee,totalDebit,converted);
+    }
+
+    private ForexAccountChoice requireForexAccounts(long customer,long sourceId,long destinationId,Currency funding,Currency destination) {
+        if(sourceId==destinationId) throw bad("Source and destination savings accounts must differ");
+        List<ForexAccountChoice> accounts=jdbc.query(
+                "SELECT sa_account_id,sa_currency_id,sa_status,sa_balance FROM savings_accounts WHERE sa_account_id IN (?,?) AND sa_holder_id=? ORDER BY sa_account_id",
+                (rs,n)->new ForexAccountChoice(rs.getLong(1),rs.getLong(2),rs.getString(3),rs.getBigDecimal(4)),sourceId,destinationId,customer);
+        if(accounts.size()!=2) throw bad("Choose two savings accounts owned by you");
+        ForexAccountChoice source=accounts.stream().filter(account->account.id()==sourceId).findFirst().orElseThrow();
+        ForexAccountChoice target=accounts.stream().filter(account->account.id()==destinationId).findFirst().orElseThrow();
+        if(!"ACTIVE".equals(source.status())||!"ACTIVE".equals(target.status())) throw bad("Both savings accounts must be active");
+        if(source.currencyId()!=funding.id()||target.currencyId()!=destination.id()) throw bad("Selected account currencies do not match the conversion currencies");
+        return source;
+    }
+
+    private Map<String,BigDecimal> parseDemoReferenceRates(String configured) {
+        Map<String,BigDecimal> rates=new HashMap<>();
+        if(configured==null||configured.isBlank()) return Map.of();
+        for(String entry:configured.split(",")) {
+            String[] pair=entry.trim().split("=",2);
+            if(pair.length!=2||!pair[0].contains("/")) throw new IllegalArgumentException("Forex demo rates must use FUNDING/DESTINATION=RATE format");
+            String key=pair[0].trim().toUpperCase(java.util.Locale.ROOT);
+            BigDecimal value=new BigDecimal(pair[1].trim());
+            if(value.signum()<=0) throw new IllegalArgumentException("Forex demo reference rates must be positive");
+            rates.put(key,value.setScale(12,RoundingMode.HALF_UP));
+        }
+        return Map.copyOf(rates);
     }
 
     private JsonNode offer(String family,long id,HttpServletRequest request) {
@@ -249,15 +335,28 @@ public class LoanForexController {
     private Map<String,Object> lockedLoan(long id) {Map<String,Object> row=jdbc.query("SELECT * FROM loan_applications WHERE la_id=? FOR UPDATE",rs->{if(!rs.next())return null;Map<String,Object> values=new HashMap<>();for(String field:List.of("la_customer_id","la_product_id","la_requested_amount","la_approved_amount","la_currency_id","la_tenure_months","la_destination_savings_id","la_status","la_rejection_reason"))values.put(field,rs.getObject(field));return values;},id);if(row==null)throw notFound();return row;}
     private void event(long id,String status,long actor,String reason){jdbc.update("INSERT INTO loan_application_events(le_application_id,le_status,le_actor_id,le_reason) VALUES(?,?,?,?)",id,status,actor,reason);}
     private List<Map<String,Object>> events(long id){return jdbc.queryForList("SELECT le_id id,le_status status,le_actor_id actorId,le_reason reason,le_created_at createdAt FROM loan_application_events WHERE le_application_id=? ORDER BY le_id",id);}
-    private String forexSelect(){return "SELECT f.fr_id id,f.fr_product_id productId,f.fr_product_name productName,f.fr_amount amount,a.fcr_iso_code fundingCurrency,b.fcr_iso_code destinationCurrency,f.fr_markup_rate markupRate,f.fr_fee fee,f.fr_status status,f.fr_created_at createdAt FROM forex_requests f JOIN fd_currency_ref a ON a.fcr_currency_id=f.fr_funding_currency_id JOIN fd_currency_ref b ON b.fcr_currency_id=f.fr_destination_currency_id";}
+    private String forexSelect(){return "SELECT f.fr_id id,f.fr_product_id productId,f.fr_product_name productName,f.fr_amount amount,a.fcr_iso_code fundingCurrency,b.fcr_iso_code destinationCurrency,f.fr_markup_rate markupRate,f.fr_fee fee,f.fr_reference_rate referenceRate,f.fr_customer_rate customerRate,f.fr_destination_amount destinationAmount,f.fr_total_debit totalDebit,f.fr_source_savings_account_id sourceSavingsAccountId,f.fr_destination_savings_account_id destinationSavingsAccountId,CASE WHEN s.sa_account_number IS NULL THEN NULL ELSE CONCAT('••••',RIGHT(s.sa_account_number,4)) END sourceAccount,CASE WHEN d.sa_account_number IS NULL THEN NULL ELSE CONCAT('••••',RIGHT(d.sa_account_number,4)) END destinationAccount,f.fr_status status,f.fr_created_at createdAt FROM forex_requests f JOIN fd_currency_ref a ON a.fcr_currency_id=f.fr_funding_currency_id JOIN fd_currency_ref b ON b.fcr_currency_id=f.fr_destination_currency_id LEFT JOIN savings_accounts s ON s.sa_account_id=f.fr_source_savings_account_id LEFT JOIN savings_accounts d ON d.sa_account_id=f.fr_destination_savings_account_id";}
     private long userId(Authentication actor){Object value=actor.getDetails() instanceof Map<?,?> details?details.get("userId"):null;if(!(value instanceof Number number)||number.longValue()<=0)throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,"Token lacks customer identity");return number.longValue();}
     private void requireCustomerActive(long user){String status=jdbc.query("SELECT fur_user_status FROM fd_user_ref WHERE fur_user_id=?",rs->rs.next()?rs.getString(1):null,user);if(!"ACTIVE".equals(status))throw conflict("Customer account is not active");}
     private int scale(long currency){Integer result=jdbc.queryForObject("SELECT fcr_decimal_places FROM fd_currency_ref WHERE fcr_currency_id=?",Integer.class,currency);return result==null?2:result;}
+    private boolean sameDecimal(Object stored,BigDecimal requested){return stored instanceof BigDecimal value&&value.compareTo(requested)==0;}
     private ResponseStatusException bad(String message){return new ResponseStatusException(HttpStatus.BAD_REQUEST,message);}
     private ResponseStatusException conflict(String message){return new ResponseStatusException(HttpStatus.CONFLICT,message);}
     private ResponseStatusException notFound(){return new ResponseStatusException(HttpStatus.NOT_FOUND,"Application or request not found");}
     private record Currency(long id,String code,BigDecimal minimum,BigDecimal maximum,int decimals){}
+    private record ForexAccountChoice(long id,long currencyId,String status,BigDecimal balance){}
+    private record ForexTerms(String productName,Currency funding,Currency destination,BigDecimal amount,
+            BigDecimal markupRate,BigDecimal referenceRate,BigDecimal customerRate,BigDecimal fee,
+            BigDecimal totalDebit,BigDecimal destinationAmount){}
+    public record ForexQuote(BigDecimal amount,String fundingCurrency,String destinationCurrency,
+            BigDecimal referenceRate,BigDecimal markupRate,BigDecimal customerRate,BigDecimal fee,
+            BigDecimal totalDebit,BigDecimal destinationAmount,String quoteType){}
     public record LoanRequest(@NotNull @Min(1) Long productId,@NotNull @DecimalMin("0.01") BigDecimal amount,@NotBlank String currencyCode,@Min(1) int tenureMonths,@NotBlank @Size(max=500) String purpose,@NotNull @Min(1) Long destinationSavingsAccountId){}
     public record Rejection(@NotBlank @Size(max=500) String reason){}
-    public record ForexRequest(@NotNull @Min(1) Long productId,@NotNull @DecimalMin("0.01") BigDecimal amount,@NotBlank String fundingCurrencyCode,@NotBlank String destinationCurrencyCode){}
+    public record ForexRequest(@NotNull @Min(1) Long productId,@NotNull @DecimalMin("0.01") BigDecimal amount,
+            @NotBlank String fundingCurrencyCode,@NotBlank String destinationCurrencyCode,
+            @NotNull @Min(1) Long sourceSavingsAccountId,@NotNull @Min(1) Long destinationSavingsAccountId,
+            @NotNull @DecimalMin("0.000000000001") BigDecimal referenceRate,@NotNull @DecimalMin("0.0") BigDecimal markupRate,
+            @NotNull @DecimalMin("0.000000000001") BigDecimal customerRate,@NotNull @DecimalMin("0.0") BigDecimal fee,
+            @NotNull @DecimalMin("0.01") BigDecimal totalDebit,@NotNull @DecimalMin("0.01") BigDecimal destinationAmount){}
 }

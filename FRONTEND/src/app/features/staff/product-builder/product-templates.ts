@@ -148,14 +148,14 @@ export const PRODUCT_TEMPLATES: readonly ProductTemplate[] = [
     pricing: HOME_LOAN_PRICING,
   },
   {
-    key: 'forex-remittance', name: 'Forex Remittance', family: 'FOREX', categoryCode: 'FOREX',
-    productCode: 'FOREX_REMIT_USD', description: 'Sample INR-funded remittance to USD using a supplied reference rate.',
+    key: 'forex-own-account', name: 'Own-account Forex Conversion', family: 'FOREX', categoryCode: 'FOREX',
+    productCode: 'FOREX_CONVERT_USD', description: 'Sample conversion between customer-owned INR and USD savings accounts using a static demo reference rate.',
     attributes: { FUNDING_CURRENCY: 'INR', DESTINATION_CURRENCIES: 'USD' },
     currencies: [
       { code: 'INR', minimumAmount: 1000, maximumAmount: 1000000 },
       { code: 'USD', minimumAmount: 10, maximumAmount: 12000 },
     ],
     pricing: [{ currencyCode: 'USD', from: 1000, to: 1000000, ratePercent: 1 }],
-    limitation: 'Conversion preview requires a supplied reference rate; live exchange-rate lookup is not part of Product Service.',
+    limitation: 'The customer flow uses a static demo reference rate; live exchange-rate lookup is not part of this lab.',
   },
 ];

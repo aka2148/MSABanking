@@ -14,6 +14,8 @@ MoneyPal forex|मनीपाल विदेशी मुद्रा|ಮನ�
 Forex services|विदेशी मुद्रा सेवाएँ|ವಿದೇಶಿ ವಿನಿಮಯ ಸೇವೆಗಳು|外国為替サービス|خدمات الصرف الأجنبي|Servicios de divisas
 My forex requests|मेरे विदेशी मुद्रा अनुरोध|ನನ್ನ ವಿದೇಶಿ ವಿನಿಮಯ ವಿನಂತಿಗಳು|外国為替の申請一覧|طلبات الصرف الخاصة بي|Mis solicitudes de divisas
 Forex request|विदेशी मुद्रा अनुरोध|ವಿದೇಶಿ ವಿನಿಮಯ ವಿನಂತಿ|外国為替の申請|طلب صرف أجنبي|Solicitud de divisas
+My forex conversions|मेरे विदेशी मुद्रा रूपांतरण|ನನ್ನ ವಿದೇಶಿ ವಿನಿಮಯ ಪರಿವರ್ತನೆಗಳು|自分の外国為替両替|تحويلات الصرف الخاصة بي|Mis conversiones de divisas
+Forex conversion|विदेशी मुद्रा रूपांतरण|ವಿದೇಶಿ ವಿನಿಮಯ ಪರಿವರ್ತನೆ|外国為替の両替|تحويل العملات|Conversión de divisas
 Indicative requests only. No live quote, currency trade, or funds transfer is performed.|केवल सांकेतिक अनुरोध। कोई लाइव दर, मुद्रा व्यापार या धन हस्तांतरण नहीं होता।|ಸೂಚಕ ವಿನಂತಿಗಳು ಮಾತ್ರ. ನೇರ ದರ, ಕರೆನ್ಸಿ ವ್ಯಾಪಾರ ಅಥವಾ ಹಣ ವರ್ಗಾವಣೆ ನಡೆಯುವುದಿಲ್ಲ.|参考申請のみです。実勢レートの提示、為替取引、送金は行いません。|طلبات استرشادية فقط. لا يتم تقديم سعر مباشر أو تداول عملة أو تحويل أموال.|Solo solicitudes orientativas. No se cotiza, negocia ni transfiere dinero.
 Browse forex|विदेशी मुद्रा देखें|ವಿದೇಶಿ ವಿನಿಮಯ ವೀಕ್ಷಿಸಿ|外国為替を見る|تصفح الصرف الأجنبي|Explorar divisas
 My requests|मेरे अनुरोध|ನನ್ನ ವಿನಂತಿಗಳು|申請一覧|طلباتي|Mis solicitudes
@@ -24,9 +26,15 @@ Destination currency|गंतव्य मुद्रा|ಗಮ್ಯಸ್ಥ
 Funding amount|वित्तपोषण राशि|ಹಣಕಾಸು ಮೊತ್ತ|支払金額|مبلغ التمويل|Importe de financiación
 Indicative configured markup|निर्धारित सांकेतिक मार्जिन|ಸೂಚಕ ನಿಗದಿತ ಮಾರ್ಕಪ್|設定された参考上乗せ率|الهامش الاسترشادي المحدد|Margen orientativo configurado
 Enter an amount within a supported band|समर्थित सीमा में राशि दर्ज करें|ಬೆಂಬಲಿತ ಮಿತಿಯೊಳಗೆ ಮೊತ್ತ ನಮೂದಿಸಿ|対応する範囲内で金額を入力|أدخل مبلغاً ضمن النطاق المدعوم|Introduce un importe dentro del rango admitido
-No live reference rate is supplied, so a destination amount cannot be quoted. No fee is charged for recording this request.|लाइव दर न होने से गंतव्य राशि नहीं बताई जा सकती। अनुरोध दर्ज करने का कोई शुल्क नहीं है।|ನೇರ ದರ ಇಲ್ಲದ ಕಾರಣ ಗಮ್ಯಸ್ಥಾನದ ಮೊತ್ತ ನೀಡಲಾಗುವುದಿಲ್ಲ. ವಿನಂತಿ ದಾಖಲಿಸಲು ಶುಲ್ಕವಿಲ್ಲ.|実勢レートがないため受取金額は提示できません。申請の記録に手数料はかかりません。|لا يتوفر سعر مباشر لتقدير مبلغ الوجهة. لا تُفرض رسوم لتسجيل الطلب.|Sin tipo de referencia en vivo no se cotiza el importe de destino. Registrar esta solicitud es gratuito.
+No live reference rate is supplied, so a destination amount cannot be quoted.|लाइव दर न होने से गंतव्य राशि नहीं बताई जा सकती।|ನೇರ ದರ ಇಲ್ಲದ ಕಾರಣ ಗಮ್ಯಸ್ಥಾನದ ಮೊತ್ತ ನೀಡಲಾಗುವುದಿಲ್ಲ.|実勢レートがないため受取金額は提示できません。|لا يتوفر سعر مباشر لتقدير مبلغ الوجهة.|Sin tipo de referencia en vivo no se cotiza el importe de destino.
+Bank fee (1%)|बैंक शुल्क (1%)|ಬ್ಯಾಂಕ್ ಶುಲ್ಕ (1%)|銀行手数料（1%）|رسوم البنك (1%)|Comisión bancaria (1%)
+Bank fee|बैंक शुल्क|ಬ್ಯಾಂಕ್ ಶುಲ್ಕ|銀行手数料|رسوم البنك|Comisión bancaria
+The 1% bank fee is recorded with the request; this indicative request does not debit or exchange funds.|1% बैंक शुल्क अनुरोध में दर्ज होगा; इस सांकेतिक अनुरोध में कोई धनराशि नहीं कटेगी या बदली जाएगी।|1% ಬ್ಯಾಂಕ್ ಶುಲ್ಕವನ್ನು ವಿನಂತಿಯೊಂದಿಗೆ ದಾಖಲಿಸಲಾಗುತ್ತದೆ; ಈ ಸೂಚಕ ವಿನಂತಿಯಲ್ಲಿ ಹಣ ಕಡಿತವಾಗುವುದಿಲ್ಲ ಅಥವಾ ವಿನಿಮಯವಾಗುವುದಿಲ್ಲ.|1%の銀行手数料は申請に記録されます。この参考申請では資金の引き落としや両替は行われません。|يُسجَّل رسم البنك بنسبة 1% مع الطلب؛ ولا يتم خصم الأموال أو صرفها في هذا الطلب الاسترشادي.|La comisión bancaria del 1% queda registrada con la solicitud; esta solicitud indicativa no debita ni cambia fondos.
+Recorded (no approval required)|दर्ज किया गया (अनुमोदन आवश्यक नहीं)|ದಾಖಲಾಗಿದೆ (ಅನುಮೋದನೆ ಅಗತ್ಯವಿಲ್ಲ)|記録済み（承認不要）|تم التسجيل (لا يتطلب موافقة)|Registrada (no requiere aprobación)
+Open an active savings account in both selected currencies before submitting. Missing: {0}.|जमा करने से पहले चुनी गई दोनों मुद्राओं में सक्रिय बचत खाता खोलें। अनुपलब्ध: {0}.|ಸಲ್ಲಿಸುವ ಮೊದಲು ಆಯ್ಕೆ ಮಾಡಿದ ಎರಡೂ ಕರೆನ್ಸಿಗಳಲ್ಲಿ ಸಕ್ರಿಯ ಉಳಿತಾಯ ಖಾತೆ ತೆರೆಯಿರಿ. ಇಲ್ಲದವು: {0}.|送信する前に、選択した両方の通貨で有効な普通預金口座を開設してください。不足：{0}。|افتح حساب توفير نشطاً بكلتا العملتين المحددتين قبل الإرسال. الحسابات الناقصة: {0}.|Abre una cuenta de ahorro activa en ambas monedas seleccionadas antes de enviar. Faltan: {0}.
 Record request|अनुरोध दर्ज करें|ವಿನಂತಿ ದಾಖಲಿಸಿ|申請を記録|تسجيل الطلب|Registrar solicitud
 You have no forex requests yet.|आपका कोई विदेशी मुद्रा अनुरोध नहीं है।|ನಿಮ್ಮ ವಿದೇಶಿ ವಿನಿಮಯ ವಿನಂತಿಗಳು ಇನ್ನೂ ಇಲ್ಲ.|外国為替の申請はまだありません。|ليس لديك طلبات صرف بعد.|Aún no tienes solicitudes de divisas.
+You have no conversions yet.|अभी तक कोई रूपांतरण नहीं हुआ है।|ಇನ್ನೂ ಯಾವುದೇ ಪರಿವರ್ತನೆಗಳಿಲ್ಲ.|両替履歴はまだありません。|لا توجد تحويلات حتى الآن.|Aún no tienes conversiones.
 View request|अनुरोध देखें|ವಿನಂತಿ ವೀಕ್ಷಿಸಿ|申請を表示|عرض الطلب|Ver solicitud
 Configured markup|निर्धारित मार्जिन|ನಿಗದಿತ ಮಾರ್ಕಪ್|設定上乗せ率|الهامش المحدد|Margen configurado
 Request fee|अनुरोध शुल्क|ವಿನಂತಿ ಶುಲ್ಕ|申請手数料|رسوم الطلب|Comisión de solicitud
@@ -286,4 +294,32 @@ Transfer completed. Reference: {0}|हस्तांतरण पूरा ह�
 Recent savings history|हाल की बचत गतिविधि|ಇತ್ತೀಚಿನ ಉಳಿತಾಯ ಇತಿಹಾಸ|最近の貯蓄履歴|سجل المدخرات الأخير|Historial reciente de ahorros
 No transactions to show.|दिखाने के लिए कोई लेनदेन नहीं है।|ತೋರಿಸಲು ಯಾವುದೇ ವಹಿವಾಟುಗಳಿಲ್ಲ.|表示する取引はありません。|لا توجد معاملات لعرضها.|No hay transacciones para mostrar.
 Balance after|बाद की शेष राशि|ನಂತರದ ಬಾಕಿ|処理後残高|الرصيد بعد العملية|Saldo posterior
-Posted|पोस्ट किया गया|ದಾಖಲಿಸಲಾಗಿದೆ|記録日時|وقت التسجيل|Registrado`;
+Posted|पोस्ट किया गया|ದಾಖಲಿಸಲಾಗಿದೆ|記録日時|وقت التسجيل|Registrado
+Convert funds between your own savings accounts using a static demo rate.|स्थिर डेमो दर का उपयोग करके अपने बचत खातों के बीच धन बदलें।|ಸ್ಥಿರ ಡೆಮೊ ದರ ಬಳಸಿ ನಿಮ್ಮ ಉಳಿತಾಯ ಖಾತೆಗಳ ನಡುವೆ ಹಣ ಪರಿವರ್ತಿಸಿ.|固定デモレートを使って自分の普通預金口座間で両替します。|حوّل الأموال بين حسابات التوفير الخاصة بك باستخدام سعر تجريبي ثابت.|Convierte fondos entre tus propias cuentas de ahorro con un tipo de cambio de demostración fijo.
+Convert between own accounts|अपने खातों के बीच मुद्रा बदलें|ಸ್ವಂತ ಖಾತೆಗಳ ನಡುವೆ ಪರಿವರ್ತಿಸಿ|自分の口座間で両替|التحويل بين حساباتك|Convertir entre cuentas propias
+Source savings account|स्रोत बचत खाता|ಮೂಲ ಉಳಿತಾಯ ಖಾತೆ|引落元の普通預金口座|حساب التوفير المصدر|Cuenta de ahorro de origen
+Destination savings account|गंतव्य बचत खाता|ಗಮ್ಯ ಉಳಿತಾಯ ಖಾತೆ|入金先の普通預金口座|حساب التوفير المستهدف|Cuenta de ahorro de destino
+Select source account|स्रोत खाता चुनें|ಮೂಲ ಖಾತೆ ಆಯ್ಕೆಮಾಡಿ|引落元口座を選択|اختر الحساب المصدر|Selecciona la cuenta de origen
+Select destination account|गंतव्य खाता चुनें|ಗಮ್ಯ ಖಾತೆ ಆಯ್ಕೆಮಾಡಿ|入金先口座を選択|اختر الحساب المستهدف|Selecciona la cuenta de destino
+Amount to convert|बदलने की राशि|ಪರಿವರ್ತಿಸಬೇಕಾದ ಮೊತ್ತ|両替する金額|المبلغ المراد تحويله|Importe a convertir
+Configured markup|निर्धारित मार्जिन|ನಿಗದಿತ ಮಾರ್ಕಪ್|設定された上乗せ率|الهامش المحدد|Margen configurado
+The configured markup is applied to the static demo reference rate.|स्थिर डेमो संदर्भ दर पर निर्धारित मार्जिन लागू होगा।|ಸ್ಥಿರ ಡೆಮೊ ಉಲ್ಲೇಖ ದರಕ್ಕೆ ನಿಗದಿತ ಮಾರ್ಕಪ್ ಅನ್ವಯವಾಗುತ್ತದೆ.|固定デモ参照レートに設定された上乗せ率を適用します。|يُطبّق الهامش المحدد على سعر الصرف التجريبي الثابت.|Se aplica el margen configurado al tipo de referencia de demostración fijo.
+You need active savings accounts in both currencies to convert funds.|मुद्रा बदलने के लिए दोनों मुद्राओं में सक्रिय बचत खाते चाहिए।|ಹಣ ಪರಿವರ್ತಿಸಲು ಎರಡೂ ಕರೆನ್ಸಿಗಳಲ್ಲಿ ಸಕ್ರಿಯ ಉಳಿತಾಯ ಖಾತೆಗಳು ಅಗತ್ಯ.|両替するには両通貨の有効な普通預金口座が必要です。|تحتاج إلى حسابي توفير نشطين بالعملتين لتحويل الأموال.|Necesitas cuentas de ahorro activas en ambas monedas para convertir fondos.
+Calculate conversion quote|रूपांतरण दर की गणना करें|ಪರಿವರ್ತನೆ ದರ ಲೆಕ್ಕಿಸಿ|両替の見積もりを計算|احسب عرض التحويل|Calcular cotización de conversión
+Calculating…|गणना हो रही है…|ಲೆಕ್ಕಿಸಲಾಗುತ್ತಿದೆ…|計算中…|جارٍ الحساب…|Calculando…
+Conversion quote|रूपांतरण विवरण|ಪರಿವರ್ತನೆ ಉಲ್ಲೇಖ|両替見積もり|عرض التحويل|Cotización de conversión
+Demo reference rate|डेमो संदर्भ दर|ಡೆಮೊ ಉಲ್ಲೇಖ ದರ|デモ参照レート|سعر الصرف التجريبي|Tipo de referencia de demostración
+Rate after configured markup|निर्धारित मार्जिन के बाद की दर|ನಿಗದಿತ ಮಾರ್ಕಪ್ ನಂತರದ ದರ|上乗せ適用後のレート|السعر بعد الهامش المحدد|Tipo tras el margen configurado
+Conversion amount|रूपांतरण राशि|ಪರಿವರ್ತನೆ ಮೊತ್ತ|両替金額|مبلغ التحويل|Importe de conversión
+Total source debit|स्रोत खाते से कुल कटौती|ಮೂಲ ಖಾತೆಯಿಂದ ಒಟ್ಟು ಕಡಿತ|引落元口座からの合計引落額|إجمالي الخصم من الحساب المصدر|Débito total de la cuenta de origen
+Destination account credit|गंतव्य खाते में जमा|ಗಮ್ಯ ಖಾತೆಗೆ ಜಮಾ|入金先口座への入金額|المبلغ المضاف إلى الحساب المستهدف|Abono en la cuenta de destino
+This is a static demo rate, not a live bank quote.|यह स्थिर डेमो दर है, बैंक की लाइव दर नहीं।|ಇದು ಸ್ಥಿರ ಡೆಮೊ ದರ, ಬ್ಯಾಂಕಿನ ನೇರ ದರವಲ್ಲ.|これは固定デモレートで、銀行の実勢レートではありません。|هذا سعر تجريبي ثابت وليس سعرًا مباشرًا من البنك.|Este tipo fijo de demostración no es una cotización bancaria en vivo.
+Confirm conversion|रूपांतरण की पुष्टि करें|ಪರಿವರ್ತನೆ ದೃಢೀಕರಿಸಿ|両替を確定|تأكيد التحويل|Confirmar conversión
+Converting…|रूपांतरण हो रहा है…|ಪರಿವರ್ತಿಸಲಾಗುತ್ತಿದೆ…|両替中…|جارٍ التحويل…|Convirtiendo…
+Conversion completed|रूपांतरण पूरा हुआ|ಪರಿವರ್ತನೆ ಪೂರ್ಣಗೊಂಡಿದೆ|両替が完了しました|اكتمل التحويل|Conversión completada
+View conversion|रूपांतरण देखें|ಪರಿವರ್ತನೆ ವೀಕ್ಷಿಸಿ|両替を表示|عرض التحويل|Ver conversión
+Conversion principal|रूपांतरण मूल राशि|ಪರಿವರ್ತನೆ ಮೂಲ ಮೊತ್ತ|両替元本|أصل مبلغ التحويل|Principal de conversión
+Source account|स्रोत खाता|ಮೂಲ ಖಾತೆ|引落元口座|الحساب المصدر|Cuenta de origen
+Recorded|दर्ज किया गया|ದಾಖಲಾಗಿದೆ|記録済み|تم التسجيل|Registrado
+Funds were moved between the selected savings accounts using the static demo rate.|स्थिर डेमो दर पर चुने गए बचत खातों के बीच धन स्थानांतरित हुआ।|ಸ್ಥಿರ ಡೆಮೊ ದರದಲ್ಲಿ ಆಯ್ದ ಉಳಿತಾಯ ಖಾತೆಗಳ ನಡುವೆ ಹಣ ವರ್ಗಾಯಿಸಲಾಗಿದೆ.|固定デモレートで選択した普通預金口座間の資金移動が行われました。|تم نقل الأموال بين حسابي التوفير المحددين باستخدام سعر تجريبي ثابت.|Los fondos se movieron entre las cuentas de ahorro seleccionadas con el tipo de demostración fijo.
+This older request was recorded without a conversion.|यह पुराना अनुरोध रूपांतरण किए बिना दर्ज हुआ था।|ಈ ಹಳೆಯ ವಿನಂತಿಯನ್ನು ಪರಿವರ್ತನೆ ಮಾಡದೆ ದಾಖಲಿಸಲಾಗಿದೆ.|以前の申請は両替せずに記録されました。|تم تسجيل هذا الطلب السابق دون إجراء تحويل.|Esta solicitud anterior se registró sin conversión.`;

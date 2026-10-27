@@ -44,6 +44,8 @@ app:
     required: ${APP_MPIN_REQUIRED:true}
   product:
     base-url: ${PRODUCT_SERVICE_URL:http://localhost:8082}
+  forex:
+    reference-rates: ${APP_FOREX_REFERENCE_RATES:INR/USD=83.25}
   kafka:
     enabled: ${KAFKA_ENABLED:false}
   jwt:

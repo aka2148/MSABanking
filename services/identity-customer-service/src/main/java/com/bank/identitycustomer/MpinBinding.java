@@ -14,7 +14,7 @@ final class MpinBinding {
         "FD_CLOSE", List.of("fdId"),
         "FD_PREMATURE_REQUEST", List.of("fdId"),
         "LOAN_APPLICATION", List.of("productId", "amount", "currencyCode", "tenureMonths", "destinationSavingsAccountId"),
-        "FOREX_REQUEST", List.of("productId", "amount", "fundingCurrencyCode", "destinationCurrencyCode"),
+        "FOREX_REQUEST", List.of("productId", "amount", "fundingCurrencyCode", "destinationCurrencyCode", "sourceSavingsAccountId", "destinationSavingsAccountId", "referenceRate", "markupRate", "customerRate", "fee", "totalDebit", "destinationAmount"),
         "KYC_REAPPLY", List.of("customerUserId", "cycleNumber"),
         "WITHDRAWAL", List.of("accountId", "amount")
     );

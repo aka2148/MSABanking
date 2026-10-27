@@ -93,6 +93,59 @@ public class PostingService {
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
+    public ForexPostingResult postForexConversion(long customerId, long fromId, long toId,
+            long fundingCurrencyId, long destinationCurrencyId, BigDecimal principal, BigDecimal fee,
+            BigDecimal destinationAmount, String reference, String actorUsername) {
+        if (fromId == toId) throw bad("Source and destination savings accounts must differ");
+        List<ForexAccount> accounts = jdbc.query(
+                "SELECT sa_account_id,sa_currency_id,sa_balance,sa_status FROM savings_accounts " +
+                        "WHERE sa_account_id IN (?,?) AND sa_holder_id=? ORDER BY sa_account_id FOR UPDATE",
+                (rs, n) -> new ForexAccount(rs.getLong(1), rs.getLong(2), rs.getBigDecimal(3), rs.getString(4)),
+                fromId, toId, customerId);
+        if (accounts.size() != 2) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Savings account not found");
+        Map<Long, ForexAccount> byId = new HashMap<>();
+        for (ForexAccount account : accounts) byId.put(account.id(), account);
+        ForexAccount source = byId.get(fromId), destination = byId.get(toId);
+        if (source == null || destination == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Savings account not found");
+        if (source.currencyId() != fundingCurrencyId || destination.currencyId() != destinationCurrencyId)
+            throw bad("Selected savings account currency does not match the forex conversion");
+        if (!"ACTIVE".equals(source.status()) || !"ACTIVE".equals(destination.status()))
+            throw conflict("Both savings accounts must be active");
+
+        int fundingScale = currencyScale(fundingCurrencyId);
+        int destinationScale = currencyScale(destinationCurrencyId);
+        BigDecimal fundingPrincipal = scaled(principal, fundingScale);
+        BigDecimal fundingFee = exactScale(fee, fundingScale);
+        BigDecimal destinationCredit = scaled(destinationAmount, destinationScale);
+        BigDecimal totalDebit = fundingPrincipal.add(fundingFee).setScale(fundingScale, RoundingMode.UNNECESSARY);
+        BigDecimal sourceAfter = source.balance().subtract(totalDebit).setScale(fundingScale, RoundingMode.UNNECESSARY);
+        BigDecimal destinationAfter = destination.balance().add(destinationCredit).setScale(destinationScale, RoundingMode.UNNECESSARY);
+        if (sourceAfter.signum() < 0) throw conflict("Insufficient funds for the conversion and fee");
+
+        jdbc.update("UPDATE savings_accounts SET sa_balance=?,sa_row_version=sa_row_version+1 WHERE sa_account_id=?", sourceAfter, fromId);
+        jdbc.update("UPDATE savings_accounts SET sa_balance=?,sa_row_version=sa_row_version+1 WHERE sa_account_id=?", destinationAfter, toId);
+        String sourceRemarks = "Forex conversion #" + reference + " (principal and fee)";
+        String destinationRemarks = "Forex conversion #" + reference;
+        jdbc.update("INSERT INTO savings_transactions(st_reference_id,st_account_id,st_entry_type,st_amount,st_currency_id,st_balance_after,st_remarks,st_posted_at) " +
+                        "VALUES(?,?,'DEBIT',?,?,?,?,UTC_TIMESTAMP(6)),(?,?,'CREDIT',?,?,?,?,UTC_TIMESTAMP(6))",
+                reference, fromId, totalDebit, fundingCurrencyId, sourceAfter, sourceRemarks,
+                reference, toId, destinationCredit, destinationCurrencyId, destinationAfter, destinationRemarks);
+
+        BigDecimal zeroFunding = BigDecimal.ZERO.setScale(fundingScale);
+        List<LedgerLine> sourceLines = new ArrayList<>(List.of(
+                new LedgerLine("SAVINGS", fromId, totalDebit, zeroFunding),
+                new LedgerLine("FOREX_CLEARING", null, zeroFunding, fundingPrincipal)));
+        if (fundingFee.signum() > 0)
+            sourceLines.add(new LedgerLine("FOREX_FEE_INCOME", null, zeroFunding, fundingFee));
+        postJournal(reference + ":SOURCE", null, fromId, fundingCurrencyId, "FOREX", actorUsername, sourceAfter, sourceLines);
+        BigDecimal zeroDestination = BigDecimal.ZERO.setScale(destinationScale);
+        postJournal(reference + ":DESTINATION", null, toId, destinationCurrencyId, "FOREX", actorUsername, destinationAfter,
+                List.of(new LedgerLine("FOREX_CLEARING", null, destinationCredit, zeroDestination),
+                        new LedgerLine("SAVINGS", toId, zeroDestination, destinationCredit)));
+        return new ForexPostingResult(totalDebit, sourceAfter, destinationAfter, destinationCredit);
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
     public long postJournal(String key, Long fdAccountId, long savingsAccountId, long currencyId,
             String operation, String actorUsername, BigDecimal savingsBalanceAfter, List<LedgerLine> lines) {
         int scale = currencyScale(currencyId);
@@ -165,4 +218,7 @@ public class PostingService {
     public record LedgerLine(String accountCode, Long savingsAccountId, BigDecimal debit, BigDecimal credit) {}
     public record MovementResult(String reference, BigDecimal balanceAfter, BigDecimal amount) {}
     public record TransferResult(BigDecimal fromBalanceAfter, BigDecimal toBalanceAfter, BigDecimal amount) {}
+    public record ForexPostingResult(BigDecimal totalDebit, BigDecimal sourceBalanceAfter,
+                                     BigDecimal destinationBalanceAfter, BigDecimal destinationAmount) {}
+    private record ForexAccount(long id, long currencyId, BigDecimal balance, String status) {}
 }

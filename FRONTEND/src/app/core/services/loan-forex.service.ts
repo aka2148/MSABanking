@@ -43,7 +43,13 @@ export interface LoanApplication {
 export interface LoanEvent { id: number; status: string; actorId: number; reason: string | null; createdAt: string; }
 export interface ForexRequest {
   id: number; productId: number; productName: string; amount: number; fundingCurrency: string; destinationCurrency: string;
-  markupRate: number; fee: number; status: 'REQUESTED' | 'CANCELLED'; createdAt: string;
+  markupRate: number; fee: number; referenceRate: number | null; customerRate: number | null; destinationAmount: number | null;
+  totalDebit: number | null; sourceSavingsAccountId: number | null; destinationSavingsAccountId: number | null;
+  sourceAccount: string | null; destinationAccount: string | null; status: 'REQUESTED' | 'CANCELLED' | 'COMPLETED'; createdAt: string;
+}
+export interface ForexQuote {
+  amount: number; fundingCurrency: string; destinationCurrency: string; referenceRate: number; markupRate: number;
+  customerRate: number; fee: number; totalDebit: number; destinationAmount: number; quoteType: 'STATIC_DEMO';
 }
 
 @Injectable({ providedIn: 'root' })
@@ -72,7 +78,10 @@ export class LoanForexService {
   disburse(id: number): Observable<LoanApplication> { return this.http.post<LoanApplication>(apiUrl(this.base, `/api/v1/admin/loans/${id}/disburse`), {}); }
   forexRequests(): Observable<ForexRequest[]> { return this.http.get<ForexRequest[]>(apiUrl(this.base, '/api/v1/forex-requests')); }
   forexRequest(id: number): Observable<ForexRequest> { return this.http.get<ForexRequest>(apiUrl(this.base, `/api/v1/forex-requests/${id}`)); }
-  requestForex(body: { productId: number; amount: number; fundingCurrencyCode: string; destinationCurrencyCode: string }, key: string,proof:string): Observable<ForexRequest> {
+  quoteForex(body: { productId: number; amount: number; fundingCurrencyCode: string; destinationCurrencyCode: string; sourceSavingsAccountId: number; destinationSavingsAccountId: number }): Observable<ForexQuote> {
+    return this.http.get<ForexQuote>(apiUrl(this.base, '/api/v1/forex-quote'), { params: body });
+  }
+  requestForex(body: { productId: number; amount: number; fundingCurrencyCode: string; destinationCurrencyCode: string; sourceSavingsAccountId: number; destinationSavingsAccountId: number; referenceRate: number; markupRate: number; customerRate: number; fee: number; totalDebit: number; destinationAmount: number }, key: string,proof:string): Observable<ForexRequest> {
     return this.http.post<ForexRequest>(apiUrl(this.base, '/api/v1/forex-requests'), body, { headers: { 'Idempotency-Key': key,'X-MPIN-Proof':proof } });
   }
 }

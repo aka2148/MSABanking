@@ -2,9 +2,9 @@
   <main class="glass-card workflow-page">
     <header class="workflow-page__hero"><div class="workflow-page__hero-copy">
       <p class="workflow-page__eyebrow"><span class="workflow-page__eyebrow-dot"></span>{{'MoneyPal forex'|translate}}</p>
-      <h2>{{(mode==='catalog'?'Forex services':mode==='product'?offer?.productName:mode==='requests'?'My forex requests':'Forex request')|translate}}<span class="workflow-page__gold">.</span></h2>
-      <p class="workflow-page__intro">{{'Indicative requests only. No live quote, currency trade, or funds transfer is performed.'|translate}}</p>
-      <nav class="workflow-page__paths"><a class="glass-btn glass-btn--ghost workflow-page__path" [class.workflow-page__path--primary]="mode==='catalog'||mode==='product'" routerLink="/forex">{{'Browse forex'|translate}}</a><a class="glass-btn glass-btn--ghost workflow-page__path" [class.workflow-page__path--primary]="mode==='requests'||mode==='detail'" routerLink="/forex/requests">{{'My requests'|translate}}</a></nav>
+      <h2>{{(mode==='catalog'?'Forex services':mode==='product'?offer?.productName:mode==='requests'?'My forex conversions':'Forex conversion')|translate}}<span class="workflow-page__gold">.</span></h2>
+      <p class="workflow-page__intro">{{'Convert funds between your own savings accounts using a static demo rate.'|translate}}</p>
+      <nav class="workflow-page__paths"><a class="glass-btn glass-btn--ghost workflow-page__path" [class.workflow-page__path--primary]="mode==='catalog'||mode==='product'" routerLink="/forex">{{'Browse forex'|translate}}</a><a class="glass-btn glass-btn--ghost workflow-page__path" [class.workflow-page__path--primary]="mode==='requests'||mode==='detail'" routerLink="/forex/requests">{{'My conversions'|translate}}</a></nav>
     </div></header>
     <app-customer-product-warning (blockedChange)="productAccessBlocked=$event" />
     <div class="workflow-page__notices" aria-live="polite"><p class="workflow-page__loading-state" *ngIf="loading">{{'Loading…'|translate}}</p><p role="alert" class="glass-error" *ngIf="error">{{error|translate}} <a *ngIf="error.includes('KYC verification is still pending')" routerLink="/kyc">{{'Go to KYC'|translate}}</a></p></div>
@@ -13,28 +13,42 @@
       <div class="workflow-page__grid"><article class="workflow-page__tile" *ngFor="let item of offers">
         <div class="workflow-page__tile-top"><div class="workflow-page__tile-identity"><h3>{{item.productName|translate}}</h3><p>{{item.description|translate}}</p></div></div>
         <div class="workflow-page__ranges"><p>{{'Funding currency'|translate}}: {{item.baseCurrencyCode}}</p><p>{{'Destination currency'|translate}}: <span class="workflow-page__pill" *ngFor="let currency of item.currencies">{{currency.code}}</span></p></div>
-        <a class="glass-btn glass-btn--ghost" [routerLink]="['/forex',item.productId]">{{'Create an indicative request'|translate}}</a>
+        <a class="glass-btn glass-btn--ghost" [routerLink]="['/forex',item.productId]">{{'Convert between own accounts'|translate}}</a>
       </article></div>
     </section>
     <section class="workflow-page__panel" *ngIf="mode==='product'&&offer as product">
       <p class="workflow-page__lead">{{product.description|translate}}</p>
       <form class="workflow-page__form" [formGroup]="form" (ngSubmit)="submit()">
         <label class="glass-field"><span class="glass-field__label">{{'Funding currency'|translate}}</span><input [value]="product.baseCurrencyCode" disabled /></label>
+        <label class="glass-field"><span class="glass-field__label">{{'Source savings account'|translate}}</span><app-glass-select formControlName="sourceSavingsAccountId" [options]="fundingAccountOptions" [translateOptions]="false" placeholder="Select source account" /></label>
         <label class="glass-field"><span class="glass-field__label">{{'Destination currency'|translate}}</span><app-glass-select formControlName="destinationCurrencyCode" [options]="currencyOptions" [translateOptions]="false" /></label>
-        <label class="glass-field"><span class="glass-field__label">{{'Funding amount'|translate}}</span><input type="number" step="0.01" min="0.01" formControlName="amount" /></label>
-        <label class="glass-field"><span class="glass-field__label">{{'MPIN'|translate}}</span><app-mpin-input [(ngModel)]="mpin" [ngModelOptions]="{standalone:true}" /></label>
-        <a class="glass-link" *ngIf="mpinNotSet" routerLink="/mpin">{{'Set up your MPIN'|translate}}</a>
-        <div class="workflow-page__tile"><h3>{{'Indicative configured markup'|translate}}</h3><p *ngIf="markup==null">{{'Enter an amount within a supported band'|translate}}</p><p *ngIf="markup!=null">{{markup!*100|number:'1.2-2'}}%</p><p class="workflow-page__note">{{'No live reference rate is supplied, so a destination amount cannot be quoted. No fee is charged for recording this request.'|translate}}</p></div>
-        <button class="glass-btn" type="submit" [disabled]="productAccessBlocked||busy">{{(busy?'Submitting…':'Record request')|translate}}</button>
+        <label class="glass-field"><span class="glass-field__label">{{'Destination savings account'|translate}}</span><app-glass-select formControlName="destinationSavingsAccountId" [options]="destinationAccountOptions" [translateOptions]="false" placeholder="Select destination account" /></label>
+        <label class="glass-field"><span class="glass-field__label">{{'Amount to convert'|translate}}</span><input type="number" step="0.01" min="0.01" formControlName="amount" /></label>
+        <div class="workflow-page__tile"><h3>{{'Configured markup'|translate}}</h3><p *ngIf="markup==null">{{'Enter an amount within a supported band'|translate}}</p><p *ngIf="markup!=null">{{markup!*100|number:'1.2-2'}}%</p><p class="workflow-page__note">{{'The configured markup is applied to the static demo reference rate.'|translate}}</p></div>
+        <p role="alert" class="glass-error" *ngIf="!loading&&(!fundingAccounts.length||!destinationAccounts.length)">{{'You need active savings accounts in both currencies to convert funds.'|translate}} <a routerLink="/savings">{{'Savings accounts'|translate}}</a></p>
+        <button class="glass-btn" type="button" (click)="requestQuote()" [disabled]="productAccessBlocked||!canRequestQuote">{{(quoteBusy?'Calculating…':'Calculate conversion quote')|translate}}</button>
+        <div class="workflow-page__tile" *ngIf="quote as q"><h3>{{'Conversion quote'|translate}}</h3>
+          <p>{{'Demo reference rate'|translate}}: 1 {{q.destinationCurrency}} = {{q.referenceRate|number:'1.2-8'}} {{q.fundingCurrency}}</p>
+          <p>{{'Rate after configured markup'|translate}}: 1 {{q.destinationCurrency}} = {{q.customerRate|number:'1.2-8'}} {{q.fundingCurrency}} ({{q.markupRate*100|number:'1.2-2'}}%)</p>
+          <p>{{'Conversion amount'|translate}}: {{q.amount|number:'1.2-8'}} {{q.fundingCurrency}}</p>
+          <p>{{'Bank fee (1%)'|translate}}: {{q.fee|number:'1.2-8'}} {{q.fundingCurrency}}</p>
+          <p>{{'Total source debit'|translate}}: {{q.totalDebit|number:'1.2-8'}} {{q.fundingCurrency}}</p>
+          <p class="workflow-page__amount">{{'Destination account credit'|translate}}: {{q.destinationAmount|number:'1.2-8'}} {{q.destinationCurrency}}</p>
+          <p class="workflow-page__note">{{'This is a static demo rate, not a live bank quote.'|translate}}</p>
+        </div>
+        <label class="glass-field" *ngIf="quote"><span class="glass-field__label">{{'MPIN'|translate}}</span><app-mpin-input [(ngModel)]="mpin" [ngModelOptions]="{standalone:true}" /></label>
+        <a class="glass-link" *ngIf="quote&&mpinNotSet" routerLink="/mpin">{{'Set up your MPIN'|translate}}</a>
+        <button class="glass-btn" type="submit" *ngIf="quote" [disabled]="productAccessBlocked||busy||loading">{{(busy?'Converting…':'Confirm conversion')|translate}}</button>
       </form>
     </section>
     <section class="workflow-page__list" *ngIf="mode==='requests'&&!loading">
-      <div class="workflow-page__empty" *ngIf="!requests.length"><h4>{{'You have no forex requests yet.'|translate}}</h4></div>
-      <div class="workflow-page__grid"><article class="workflow-page__tile" *ngFor="let item of requests"><h3>{{item.productName|translate}} · #{{item.id}}</h3><p class="workflow-page__amount">{{item.amount|number:'1.2-2'}} {{item.fundingCurrency}} → {{item.destinationCurrency}}</p><p class="workflow-page__status">{{item.status|translate}}</p><p>{{item.createdAt|date:'medium'}}</p><a class="glass-btn glass-btn--ghost" [routerLink]="['/forex/requests',item.id]">{{'View request'|translate}}</a></article></div>
+      <div class="workflow-page__empty" *ngIf="!requests.length"><h4>{{'You have no conversions yet.'|translate}}</h4></div>
+      <div class="workflow-page__grid"><article class="workflow-page__tile" *ngFor="let item of requests"><h3>{{item.productName|translate}} · #{{item.id}}</h3><p class="workflow-page__amount">{{item.amount|number:'1.2-8'}} {{item.fundingCurrency}} → {{item.destinationAmount==null?'—':(item.destinationAmount|number:'1.2-8')}} {{item.destinationCurrency}}</p><p class="workflow-page__status">{{requestStatus(item.status)|translate}}</p><p>{{item.createdAt|date:'medium'}}</p><a class="glass-btn glass-btn--ghost" [routerLink]="['/forex/requests',item.id]">{{'View conversion'|translate}}</a></article></div>
     </section>
-    <section class="workflow-page__panel" *ngIf="mode==='detail'&&request as item"><p class="workflow-page__status">{{item.status|translate}}</p><h3>{{item.productName|translate}}</h3>
-      <dl class="workflow-page__facts"><div><dt>{{'Funding amount'|translate}}</dt><dd>{{item.amount|number:'1.2-2'}} {{item.fundingCurrency}}</dd></div><div><dt>{{'Destination'|translate}}</dt><dd>{{item.destinationCurrency}}</dd></div><div><dt>{{'Configured markup'|translate}}</dt><dd>{{item.markupRate*100|number:'1.2-2'}}%</dd></div><div><dt>{{'Request fee'|translate}}</dt><dd>{{item.fee|number:'1.2-2'}} {{item.fundingCurrency}}</dd></div><div><dt>{{'Recorded'|translate}}</dt><dd>{{item.createdAt|date:'medium'}}</dd></div></dl>
-      <h3>{{'History'|translate}}</h3><ol class="workflow-page__history"><li>{{'Request recorded'|translate}} · {{item.createdAt|date:'medium'}}</li></ol>
+    <section class="workflow-page__panel" *ngIf="mode==='detail'&&request as item"><p class="workflow-page__status">{{requestStatus(item.status)|translate}}</p><h3>{{item.productName|translate}}</h3>
+      <dl class="workflow-page__facts"><div><dt>{{'Conversion principal'|translate}}</dt><dd>{{item.amount|number:'1.2-8'}} {{item.fundingCurrency}}</dd></div><div *ngIf="item.totalDebit!=null"><dt>{{'Total source debit'|translate}}</dt><dd>{{item.totalDebit|number:'1.2-8'}} {{item.fundingCurrency}}</dd></div><div *ngIf="item.destinationAmount!=null"><dt>{{'Destination account credit'|translate}}</dt><dd>{{item.destinationAmount|number:'1.2-8'}} {{item.destinationCurrency}}</dd></div><div><dt>{{'Source account'|translate}}</dt><dd>{{item.sourceAccount||'—'}}</dd></div><div><dt>{{'Destination account'|translate}}</dt><dd>{{item.destinationAccount||'—'}}</dd></div><div *ngIf="item.referenceRate!=null"><dt>{{'Demo reference rate'|translate}}</dt><dd>1 {{item.destinationCurrency}} = {{item.referenceRate|number:'1.2-8'}} {{item.fundingCurrency}}</dd></div><div><dt>{{'Configured markup'|translate}}</dt><dd>{{item.markupRate*100|number:'1.2-2'}}%</dd></div><div><dt>{{'Bank fee (1%)'|translate}}</dt><dd>{{item.fee|number:'1.2-8'}} {{item.fundingCurrency}}</dd></div><div><dt>{{'Recorded'|translate}}</dt><dd>{{item.createdAt|date:'medium'}}</dd></div></dl>
+      <p class="workflow-page__note">{{(item.status==='COMPLETED'?'Funds were moved between the selected savings accounts using the static demo rate.':'This older request was recorded without a conversion.')|translate}}</p>
+      <h3>{{'History'|translate}}</h3><ol class="workflow-page__history"><li>{{(item.status==='COMPLETED'?'Conversion completed':'Request recorded')|translate}} · {{item.createdAt|date:'medium'}}</li></ol>
     </section>
   </main>
 </app-workspace-shell>
