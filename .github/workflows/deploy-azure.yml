@@ -1,0 +1,98 @@
+name: Deploy Azure demo
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.dockerignore'
+      - 'docker-compose.yml'
+      - 'docker-compose.azure.yml'
+      - 'services/**'
+      - 'FRONTEND/**'
+      - 'infra/azure-demo/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: azure-demo-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Sign in to Azure with GitHub OIDC
+        uses: azure/login@8c334a195cbb38e46038007b304988d888bf676a # pinned per GitHub's OIDC guide
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and deploy the pushed commit
+        shell: bash
+        env:
+          DEPLOY_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_SHA" =~ ^[0-9a-f]{40}$ ]]
+
+          remote_script="$RUNNER_TEMP/deploy-on-vm.sh"
+          cat > "$remote_script" <<'REMOTE_SCRIPT'
+          set -euo pipefail
+          set +x
+          deploy_sha=__DEPLOY_SHA__
+          [[ "$deploy_sha" =~ ^[0-9a-f]{40}$ ]]
+
+          work_dir="$(mktemp -d /tmp/banking-lab-deploy.XXXXXX)"
+          trap 'rm -rf "$work_dir"' EXIT
+          curl --fail --show-error --location --retry 3 --connect-timeout 15 --max-time 900 \
+            "https://github.com/aka2148/MSABanking/archive/${deploy_sha}.tar.gz" \
+            --output "$work_dir/source.tar.gz"
+          mkdir "$work_dir/source"
+          tar -xzf "$work_dir/source.tar.gz" --strip-components=1 -C "$work_dir/source"
+          rm -f "$work_dir/source/.env"
+          test -f "$work_dir/source/docker-compose.azure.yml"
+
+          install -d -m 0750 /opt/banking-lab
+          cp -a "$work_dir/source/." /opt/banking-lab/
+          cd /opt/banking-lab
+          test -f .env
+          chmod 0600 .env
+          docker compose --file docker-compose.yml --file docker-compose.azure.yml config --quiet
+          COMPOSE_PARALLEL_LIMIT=1 docker compose --file docker-compose.yml --file docker-compose.azure.yml build
+          COMPOSE_PARALLEL_LIMIT=1 docker compose --file docker-compose.yml --file docker-compose.azure.yml up --detach --remove-orphans
+
+          healthy=false
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:4200/gateway/health >/dev/null; then
+              healthy=true
+              break
+            fi
+            sleep 5
+          done
+          if [[ "$healthy" != true ]]; then
+            docker compose --file docker-compose.yml --file docker-compose.azure.yml ps
+            echo 'deployment_health=FAILED'
+            exit 1
+          fi
+          printf 'deployment_health=UP\ndeployment_sha=%s\n' "$deploy_sha"
+          REMOTE_SCRIPT
+
+          sed -i "s/__DEPLOY_SHA__/$DEPLOY_SHA/" "$remote_script"
+          encoded_script="$(base64 --wrap=0 "$remote_script")"
+          result="$(az vm run-command invoke \
+            --resource-group rg-banking-lab-demo-ci \
+            --name vm-banking-lab-demo \
+            --command-id RunShellScript \
+            --scripts "printf '%s' '$encoded_script' | base64 -d | bash" \
+            --query 'value[0].message' \
+            --output tsv)"
+          printf '%s\n' "$result"
+          grep -F "deployment_health=UP" <<< "$result"
+          grep -F "deployment_sha=$DEPLOY_SHA" <<< "$result"

@@ -20,15 +20,29 @@ public class FdBatchScheduler {
         this.batches = batches;
     }
 
-    @Scheduled(cron = "${app.fd.batch.schedule.cron:0 0 0 * * *}", zone = "UTC")
-    public void runDaily() {
-        FdBatchService.DailyBatchResult result = batches.runDaily(clock.businessDate());
+    @Scheduled(cron = "${app.fd.batch.schedule.interest-cron:0 0 0 * * *}",
+            zone = "${app.fd.batch.schedule.zone:Asia/Kolkata}")
+    public void runInterestAccrual() {
+        FdBatchService.BatchResult result = batches.accrue(clock.businessDate());
         if (result.accountsFailed() > 0) {
-            log.error("Scheduled FD batch completed with {} failed accounts for {}: {}",
+            log.error("Scheduled FD interest batch completed with {} failed accounts for {}: {}",
                     result.accountsFailed(), result.businessDate(), result.failedAccountIds());
         } else {
-            log.info("Scheduled FD batch completed for {}: {} accounts examined, {} accrual accounts, {} maturities",
-                    result.businessDate(), result.accountsExamined(), result.accrualsProcessed(), result.maturitiesProcessed());
+            log.info("Scheduled FD interest batch completed for {}: {} accounts and {} accrual rows",
+                    result.businessDate(), result.accountsProcessed(), result.accrualRowsCreated());
+        }
+    }
+
+    @Scheduled(cron = "${app.fd.batch.schedule.maturity-cron:0 0 1 * * *}",
+            zone = "${app.fd.batch.schedule.zone:Asia/Kolkata}")
+    public void runMaturityBatch() {
+        FdBatchService.DailyBatchResult result = batches.runDaily(clock.businessDate());
+        if (result.accountsFailed() > 0) {
+            log.error("Scheduled FD maturity batch completed with {} failed accounts for {}: {}",
+                    result.accountsFailed(), result.businessDate(), result.failedAccountIds());
+        } else {
+            log.info("Scheduled FD maturity batch completed for {}: {} accounts examined, {} maturities",
+                    result.businessDate(), result.accountsExamined(), result.maturitiesProcessed());
         }
     }
 }

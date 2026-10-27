@@ -1,0 +1,75 @@
+# Azure overlay: keep the existing Compose services but replace local MySQL
+# containers with a private Azure Database for MySQL Flexible Server.
+services:
+  kafka:
+    ports: !reset []
+    mem_limit: 1536m
+    environment:
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+
+  customer-db:
+    profiles: [local]
+    ports: !reset []
+
+  product-db:
+    profiles: [local]
+    ports: !reset []
+
+  fd-db:
+    profiles: [local]
+    ports: !reset []
+
+  identity-customer-service:
+    depends_on: !override
+      kafka:
+        condition: service_healthy
+    ports: !reset []
+    mem_limit: 1280m
+    environment:
+      CUSTOMER_DB_URL: jdbc:mysql://${MYSQL_HOST}:3306/moneypal_customer?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&sslMode=VERIFY_IDENTITY
+      CUSTOMER_DB_USERNAME: ${CUSTOMER_DB_USERNAME:?Set CUSTOMER_DB_USERNAME}
+      CUSTOMER_DB_PASSWORD: ${CUSTOMER_DB_PASSWORD:?Set CUSTOMER_DB_PASSWORD}
+      DEMO_ADMIN_USERNAME: ${DEMO_ADMIN_USERNAME:-}
+      DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:-}
+
+  product-service:
+    depends_on: !override
+      kafka:
+        condition: service_healthy
+    ports: !reset []
+    mem_limit: 1024m
+    environment:
+      PRODUCT_DB_URL: jdbc:mysql://${MYSQL_HOST}:3306/moneypal_product?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&sslMode=VERIFY_IDENTITY
+      PRODUCT_DB_USERNAME: ${PRODUCT_DB_USERNAME:?Set PRODUCT_DB_USERNAME}
+      PRODUCT_DB_PASSWORD: ${PRODUCT_DB_PASSWORD:?Set PRODUCT_DB_PASSWORD}
+
+  fd-account-service:
+    depends_on: !override
+      kafka:
+        condition: service_healthy
+    ports: !reset []
+    mem_limit: 1536m
+    environment:
+      FD_DB_URL: jdbc:mysql://${MYSQL_HOST}:3306/moneypal_fd?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&sslMode=VERIFY_IDENTITY
+      FD_DB_USERNAME: ${FD_DB_USERNAME:?Set FD_DB_USERNAME}
+      FD_DB_PASSWORD: ${FD_DB_PASSWORD:?Set FD_DB_PASSWORD}
+      FD_BATCH_SCHEDULE_ENABLED: "true"
+      FD_BATCH_INTEREST_CRON: "0 0 0 * * *"
+      FD_BATCH_MATURITY_CRON: "0 0 1 * * *"
+      FD_BATCH_ZONE: Asia/Kolkata
+      FD_BUSINESS_ZONE: Asia/Kolkata
+
+  kafka-ui:
+    profiles: [local]
+    ports: !reset []
+
+  api-gateway:
+    ports: !reset []
+    mem_limit: 256m
+
+  frontend:
+    ports: !override
+      - 127.0.0.1:4200:80
+    mem_limit: 128m
