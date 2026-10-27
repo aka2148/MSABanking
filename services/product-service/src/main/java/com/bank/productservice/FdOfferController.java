@@ -25,8 +25,10 @@ public class FdOfferController {
     private static final Set<String> ALLOWED_COMPOUNDING = Set.of("MONTHLY", "QUARTERLY", "YEARLY");
     private static final Set<String> ALLOWED_PAYOUT = Set.of("AT_MATURITY");
 
-    private final JdbcTemplate jdbc; private final ObjectMapper json; private final FixedDepositCategories fdCategories;
-    public FdOfferController(JdbcTemplate jdbc,ObjectMapper json,FixedDepositCategories fdCategories){this.jdbc=jdbc;this.json=json;this.fdCategories=fdCategories;}
+    private final JdbcTemplate jdbc; private final ObjectMapper json; private final FixedDepositCategories fdCategories; private final FdComplianceService compliance;
+    @org.springframework.beans.factory.annotation.Autowired
+    public FdOfferController(JdbcTemplate jdbc,ObjectMapper json,FixedDepositCategories fdCategories,FdComplianceService compliance){this.jdbc=jdbc;this.json=json;this.fdCategories=fdCategories;this.compliance=compliance;}
+    public FdOfferController(JdbcTemplate jdbc,ObjectMapper json,FixedDepositCategories fdCategories){this(jdbc,json,fdCategories,new FdComplianceService(jdbc));}
 
     @PostMapping @ResponseStatus(HttpStatus.CREATED) @Transactional
     public OfferResponse create(@Valid @RequestBody OfferRequest request){
@@ -88,6 +90,7 @@ public class FdOfferController {
         OfferResponse offer=response(productId);
         if("ACTIVE".equals(offer.status()))throw new ResponseStatusException(HttpStatus.CONFLICT,"Product is already active");
         if(!"DRAFT".equals(offer.status()) && !"INACTIVE".equals(offer.status()))throw new ResponseStatusException(HttpStatus.CONFLICT,"Only a draft or inactive FD product can be activated");
+        compliance.validateProductScheduleForActivation(productId);
         List<Map<String,Object>> dates=jdbc.queryForList("SELECT pro_effective_from,pro_effective_to FROM product WHERE pro_product_id=?",productId);
         if(!dates.isEmpty()){
             Object toObj=dates.get(0).get("pro_effective_to");

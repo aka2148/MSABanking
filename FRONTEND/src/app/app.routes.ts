@@ -105,6 +105,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/fd/fd-home/fd-home').then((m) => m.FdHome),
       },
       {
+        path: 'calculator',
+        loadComponent: () =>
+          import('./features/fd/calculator/fd-calculator').then((m) => m.FdCalculator),
+      },
+      {
         path: 'book/:productId',
         loadComponent: () => import('./features/fd/booking/fd-booking').then((m) => m.FdBooking),
       },

@@ -39,8 +39,13 @@ public class ProductConfigurationController {
 
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
+    private final FdComplianceService compliance;
 
-    public ProductConfigurationController(JdbcTemplate jdbc, ObjectMapper json) { this.jdbc = jdbc; this.json = json; }
+    public ProductConfigurationController(JdbcTemplate jdbc, ObjectMapper json, FdComplianceService compliance) {
+        this.jdbc = jdbc;
+        this.json = json;
+        this.compliance = compliance;
+    }
 
     @GetMapping("/metadata")
     public BuilderMetadata metadata(@RequestParam(required = false) Integer categoryId) {
@@ -182,7 +187,10 @@ public class ProductConfigurationController {
             ConfigurationRequest request = json.readValue(snapshot, ConfigurationRequest.class);
             List<String> errors = validationErrors(request, false);
             if (!errors.isEmpty()) throw bad(String.join("; ", errors));
-            if ("FIXED_DEPOSIT".equals(safeFamily(request.categoryId()))) ensureNoDuplicateActiveFd(productId, snapshot);
+            if ("FIXED_DEPOSIT".equals(safeFamily(request.categoryId()))) {
+                ensureNoDuplicateActiveFd(productId, snapshot);
+                compliance.validateProductScheduleForActivation(productId);
+            }
         } catch (java.io.IOException e) { throw new IllegalStateException("Could not read product configuration revision", e); }
         if (!"ACTIVE".equalsIgnoreCase(current.status())) {
             jdbc.update("UPDATE product SET pro_status='ACTIVE',pro_event_version=pro_event_version+1,pro_updated_by='PRODUCT_SERVICE',pro_updated_date=UTC_TIMESTAMP(6) WHERE pro_product_id=?", productId);
@@ -497,7 +505,7 @@ public class ProductConfigurationController {
     private void writeOutbox(int id) {
         Map<String,Object> product = jdbc.queryForMap("SELECT pro_product_code,pro_product_name,pro_description,pro_base_currency_code,pro_status,pro_event_version FROM product WHERE pro_product_id=?", id);
         List<Map<String,Object>> currencies = jdbc.queryForList("SELECT c.cur_currency_id,c.cur_iso_code,c.cur_currency_name,c.cur_decimal_places,p.pcc_minimum_amount,p.pcc_maximum_amount,p.pcc_is_base_currency,(SELECT o.ro_outcome_value FROM product_rule pr JOIN rule_outcome o ON o.ro_rule_id=pr.pr_rule_id WHERE pr.pr_product_id=p.pcc_product_id AND o.ro_currency_id=p.pcc_currency_id AND o.ro_outcome_type='CLOSURE_PENALTY' AND pr.pr_is_active=1 ORDER BY pr.pr_priority LIMIT 1) premature_penalty_points FROM product_currency_config p JOIN currency c ON c.cur_currency_id=p.pcc_currency_id WHERE p.pcc_product_id=? ORDER BY c.cur_iso_code", id);
-        List<Map<String,Object>> rates = jdbc.queryForList("SELECT o.ro_outcome_value,o.ro_currency_id,o.ro_compounding_basis,o.ro_payout_frequency,c.cur_iso_code,MAX(CASE WHEN q.rc_condition_attribute='TENURE_MONTHS' THEN q.rc_value_from END) min_month,MAX(CASE WHEN q.rc_condition_attribute='TENURE_MONTHS' THEN q.rc_value_to END) max_month FROM product_rule r JOIN rule_outcome o ON o.ro_rule_id=r.pr_rule_id JOIN currency c ON c.cur_currency_id=o.ro_currency_id JOIN rule_condition q ON q.rc_rule_id=r.pr_rule_id WHERE r.pr_product_id=? AND r.pr_is_active=1 AND o.ro_outcome_type='INTEREST_RATE' GROUP BY r.pr_rule_id,o.ro_outcome_value,o.ro_currency_id,o.ro_compounding_basis,o.ro_payout_frequency,c.cur_iso_code ORDER BY c.cur_iso_code,min_month", id);
+        List<Map<String,Object>> rates = jdbc.queryForList("SELECT o.ro_outcome_value,o.ro_currency_id,o.ro_compounding_basis,o.ro_payout_frequency,c.cur_iso_code,MAX(CASE WHEN q.rc_condition_attribute='TENURE_MONTHS' THEN q.rc_value_from END) min_month,MAX(CASE WHEN q.rc_condition_attribute='TENURE_MONTHS' THEN q.rc_value_to END) max_month,DATE_FORMAT(COALESCE(DATE(r.pr_effective_from),DATE(p.pro_effective_from)),'%Y-%m-%d') effectiveFrom,DATE_FORMAT(COALESCE(DATE(r.pr_effective_to),DATE(p.pro_effective_to)),'%Y-%m-%d') effectiveTo FROM product_rule r JOIN product p ON p.pro_product_id=r.pr_product_id JOIN rule_outcome o ON o.ro_rule_id=r.pr_rule_id JOIN currency c ON c.cur_currency_id=o.ro_currency_id JOIN rule_condition q ON q.rc_rule_id=r.pr_rule_id WHERE r.pr_product_id=? AND r.pr_is_active=1 AND o.ro_outcome_type='INTEREST_RATE' GROUP BY r.pr_rule_id,o.ro_outcome_value,o.ro_currency_id,o.ro_compounding_basis,o.ro_payout_frequency,c.cur_iso_code,r.pr_effective_from,r.pr_effective_to,p.pro_effective_from,p.pro_effective_to ORDER BY c.cur_iso_code,min_month", id);
         Map<String,Object> payload = Map.of("eventId",UUID.randomUUID().toString(),"eventType","PRODUCT_CATALOG","schemaVersion",1,"occurredAt",java.time.Instant.now().toString(),"aggregateId",Integer.toString(id),"sourceVersion",product.get("pro_event_version"),"product",product,"currencies",currencies,"rateBands",rates);
         try { jdbc.update("INSERT INTO outbox_event(event_key,event_type,topic,source_version,payload) VALUES(?,?,?,?,CAST(? AS JSON))", Integer.toString(id),"PRODUCT_CATALOG","product.catalog",product.get("pro_event_version"),json.writeValueAsString(payload)); }
         catch (com.fasterxml.jackson.core.JsonProcessingException e) { throw new IllegalStateException("Unable to serialize product snapshot",e); }

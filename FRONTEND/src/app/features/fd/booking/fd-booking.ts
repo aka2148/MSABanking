@@ -38,8 +38,8 @@ import { MpinProofService, classifyMpinError } from '../../../core/services/mpin
   styleUrl: './fd-booking.scss',
 })
 export class FdBooking implements OnInit, OnDestroy {
-  estimate:FdEstimate|null=null;estimateLoading=false;estimateError='';
-  private readonly destroyed=new Subject<void>();
+  estimate: FdEstimate | null = null; estimateLoading = false; estimateError = '';
+  private readonly destroyed = new Subject<void>();
   productAccessBlocked = true;
   step = 1;
   loading = true;
@@ -50,7 +50,7 @@ export class FdBooking implements OnInit, OnDestroy {
   selectedCurrencyOffer: CurrencyOffer | null = null;
   selectedRateTier: RateTier | null = null;
   submittedAccount: AccountResponse | null = null;
-  mpin='';mpinNotSet=false;
+  mpin = ''; mpinNotSet = false;
   tenureOptions: GlassSelectOption[] = [];
   savingsOptions: GlassSelectOption[] = [];
   savingsAccounts: SavingsAccount[] = [];
@@ -63,7 +63,7 @@ export class FdBooking implements OnInit, OnDestroy {
 
   constructor(
     private readonly fdService: FdService,
-    private readonly mpinProof:MpinProofService,
+    private readonly mpinProof: MpinProofService,
     private readonly router: Router,
     private readonly route: ActivatedRoute,
     private readonly fb: FormBuilder
@@ -74,16 +74,16 @@ export class FdBooking implements OnInit, OnDestroy {
       tenureMonths: ['', [this.requiredValue()]],
     });
     this.bookingForm.controls.principalAmount.valueChanges.subscribe(() => this.updateSavingsOptions());
-    this.bookingForm.valueChanges.pipe(switchMap(()=>{
-      this.estimate=null;this.estimateError='';this.estimateLoading=false;
-      const value=this.bookingForm.getRawValue();
-      if(!this.selectedProduct||!this.selectedCurrencyOffer||!value.principalAmount||!value.tenureMonths||this.bookingForm.controls.principalAmount.invalid||this.bookingForm.controls.tenureMonths.invalid)return of(null);
-      const request={productId:this.selectedProduct.product_id,currencyCode:this.selectedCurrencyOffer.currency_code,principal:Number(value.principalAmount),tenureMonths:Number(value.tenureMonths)};
-      this.estimateLoading=true;
-      return timer(300).pipe(switchMap(()=>this.fdService.estimate(request)),catchError(error=>{this.estimateError=normalizeApiError(error).message;return of(null);}));
-    }),takeUntil(this.destroyed)).subscribe(estimate=>{this.estimate=estimate;this.estimateLoading=false;});
+    this.bookingForm.valueChanges.pipe(switchMap(() => {
+      this.estimate = null; this.estimateError = ''; this.estimateLoading = false;
+      const value = this.bookingForm.getRawValue();
+      if (!this.selectedProduct || !this.selectedCurrencyOffer || !value.principalAmount || !value.tenureMonths || this.bookingForm.controls.principalAmount.invalid || this.bookingForm.controls.tenureMonths.invalid) return of(null);
+      const request = { productId: this.selectedProduct.product_id, currencyCode: this.selectedCurrencyOffer.currency_code, principal: Number(value.principalAmount), tenureMonths: Number(value.tenureMonths) };
+      this.estimateLoading = true;
+      return timer(300).pipe(switchMap(() => this.fdService.estimate(request)), catchError(error => { this.estimateError = normalizeApiError(error).message; return of(null); }));
+    }), takeUntil(this.destroyed)).subscribe(estimate => { this.estimate = estimate; this.estimateLoading = false; });
   }
-  ngOnDestroy():void{this.destroyed.next();this.destroyed.complete();}
+  ngOnDestroy(): void { this.destroyed.next(); this.destroyed.complete(); }
 
   ngOnInit(): void {
     const productId = Number(this.route.snapshot.paramMap.get('productId'));
@@ -148,7 +148,7 @@ export class FdBooking implements OnInit, OnDestroy {
   submitBooking(): void {
     if (this.productAccessBlocked) return;
     if (this.submitting || !this.selectedProduct
-        || !this.selectedCurrencyOffer || !this.selectedRateTier) return;
+      || !this.selectedCurrencyOffer || !this.selectedRateTier) return;
     if (this.bookingForm.invalid) {
       this.bookingForm.markAllAsTouched();
       this.step = 2;
@@ -169,12 +169,12 @@ export class FdBooking implements OnInit, OnDestroy {
 
     this.submitting = true;
     this.bookingError = '';
-    const book=this.submittedAccount?null:this.fdService.book(request);
-    const startFunding=(account:AccountResponse)=>{this.submittedAccount=account;this.fundBooked(account);};
-    if(!book){startFunding(this.submittedAccount!);return;}
+    const book = this.submittedAccount ? null : this.fdService.book(request);
+    const startFunding = (account: AccountResponse) => { this.submittedAccount = account; this.fundBooked(account); };
+    if (!book) { startFunding(this.submittedAccount!); return; }
     book.subscribe({
       next: (account) => {
-        if (!Number.isInteger(account.account_id) || account.account_id <= 0) { this.submitting = false;this.bookingError = 'We could not open the deposit details after booking. Check whether the deposit was created before trying again.';return; }
+        if (!Number.isInteger(account.account_id) || account.account_id <= 0) { this.submitting = false; this.bookingError = 'We could not open the deposit details after booking. Check whether the deposit was created before trying again.'; return; }
         startFunding(account);
       },
       error: (error: HttpErrorResponse) => {
@@ -185,11 +185,11 @@ export class FdBooking implements OnInit, OnDestroy {
     });
   }
 
-  private fundBooked(account:AccountResponse):void {
-    const principal=Number(account.principal_amount);this.bookingError='';
-    this.mpinProof.requestProof('FD_FUNDING',{fdId:account.account_id,principal},this.mpin).subscribe({
-      next:proof=>this.fdService.fund(account.account_id,{amount:principal,currency_code:account.currency_code,savings_account_id:account.funding_savings_account_id??undefined},proof.proofToken).subscribe({next:()=>{this.mpin='';this.submitting=false;void this.router.navigate(['/fd/accounts',account.account_id]);},error:e=>{this.mpin='';this.submitting=false;this.bookingError=classifyMpinError('operation',e);}}),
-      error:e=>{this.mpin='';this.submitting=false;this.bookingError=classifyMpinError('verify',e);},
+  private fundBooked(account: AccountResponse): void {
+    const principal = Number(account.principal_amount); this.bookingError = '';
+    this.mpinProof.requestProof('FD_FUNDING', { fdId: account.account_id, principal }, this.mpin).subscribe({
+      next: proof => this.fdService.fund(account.account_id, { amount: principal, currency_code: account.currency_code, savings_account_id: account.funding_savings_account_id ?? undefined }, proof.proofToken).subscribe({ next: () => { this.mpin = ''; this.submitting = false; void this.router.navigate(['/fd/accounts', account.account_id]); }, error: e => { this.mpin = ''; this.submitting = false; this.bookingError = classifyMpinError('operation', e); } }),
+      error: e => { this.mpin = ''; this.submitting = false; this.bookingError = classifyMpinError('verify', e); },
     });
   }
 

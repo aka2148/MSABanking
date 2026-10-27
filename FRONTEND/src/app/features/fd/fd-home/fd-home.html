@@ -22,6 +22,9 @@
             {{ 'Browse products' | translate }}
             <span aria-hidden="true">↗</span>
           </a>
+          <a class="glass-btn glass-btn--ghost fd-page__path" routerLink="/fd/calculator">
+            {{ 'FD Calculator' | translate }}
+          </a>
           <a class="glass-btn glass-btn--ghost fd-page__path" routerLink="/fd/accounts">
             {{ 'My deposits' | translate }}
           </a>
@@ -107,6 +110,9 @@
                         (click)="chooseRateTier(product, currency, tier)">
                   {{ (selectingOptionKey === optionKey(product, currency, tier) ? 'Opening…' : 'Choose this option') | translate }}
                 </button>
+                <a [routerLink]="['/fd/calculator']" [queryParams]="{ product: product.product_id, currency: currency.currency_code, months: tier.maximum_tenure_months }" class="glass-link fd-calc-hint">
+                  {{ 'Calculate returns' | translate }} ↗
+                </a>
               </article>
             </div>
           </section>

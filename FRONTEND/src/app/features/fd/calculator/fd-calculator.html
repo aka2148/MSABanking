@@ -1,0 +1,393 @@
+<app-workspace-shell>
+  <main class="glass-card glass-card--wide calc-page">
+    <a routerLink="/fd" class="glass-link">{{ '← All Fixed Deposits' | translate }}</a>
+
+    <header class="calc-header">
+      <div class="calc-header__copy">
+        <p class="fd-eyebrow">{{ 'Customer Financial Tools' | translate }}</p>
+        <h2>{{ 'Fixed-Deposit Calculator & Comparison' | translate }}<span class="gold-dot">.</span></h2>
+        <p class="calc-header__sub">
+          {{ 'Estimate your returns with live authoritative interest rates, compare eligible fixed-deposit products side by side, and book your deposit seamlessly.' | translate }}
+        </p>
+      </div>
+
+      <!-- Mode Switcher Tabs -->
+      <nav class="calc-tabs" aria-label="Calculator Views">
+        <button
+          type="button"
+          class="tab-btn"
+          [class.tab-btn--active]="activeView === 'calculator'"
+          (click)="switchView('calculator')">
+          <span class="tab-icon">◈</span>
+          {{ 'FD Calculator' | translate }}
+        </button>
+        <button
+          type="button"
+          class="tab-btn"
+          [class.tab-btn--active]="activeView === 'compare'"
+          (click)="switchView('compare')">
+          <span class="tab-icon">☷</span>
+          {{ 'Compare Products' | translate }}
+        </button>
+        <button
+          type="button"
+          class="tab-btn"
+          [class.tab-btn--active]="activeView === 'catalog'"
+          (click)="switchView('catalog')">
+          <span class="tab-icon">▦</span>
+          {{ 'Product Catalogue' | translate }}
+        </button>
+      </nav>
+    </header>
+
+    <!-- Global Loading & Error States -->
+    <div class="calc-loading-state" *ngIf="loadingProducts" role="status">
+      <span class="fd-loader-spinner"></span>
+      <p>{{ 'Loading eligible fixed-deposit offers…' | translate }}</p>
+    </div>
+
+    <div class="glass-error calc-banner" *ngIf="productsError" role="alert">
+      {{ productsError | translate }}
+      <button type="button" class="glass-link retry-btn" (click)="loadProducts()">{{ 'Retry' | translate }}</button>
+    </div>
+
+    <!-- VIEW 1: INTERACTIVE CALCULATOR -->
+    <div class="calc-layout" *ngIf="!loadingProducts && !productsError && activeView === 'calculator'">
+      <!-- Left Column: Inputs -->
+      <section class="calc-panel input-panel">
+        <h3 class="panel-title">{{ 'Investment Parameters' | translate }}</h3>
+
+        <!-- Product Selector -->
+        <label class="glass-field">
+          <span class="glass-field__label">{{ 'Fixed-Deposit Product' | translate }}</span>
+          <select [ngModel]="selectedProduct" (ngModelChange)="selectProduct($event)">
+            <option *ngFor="let p of products" [ngValue]="p">
+              {{ p.product_name }} ({{ p.product_code }})
+            </option>
+          </select>
+        </label>
+
+        <!-- Currency Selector (if multiple) -->
+        <div class="currency-bar" *ngIf="selectedProduct && selectedProduct.currency_offers.length > 1">
+          <span class="currency-label">{{ 'Currency:' | translate }}</span>
+          <div class="currency-pills">
+            <button
+              type="button"
+              class="pill-btn"
+              *ngFor="let c of selectedProduct.currency_offers"
+              [class.pill-btn--active]="selectedCurrencyCode === c.currency_code"
+              (click)="selectedCurrencyCode = c.currency_code; onCurrencyChange()">
+              {{ c.currency_code }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Investment Amount -->
+        <div class="field-block">
+          <div class="field-header">
+            <label class="glass-field__label" for="principalInput">{{ 'Investment Amount' | translate }}</label>
+            <span class="field-limit" *ngIf="selectedCurrencyOffer">
+              {{ 'Min {0} · Max {1}' | translate: [formatCurrency(selectedCurrencyOffer.minimum_amount, selectedCurrencyCode), formatCurrency(selectedCurrencyOffer.maximum_amount, selectedCurrencyCode)] }}
+            </span>
+          </div>
+
+          <div class="currency-input-wrap">
+            <span class="currency-symbol">{{ selectedCurrencyCode === 'INR' ? '₹' : selectedCurrencyCode }}</span>
+            <input
+              id="principalInput"
+              type="number"
+              class="currency-input"
+              [(ngModel)]="principalAmount"
+              (ngModelChange)="onInputChange()"
+              [min]="selectedCurrencyOffer?.minimum_amount ?? 1"
+              [max]="selectedCurrencyOffer?.maximum_amount ?? 100000000"
+              step="1000"
+              required />
+          </div>
+
+          <!-- Quick Amount Chips -->
+          <div class="preset-chips" *ngIf="selectedCurrencyCode === 'INR'">
+            <button
+              type="button"
+              class="chip-btn"
+              *ngFor="let amt of amountPresets"
+              [class.chip-btn--active]="principalAmount === amt"
+              (click)="setAmountPreset(amt)">
+              {{ formatCurrency(amt, 'INR') }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Investment Tenure -->
+        <div class="field-block">
+          <div class="field-header">
+            <label class="glass-field__label" for="tenureInput">{{ 'Investment Tenure (Months)' | translate }}</label>
+            <span class="field-limit" *ngIf="selectedCurrencyOffer">
+              {{ '{0} to {1} months' | translate: [selectedCurrencyOffer.minimum_tenure_months, selectedCurrencyOffer.maximum_tenure_months] }}
+            </span>
+          </div>
+
+          <div class="slider-input-group">
+            <input
+              type="range"
+              class="tenure-slider"
+              [(ngModel)]="tenureMonths"
+              (ngModelChange)="onInputChange()"
+              [min]="selectedCurrencyOffer?.minimum_tenure_months ?? 1"
+              [max]="selectedCurrencyOffer?.maximum_tenure_months ?? 120"
+              step="1" />
+            <div class="tenure-number-wrap">
+              <input
+                id="tenureInput"
+                type="number"
+                class="tenure-input"
+                [(ngModel)]="tenureMonths"
+                (ngModelChange)="onInputChange()"
+                [min]="selectedCurrencyOffer?.minimum_tenure_months ?? 1"
+                [max]="selectedCurrencyOffer?.maximum_tenure_months ?? 120"
+                step="1"
+                required />
+              <span class="tenure-unit">{{ 'mo' | translate }}</span>
+            </div>
+          </div>
+
+          <!-- Quick Tenure Chips -->
+          <div class="preset-chips">
+            <button
+              type="button"
+              class="chip-btn"
+              *ngFor="let t of tenurePresets"
+              [class.chip-btn--active]="tenureMonths === t.months"
+              (click)="setTenurePreset(t.months)">
+              {{ t.label }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Validation Error Message -->
+        <p class="inline-validation-msg" *ngIf="validationError">
+          ⚠ {{ validationError }}
+        </p>
+      </section>
+
+      <!-- Right Column: Calculation Result -->
+      <section class="calc-panel result-panel">
+        <h3 class="panel-title">{{ 'Estimated Returns' | translate }}</h3>
+
+        <!-- Result Loading State -->
+        <div class="estimate-loading" *ngIf="estimateLoading">
+          <span class="fd-loader-spinner"></span>
+          <p>{{ 'Calculating estimated returns using backend rates…' | translate }}</p>
+        </div>
+
+        <!-- Result Error Banner -->
+        <div class="glass-error result-error" *ngIf="estimateError && !estimateLoading">
+          {{ estimateError | translate }}
+        </div>
+
+        <!-- Result Display -->
+        <article class="result-card" *ngIf="estimate && !estimateLoading">
+          <div class="result-hero">
+            <span class="hero-label">{{ 'Estimated Maturity Amount' | translate }}</span>
+            <div class="hero-value">{{ formatCurrency(estimate.estimatedMaturityAmount, estimate.currencyCode) }}</div>
+            <div class="hero-gain">
+              <span class="gain-badge">+ {{ formatCurrency(estimate.estimatedInterest, estimate.currencyCode) }}</span>
+              <span class="gain-sub">{{ 'estimated interest earned' | translate }}</span>
+            </div>
+          </div>
+
+          <!-- Detailed Breakdown Grid -->
+          <div class="breakdown-grid">
+            <div class="breakdown-card">
+              <span class="breakdown-label">{{ 'Principal Amount' | translate }}</span>
+              <strong class="breakdown-val">{{ formatCurrency(estimate.principal, estimate.currencyCode) }}</strong>
+            </div>
+
+            <div class="breakdown-card highlight-card">
+              <span class="breakdown-label">{{ 'Annual Interest Rate' | translate }}</span>
+              <strong class="breakdown-val rate-gold">{{ (estimate.annualRate * 100) | number:'1.2-2' }}% p.a.</strong>
+            </div>
+
+            <div class="breakdown-card">
+              <span class="breakdown-label">{{ 'Tenure' | translate }}</span>
+              <strong class="breakdown-val">{{ tenureMonths }} {{ 'months' | translate }}</strong>
+            </div>
+
+            <div class="breakdown-card">
+              <span class="breakdown-label">{{ 'Compounding' | translate }}</span>
+              <strong class="breakdown-val">{{ formatFrequency(estimate.compoundingBasis) }}</strong>
+            </div>
+
+            <div class="breakdown-card">
+              <span class="breakdown-label">{{ 'Payout Frequency' | translate }}</span>
+              <strong class="breakdown-val">{{ formatFrequency(estimate.payoutFrequency) }}</strong>
+            </div>
+
+            <div class="breakdown-card" *ngIf="estimate.maturityDate">
+              <span class="breakdown-label">{{ 'Maturity Date' | translate }}</span>
+              <strong class="breakdown-val">{{ estimate.maturityDate | date:'mediumDate' }}</strong>
+            </div>
+          </div>
+
+          <!-- Regulatory & Accuracy Disclaimer -->
+          <p class="calc-disclaimer">
+            ℹ {{ 'This calculation is an estimate based on current authoritative rates. The authoritative maturity amount and terms are locked in at booking through rate-slippage safeguards.' | translate }}
+          </p>
+
+          <!-- Book Deposit Action -->
+          <div class="booking-action-bar" *ngIf="selectedProduct">
+            <button
+              type="button"
+              class="glass-btn glass-btn--primary glass-btn--full book-btn"
+              (click)="bookProduct(selectedProduct, selectedCurrencyCode)">
+              {{ 'Book this Deposit' | translate }}
+              <span aria-hidden="true">→</span>
+            </button>
+          </div>
+        </article>
+      </section>
+    </div>
+
+    <!-- VIEW 2: SIDE-BY-SIDE PRODUCT COMPARISON -->
+    <div class="compare-view" *ngIf="!loadingProducts && !productsError && activeView === 'compare'">
+      <div class="compare-control-bar">
+        <div class="compare-params">
+          <span>{{ 'Comparing products for:' | translate }}</span>
+          <strong>{{ formatCurrency(principalAmount, selectedCurrencyCode) }}</strong>
+          <span>•</span>
+          <strong>{{ tenureMonths }} {{ 'months' | translate }}</strong>
+        </div>
+
+        <button type="button" class="glass-btn glass-btn--ghost" (click)="switchView('calculator')">
+          {{ '✎ Change Amount / Tenure' | translate }}
+        </button>
+      </div>
+
+      <div class="compare-loading" *ngIf="loadingComparison">
+        <span class="fd-loader-spinner"></span>
+        <p>{{ 'Fetching quotes across eligible products…' | translate }}</p>
+      </div>
+
+      <div class="compare-grid" *ngIf="!loadingComparison">
+        <article
+          class="compare-card"
+          *ngFor="let item of comparisonItems"
+          [class.compare-card--best]="item.isBestReturn"
+          [class.compare-card--ineligible]="!item.isEligible">
+
+          <div class="best-badge" *ngIf="item.isBestReturn">
+            ★ {{ 'Best Return' | translate }}
+          </div>
+
+          <div class="compare-card__header">
+            <h4>{{ item.product.product_name }}</h4>
+            <span class="product-code-tag">{{ item.product.product_code }}</span>
+          </div>
+
+          <!-- Eligible Item Details -->
+          <div class="compare-card__body" *ngIf="item.isEligible && item.estimate as est">
+            <div class="compare-rate-pill">
+              <span>{{ 'Rate' | translate }}</span>
+              <strong>{{ (est.annualRate * 100) | number:'1.2-2' }}% p.a.</strong>
+            </div>
+
+            <div class="compare-metric-row">
+              <span class="c-label">{{ 'Estimated Maturity' | translate }}</span>
+              <strong class="c-val maturity-color">{{ formatCurrency(est.estimatedMaturityAmount, est.currencyCode) }}</strong>
+            </div>
+
+            <div class="compare-metric-row">
+              <span class="c-label">{{ 'Estimated Interest' | translate }}</span>
+              <strong class="c-val gain-color">+ {{ formatCurrency(est.estimatedInterest, est.currencyCode) }}</strong>
+            </div>
+
+            <div class="compare-metric-row">
+              <span class="c-label">{{ 'Compounding' | translate }}</span>
+              <span class="c-val-text">{{ formatFrequency(est.compoundingBasis) }}</span>
+            </div>
+
+            <div class="compare-metric-row">
+              <span class="c-label">{{ 'Payout' | translate }}</span>
+              <span class="c-val-text">{{ formatFrequency(est.payoutFrequency) }}</span>
+            </div>
+
+            <button
+              type="button"
+              class="glass-btn glass-btn--full choose-btn"
+              [class.glass-btn--primary]="item.isBestReturn"
+              (click)="bookProduct(item.product, item.currency.currency_code)">
+              {{ 'Choose & Book' | translate }} →
+            </button>
+          </div>
+
+          <!-- Ineligible Item Details -->
+          <div class="compare-card__ineligible" *ngIf="!item.isEligible">
+            <p class="ineligible-tag">✕ {{ 'Not Eligible for Selected Input' | translate }}</p>
+            <p class="ineligible-reason">{{ item.ineligibilityReason }}</p>
+            <p class="ineligible-limits">
+              {{ 'Valid limits: {0} to {1} · {2} to {3} mo' | translate: [formatCurrency(item.currency.minimum_amount, item.currency.currency_code), formatCurrency(item.currency.maximum_amount, item.currency.currency_code), item.currency.minimum_tenure_months, item.currency.maximum_tenure_months] }}
+            </p>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    <!-- VIEW 3: PRODUCT CATALOGUE -->
+    <div class="catalog-view" *ngIf="!loadingProducts && !productsError && activeView === 'catalog'">
+      <div class="catalog-grid">
+        <article class="catalog-card" *ngFor="let p of products">
+          <div class="catalog-card__top">
+            <div class="catalog-icon">◈</div>
+            <div class="catalog-ident">
+              <h4>{{ p.product_name }}</h4>
+              <span class="catalog-code">{{ p.product_code }}</span>
+            </div>
+            <div class="catalog-currencies">
+              <span class="currency-tag" *ngFor="let c of p.currency_offers">{{ c.currency_code }}</span>
+            </div>
+          </div>
+
+          <p class="catalog-desc" *ngIf="p.maturity_estimate_basis">
+            {{ 'Estimate basis: {0}' | translate: [p.maturity_estimate_basis] }}
+          </p>
+
+          <div class="catalog-offers" *ngFor="let c of p.currency_offers">
+            <div class="offer-summary-row">
+              <span class="offer-rate-range">{{ getRateRange(p, c.currency_code) }}</span>
+              <span class="offer-tenure-range">{{ c.minimum_tenure_months }} – {{ c.maximum_tenure_months }} {{ 'months' | translate }}</span>
+            </div>
+
+            <div class="offer-amount-row">
+              <span class="offer-amount-label">{{ 'Deposit limits:' | translate }}</span>
+              <span class="offer-amount-val">{{ formatCurrency(c.minimum_amount, c.currency_code) }} – {{ formatCurrency(c.maximum_amount, c.currency_code) }}</span>
+            </div>
+
+            <!-- Rate Tiers Preview -->
+            <div class="tiers-preview-table" *ngIf="c.rate_tiers.length > 0">
+              <div class="tier-preview-row" *ngFor="let tier of c.rate_tiers">
+                <span>{{ tier.minimum_tenure_months }}–{{ tier.maximum_tenure_months }} mo</span>
+                <strong>{{ (tier.annual_rate * 100) | number:'1.2-2' }}%</strong>
+                <span class="tier-freq">{{ formatFrequency(tier.compounding_frequency) }}</span>
+              </div>
+            </div>
+
+            <div class="catalog-actions">
+              <button
+                type="button"
+                class="glass-btn glass-btn--ghost calculate-btn"
+                (click)="selectProduct(p); activeView = 'calculator'">
+                {{ 'Calculate Returns' | translate }}
+              </button>
+              <button
+                type="button"
+                class="glass-btn glass-btn--primary book-direct-btn"
+                (click)="bookProduct(p, c.currency_code)">
+                {{ 'Book Deposit' | translate }} →
+              </button>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </main>
+</app-workspace-shell>

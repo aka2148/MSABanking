@@ -380,4 +380,139 @@ class FdComplianceServiceTest {
         assertTrue(response.isValid());
         assertEquals(0, new BigDecimal("0.0750").compareTo(response.applicableRate()));
     }
+
+    @Test
+    @DisplayName("Activation: Valid current product schedule validates successfully")
+    void validateProductScheduleForActivation_validCurrentSchedule_succeeds() {
+        LocalDate today = LocalDate.now(java.time.ZoneOffset.UTC);
+        when(jdbc.queryForList(contains("SELECT pro_product_id, pro_product_code"), eq(1L)))
+                .thenReturn(List.of(java.util.Map.of(
+                        "pro_product_id", 1L, "pro_product_code", "FD_VALID", "pro_product_name", "Valid FD",
+                        "pro_status", "DRAFT", "pro_effective_from", today.minusDays(5).toString(), "pro_effective_to", today.plusYears(1).toString()
+                )));
+        when(jdbc.queryForList(contains("FROM product_currency_config cfg"), eq(1L)))
+                .thenReturn(List.of(java.util.Map.of(
+                        "pcc_currency_id", 1L, "cur_iso_code", "INR",
+                        "pcc_minimum_amount", new BigDecimal("1000.00"), "pcc_maximum_amount", new BigDecimal("100000.00")
+                )));
+        mockCandidateData(List.of(new MockCandidate(
+                today.minusDays(5), today.plusYears(1), new BigDecimal("0.0650"),
+                "QUARTERLY", "AT_MATURITY", new BigDecimal("1000.00"), new BigDecimal("100000.00"), 1, 36
+        )));
+
+        assertDoesNotThrow(() -> complianceService.validateProductScheduleForActivation(1L));
+    }
+
+    @Test
+    @DisplayName("Activation: Inverted date range (effectiveFrom > effectiveTo) throws 400 BAD_REQUEST")
+    void validateProductScheduleForActivation_invertedDateRange_throwsBadRequest() {
+        LocalDate today = LocalDate.now(java.time.ZoneOffset.UTC);
+        when(jdbc.queryForList(contains("SELECT pro_product_id, pro_product_code"), eq(2L)))
+                .thenReturn(List.of(java.util.Map.of(
+                        "pro_product_id", 2L, "pro_product_code", "FD_INVERT", "pro_product_name", "Inverted FD",
+                        "pro_status", "DRAFT", "pro_effective_from", today.plusDays(10).toString(), "pro_effective_to", today.plusDays(2).toString()
+                )));
+
+        org.springframework.web.server.ResponseStatusException ex = assertThrows(
+                org.springframework.web.server.ResponseStatusException.class,
+                () -> complianceService.validateProductScheduleForActivation(2L)
+        );
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("Effective-to date must be on or after"));
+    }
+
+    @Test
+    @DisplayName("Activation: Expired schedule (effectiveTo < today) throws 400 BAD_REQUEST")
+    void validateProductScheduleForActivation_expiredSchedule_throwsBadRequest() {
+        LocalDate today = LocalDate.now(java.time.ZoneOffset.UTC);
+        when(jdbc.queryForList(contains("SELECT pro_product_id, pro_product_code"), eq(3L)))
+                .thenReturn(List.of(java.util.Map.of(
+                        "pro_product_id", 3L, "pro_product_code", "FD_EXPIRED", "pro_product_name", "Expired FD",
+                        "pro_status", "DRAFT", "pro_effective_from", today.minusYears(2).toString(), "pro_effective_to", today.minusDays(1).toString()
+                )));
+
+        org.springframework.web.server.ResponseStatusException ex = assertThrows(
+                org.springframework.web.server.ResponseStatusException.class,
+                () -> complianceService.validateProductScheduleForActivation(3L)
+        );
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("expired"));
+    }
+
+    @Test
+    @DisplayName("Activation: Valid future-dated schedule is evaluated on its future start date and succeeds")
+    void validateProductScheduleForActivation_validFutureDatedSchedule_succeeds() {
+        LocalDate today = LocalDate.now(java.time.ZoneOffset.UTC);
+        LocalDate futureStart = today.plusMonths(1);
+        LocalDate futureEnd = today.plusYears(2);
+        when(jdbc.queryForList(contains("SELECT pro_product_id, pro_product_code"), eq(4L)))
+                .thenReturn(List.of(java.util.Map.of(
+                        "pro_product_id", 4L, "pro_product_code", "FD_FUTURE", "pro_product_name", "Future FD",
+                        "pro_status", "DRAFT", "pro_effective_from", futureStart.toString(), "pro_effective_to", futureEnd.toString()
+                )));
+        when(jdbc.queryForList(contains("FROM product_currency_config cfg"), eq(4L)))
+                .thenReturn(List.of(java.util.Map.of(
+                        "pcc_currency_id", 1L, "cur_iso_code", "INR",
+                        "pcc_minimum_amount", new BigDecimal("1000.00"), "pcc_maximum_amount", new BigDecimal("100000.00")
+                )));
+        mockCandidateData(List.of(new MockCandidate(
+                futureStart, futureEnd, new BigDecimal("0.0700"),
+                "QUARTERLY", "AT_MATURITY", new BigDecimal("1000.00"), new BigDecimal("100000.00"), 1, 24
+        )));
+
+        assertDoesNotThrow(() -> complianceService.validateProductScheduleForActivation(4L));
+    }
+
+    @Test
+    @DisplayName("Activation: Overlapping rate schedules with differing rates on evaluation date throw 409 CONFLICT")
+    void validateProductScheduleForActivation_ambiguousOverlappingSchedule_throwsConflict() {
+        LocalDate today = LocalDate.now(java.time.ZoneOffset.UTC);
+        when(jdbc.queryForList(contains("SELECT pro_product_id, pro_product_code"), eq(5L)))
+                .thenReturn(List.of(java.util.Map.of(
+                        "pro_product_id", 5L, "pro_product_code", "FD_AMBIG", "pro_product_name", "Ambiguous FD",
+                        "pro_status", "DRAFT", "pro_effective_from", today.minusDays(10).toString(), "pro_effective_to", today.plusYears(1).toString()
+                )));
+        when(jdbc.queryForList(contains("FROM product_currency_config cfg"), eq(5L)))
+                .thenReturn(List.of(java.util.Map.of(
+                        "pcc_currency_id", 1L, "cur_iso_code", "INR",
+                        "pcc_minimum_amount", new BigDecimal("1000.00"), "pcc_maximum_amount", new BigDecimal("100000.00")
+                )));
+        mockCandidateData(List.of(
+                new MockCandidate(
+                        today.minusDays(10), today.plusMonths(6), new BigDecimal("0.0650"),
+                        "QUARTERLY", "AT_MATURITY", new BigDecimal("1000.00"), new BigDecimal("100000.00"), 1, 24
+                ),
+                new MockCandidate(
+                        today.minusDays(5), today.plusMonths(3), new BigDecimal("0.0750"),
+                        "QUARTERLY", "AT_MATURITY", new BigDecimal("1000.00"), new BigDecimal("100000.00"), 1, 24
+                )
+        ));
+
+        org.springframework.web.server.ResponseStatusException ex = assertThrows(
+                org.springframework.web.server.ResponseStatusException.class,
+                () -> complianceService.validateProductScheduleForActivation(5L)
+        );
+        assertEquals(org.springframework.http.HttpStatus.CONFLICT, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("AMBIGUOUS_CONFIGURATION"));
+    }
+
+    @Test
+    @DisplayName("Activation: Missing active currency configuration throws 400 BAD_REQUEST")
+    void validateProductScheduleForActivation_missingCurrencyConfig_throwsBadRequest() {
+        LocalDate today = LocalDate.now(java.time.ZoneOffset.UTC);
+        when(jdbc.queryForList(contains("SELECT pro_product_id, pro_product_code"), eq(6L)))
+                .thenReturn(List.of(java.util.Map.of(
+                        "pro_product_id", 6L, "pro_product_code", "FD_NO_CURR", "pro_product_name", "No Currency FD",
+                        "pro_status", "DRAFT", "pro_effective_from", today.toString(), "pro_effective_to", today.plusYears(1).toString()
+                )));
+        when(jdbc.queryForList(contains("FROM product_currency_config cfg"), eq(6L)))
+                .thenReturn(List.of());
+
+        org.springframework.web.server.ResponseStatusException ex = assertThrows(
+                org.springframework.web.server.ResponseStatusException.class,
+                () -> complianceService.validateProductScheduleForActivation(6L)
+        );
+        assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("requires at least one active currency configuration"));
+    }
 }
