@@ -7,6 +7,7 @@ export interface FdBatchRunSummary {
   business_date: string;
   accounts_examined: number;
   accruals_processed: number;
+  accrual_days_recorded: number;
   maturities_processed: number;
   accounts_failed: number;
   failed_account_ids: number[];

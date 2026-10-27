@@ -32,19 +32,22 @@ public class FdBatchService {
                 "WHERE fa_status IN ('ACTIVE','MATURED','CLOSED','PREMATURELY_CLOSED') ORDER BY fa_account_id", Long.class);
         List<Long> failed = new ArrayList<>();
         int accrualAccounts = 0;
+        int accrualDaysRecorded = 0;
         int maturities = 0;
 
         for (Long id : ids) {
             try {
                 FdBatchAccountProcessor.DailyAccountResult result = accountProcessor.processDaily(id, date);
                 if (result.accrualRowsCreated() > 0) accrualAccounts++;
+                accrualDaysRecorded += result.accrualRowsCreated();
                 if (result.matured()) maturities++;
             } catch (RuntimeException e) {
                 failed.add(id);
                 log.error("FD daily batch failed for accountId={} businessDate={}; that account was rolled back", id, date, e);
             }
         }
-        return new DailyBatchResult(date, ids.size(), accrualAccounts, maturities, failed.size(), List.copyOf(failed));
+        return new DailyBatchResult(date, ids.size(), accrualAccounts, accrualDaysRecorded, maturities,
+                failed.size(), List.copyOf(failed));
     }
 
     public BatchResult accrue(LocalDate requestedDate) {
@@ -97,6 +100,7 @@ public class FdBatchService {
     public record DailyBatchResult(@com.fasterxml.jackson.annotation.JsonProperty("business_date") LocalDate businessDate,
                                    @com.fasterxml.jackson.annotation.JsonProperty("accounts_examined") int accountsExamined,
                                    @com.fasterxml.jackson.annotation.JsonProperty("accruals_processed") int accrualsProcessed,
+                                   @com.fasterxml.jackson.annotation.JsonProperty("accrual_days_recorded") int accrualDaysRecorded,
                                    @com.fasterxml.jackson.annotation.JsonProperty("maturities_processed") int maturitiesProcessed,
                                    @com.fasterxml.jackson.annotation.JsonProperty("accounts_failed") int accountsFailed,
                                    @com.fasterxml.jackson.annotation.JsonProperty("failed_account_ids") List<Long> failedAccountIds) {}

@@ -39,6 +39,7 @@ class FdBatchSafetyIntegrationTest {
         properties.add("spring.datasource.password", MYSQL::getPassword);
         properties.add("app.jwt.secret", () -> JWT_SECRET);
         properties.add("app.kafka.enabled", () -> false);
+        properties.add("app.demo-clock.business-zone", () -> "UTC");
     }
 
     @Autowired JdbcTemplate jdbc;
@@ -132,6 +133,32 @@ class FdBatchSafetyIntegrationTest {
         FdBatchService.DailyBatchResult statementRetry = batches.runDaily(target);
         assertEquals(0, statementRetry.accountsFailed());
         assertEquals(3, jdbc.queryForObject("SELECT COUNT(*) FROM fd_statements WHERE fs_account_id=?", Integer.class, account));
+
+        LocalDate advanceTarget = today.plusDays(30);
+        jdbc.update("UPDATE fd_demo_clock SET fdc_offset_days=30 WHERE fdc_clock_id=1");
+
+        long maturesDuringAdvance = insertActiveFd("BMJ-" + UUID.randomUUID().toString().substring(0, 12),
+                today.minusDays(10), today.plusDays(15));
+        long remainsActive = insertActiveFd("BCJ-" + UUID.randomUUID().toString().substring(0, 12),
+                today.minusMonths(3).plusDays(15), advanceTarget.plusDays(30));
+
+        FdBatchService.DailyBatchResult result = batches.runDaily(advanceTarget);
+
+        int expectedMaturityRows = Math.toIntExact(ChronoUnit.DAYS.between(today.minusDays(10), today.plusDays(15)));
+        int expectedCompoundingRows = Math.toIntExact(ChronoUnit.DAYS.between(today.minusMonths(3).plusDays(15), advanceTarget));
+        assertTrue(result.accrualsProcessed() >= 2);
+        assertEquals(expectedMaturityRows + expectedCompoundingRows, result.accrualDaysRecorded());
+        assertEquals(1, result.maturitiesProcessed());
+        assertEquals(expectedMaturityRows, accrualCount(maturesDuringAdvance));
+        assertEquals("MATURED", status(maturesDuringAdvance));
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM fd_journals WHERE fj_key=?", Integer.class,
+                "INTEREST:" + maturesDuringAdvance + ":MATURITY"));
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM fd_journals WHERE fj_key=?", Integer.class,
+                "SETTLEMENT:" + maturesDuringAdvance));
+        assertEquals("ACTIVE", status(remainsActive));
+        assertEquals(expectedCompoundingRows, accrualCount(remainsActive));
+        assertTrue(jdbc.queryForObject("SELECT COUNT(*) FROM fd_interest_accrual WHERE fia_account_id=? AND fia_capitalized_amount>0",
+                Integer.class, remainsActive) > 0, "the date jump must retain quarterly capitalization dates");
     }
 
     private void assertLocalDateTimeRoundTripsAcrossJvmZones(long accountId) {

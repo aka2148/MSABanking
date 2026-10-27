@@ -24,7 +24,7 @@ import java.time.ZoneId;
 @RequestMapping("/api/v1/compliance/fd")
 @PreAuthorize("hasAnyRole('CUSTOMER','BANK_OFFICER','ADMIN')")
 public class FdComplianceController {
-    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Kolkata");
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("UTC");
     private final FdComplianceService compliance;
 
     public FdComplianceController(FdComplianceService compliance) { this.compliance = compliance; }

@@ -28,14 +28,14 @@ app:
   identity:
     base-url: ${IDENTITY_SERVICE_URL:http://localhost:8081}
   demo-clock:
-    business-zone: ${FD_BUSINESS_ZONE:Asia/Kolkata}
+    business-zone: ${FD_BUSINESS_ZONE:UTC}
   fd:
     batch:
       schedule:
         enabled: ${FD_BATCH_SCHEDULE_ENABLED:false}
         interest-cron: ${FD_BATCH_INTEREST_CRON:0 0 0 * * *}
         maturity-cron: ${FD_BATCH_MATURITY_CRON:0 0 1 * * *}
-        zone: ${FD_BATCH_ZONE:Asia/Kolkata}
+        zone: ${FD_BATCH_ZONE:UTC}
   demo:
     opening-balance:
       enabled: ${APP_DEMO_OPENING_BALANCE_ENABLED:false}
