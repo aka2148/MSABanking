@@ -1,27 +1,120 @@
-<app-workspace-shell><main class="glass-card review-page">
-  <h1>{{ 'KYC review' | translate }}</h1>
-  <nav class="review-actions"><button type="button" class="glass-btn glass-btn--ghost" *ngFor="let filter of filters" [attr.aria-pressed]="status===filter.value" (click)="status=filter.value;load()">{{filter.label|translate}}</button></nav>
-  <form class="review-actions" (ngSubmit)="load()"><label class="glass-field"><span class="glass-field__label">{{'Search customers'|translate}}</span><input name="search" [(ngModel)]="search" /></label><button class="glass-btn" type="submit">{{'Search'|translate}}</button></form>
-  <p class="glass-error" *ngIf="error" role="alert">{{error|translate}}</p><p *ngIf="message" role="status">{{message|translate}}</p>
-  <p *ngIf="loading" role="status">{{'Loading…'|translate}}</p>
-  <section *ngIf="!loading && queue as q">
-    <p *ngIf="!q.content.length">{{'No KYC applications match this filter.'|translate}}</p>
-    <article class="review-row" *ngFor="let row of q.content"><div><strong>{{row.fullName}}</strong><p>{{row.customerNumber}} · {{row.proofType|translate}} · {{row.proofNumberMasked}}</p><small>{{row.submittedAt|date:'medium'}} · {{eventLabel(row.state==='AWAITING_REVIEW'?'Awaiting review':row.state==='APPROVED'?'STAFF_VERIFIED':'STAFF_REJECTED')|translate}}</small><p *ngIf="row.decidedBy">{{row.decidedBy}} · {{row.decidedAt|date:'medium'}} · {{row.reason}}</p></div><button class="glass-btn glass-btn--ghost" (click)="open(row.customerId)" [disabled]="busy">{{'Review KYC'|translate}}</button></article>
-    <nav class="review-actions"><button class="glass-btn glass-btn--ghost" (click)="load(q.number-1)" [disabled]="q.number===0">{{'Previous'|translate}}</button><span>{{'Page {0}'|translate:[q.number+1]}}</span><button class="glass-btn glass-btn--ghost" (click)="load(q.number+1)" [disabled]="(q.number+1)*q.size>=q.totalElements">{{'Next'|translate}}</button></nav>
-  </section>
-  <p *ngIf="detailLoading" role="status">{{'Loading…'|translate}}</p>
-  <p class="glass-error" *ngIf="detailError" role="alert">{{detailError|translate}}</p>
-  <section class="review-detail" *ngIf="detail as d"><p *ngIf="d.isResubmission" class="review-chip">{{'Resubmission'|translate}}</p><section *ngIf="d.previousDecisions?.length"><h2>{{'Previous decisions'|translate}}</h2><ol><li *ngFor="let old of d.previousDecisions"><strong>{{old.decision|translate}}</strong> · {{old.decidedAt|date:'medium'}}<p>{{old.reason}}</p></li></ol></section>
-    <h2>{{'Account details'|translate}}</h2><dl><div *ngFor="let field of accountFields"><dt>{{field[1]|translate}}</dt><dd>{{d.account[field[0]]||'—'}}</dd></div></dl>
-    <h2>{{'Personal details'|translate}}</h2><dl><div *ngFor="let field of personalFields"><dt>{{field[1]|translate}}</dt><dd>{{(d.personal[field[0]]||'—')|translate}}</dd></div></dl>
-    <h2>{{'Identity proof'|translate}}</h2><dl><div><dt>{{'Proof of ID type'|translate}}</dt><dd>{{d.proof.type|translate}}</dd></div><div><dt>{{'ID number'|translate}}</dt><dd>{{d.proof.numberMasked}}</dd></div><div><dt>{{'ID issue date'|translate}}</dt><dd>{{d.proof.issueDate|date:'mediumDate'}}</dd></div></dl>
-    <h2>{{'Document'|translate}}</h2><p *ngIf="!d.document">{{'No supporting document is available.'|translate}}</p>
-    <ng-container *ngIf="d.document as doc"><p>{{doc.name}} · {{doc.size|number}} {{'bytes'|translate}}</p><button class="glass-btn glass-btn--ghost" (click)="viewDocument()" [disabled]="documentLoading">{{'View document'|translate}}</button><p class="glass-error" *ngIf="documentError">{{documentError|translate}}</p><img *ngIf="documentUrl && !pdfUrl" [src]="documentUrl" [alt]="'Supporting document'|translate" /><iframe *ngIf="pdfUrl" [src]="pdfUrl" [title]="'Supporting document'|translate"></iframe></ng-container>
-    <h2>{{'History'|translate}}</h2><ol><li *ngFor="let event of d.history"><strong>{{eventLabel(event.eventType)|translate}}</strong> · {{event.createdAt|date:'medium'}}<p>{{event.reviewer}} {{event.remarks}}</p></li></ol>
-    <ng-container *ngIf="d.state==='AWAITING_REVIEW'">
-      <label class="glass-field"><span class="glass-field__label">{{'Decision reason'|translate}}</span><textarea name="reason" [(ngModel)]="reason" (ngModelChange)="confirm=null" maxlength="500" [placeholder]="'10-500 characters; required for rejection'|translate"></textarea></label>
-      <p *ngIf="confirm">{{'Confirm this KYC decision?'|translate}}</p>
-      <div class="review-actions"><button class="glass-btn" (click)="decide('APPROVE')" [disabled]="busy">{{(confirm==='APPROVE'?'Confirm approval':'Approve')|translate}}</button><button class="glass-btn glass-btn--ghost" (click)="decide('REJECT')" [disabled]="busy">{{(confirm==='REJECT'?'Confirm rejection':'Reject')|translate}}</button></div>
-    </ng-container>
-  </section>
-</main></app-workspace-shell>
+<app-workspace-shell>
+  <main class="glass-card review-page">
+
+    <!-- HERO -->
+    <header class="review-page__hero">
+      <div class="review-page__hero-copy">
+        <h1>{{ 'KYC review' | translate }}<span class="review-page__gold">.</span></h1>
+
+        <nav class="review-page__filters">
+          <button type="button" class="glass-btn glass-btn--ghost review-page__filter" *ngFor="let filter of filters" [attr.aria-pressed]="status===filter.value" (click)="status=filter.value;load()">{{filter.label|translate}}</button>
+        </nav>
+      </div>
+
+      <div class="review-page__hero-art" aria-hidden="true">
+        <div class="review-page__hero-orbit"></div>
+        <div class="review-page__hero-orbit review-page__hero-orbit--inner"></div>
+        <div class="review-page__hero-symbol">✓</div>
+        <span class="review-page__hero-spark review-page__hero-spark--one"></span>
+        <span class="review-page__hero-spark review-page__hero-spark--two"></span>
+      </div>
+    </header>
+
+    <!-- SEARCH -->
+    <form class="review-page__search" (ngSubmit)="load()">
+      <label class="glass-field"><span class="glass-field__label">{{'Search customers'|translate}}</span><input name="search" [(ngModel)]="search" /></label>
+      <button class="glass-btn review-page__submit" type="submit">{{'Search'|translate}}</button>
+    </form>
+
+    <!-- NOTICES -->
+    <p class="glass-error" *ngIf="error" role="alert">{{error|translate}}</p>
+    <p class="review-page__message" *ngIf="message" role="status">{{message|translate}}</p>
+    <p class="review-page__loading" *ngIf="loading" role="status">{{'Loading…'|translate}}</p>
+
+    <!-- QUEUE -->
+    <section class="review-page__queue" *ngIf="!loading && queue as q">
+      <div class="review-page__empty" *ngIf="!q.content.length">
+        <div class="review-page__empty-icon" aria-hidden="true">✓</div>
+        <h4>{{'No KYC applications match this filter.'|translate}}</h4>
+      </div>
+
+      <article class="review-page__row" *ngFor="let row of q.content; let i = index" [style.--account-index]="i">
+        <div class="review-page__row-icon" aria-hidden="true">♙</div>
+        <div class="review-page__row-main">
+          <strong>{{row.fullName}}</strong>
+          <p>{{row.customerNumber}} · {{row.proofType|translate}} · {{row.proofNumberMasked}}</p>
+          <small>{{row.submittedAt|date:'medium'}} · {{eventLabel(row.state==='AWAITING_REVIEW'?'Awaiting review':row.state==='APPROVED'?'STAFF_VERIFIED':'STAFF_REJECTED')|translate}}</small>
+          <p *ngIf="row.decidedBy">{{row.decidedBy}} · {{row.decidedAt|date:'medium'}} · {{row.reason}}</p>
+        </div>
+        <button class="glass-btn glass-btn--ghost review-page__open" (click)="open(row.customerId)" [disabled]="busy">{{'Review KYC'|translate}}</button>
+      </article>
+
+      <nav class="review-page__pager">
+        <button class="glass-btn glass-btn--ghost" (click)="load(q.number-1)" [disabled]="q.number===0">{{'Previous'|translate}}</button>
+        <span>{{'Page {0}'|translate:[q.number+1]}}</span>
+        <button class="glass-btn glass-btn--ghost" (click)="load(q.number+1)" [disabled]="(q.number+1)*q.size>=q.totalElements">{{'Next'|translate}}</button>
+      </nav>
+    </section>
+
+    <!-- DETAIL -->
+    <p class="review-page__loading" *ngIf="detailLoading" role="status">{{'Loading…'|translate}}</p>
+    <p class="glass-error" *ngIf="detailError" role="alert">{{detailError|translate}}</p>
+
+    <section class="review-page__panel review-detail" *ngIf="detail as d">
+      <p *ngIf="d.isResubmission" class="review-chip">{{'Resubmission'|translate}}</p>
+
+      <section class="review-page__block" *ngIf="d.previousDecisions?.length">
+        <h2>{{'Previous decisions'|translate}}</h2>
+        <ol class="review-page__timeline">
+          <li *ngFor="let old of d.previousDecisions; let i = index" [style.--account-index]="i"><strong>{{old.decision|translate}}</strong> · {{old.decidedAt|date:'medium'}}<p>{{old.reason}}</p></li>
+        </ol>
+      </section>
+
+      <section class="review-page__block">
+        <h2>{{'Account details'|translate}}</h2>
+        <dl class="review-page__facts"><div *ngFor="let field of accountFields"><dt>{{field[1]|translate}}</dt><dd>{{d.account[field[0]]||'—'}}</dd></div></dl>
+      </section>
+
+      <section class="review-page__block">
+        <h2>{{'Personal details'|translate}}</h2>
+        <dl class="review-page__facts"><div *ngFor="let field of personalFields"><dt>{{field[1]|translate}}</dt><dd>{{(d.personal[field[0]]||'—')|translate}}</dd></div></dl>
+      </section>
+
+      <section class="review-page__block">
+        <h2>{{'Identity proof'|translate}}</h2>
+        <dl class="review-page__facts"><div><dt>{{'Proof of ID type'|translate}}</dt><dd>{{d.proof.type|translate}}</dd></div><div><dt>{{'ID number'|translate}}</dt><dd>{{d.proof.numberMasked}}</dd></div><div><dt>{{'ID issue date'|translate}}</dt><dd>{{d.proof.issueDate|date:'mediumDate'}}</dd></div></dl>
+      </section>
+
+      <section class="review-page__block">
+        <h2>{{'Document'|translate}}</h2>
+        <p class="review-page__note" *ngIf="!d.document">{{'No supporting document is available.'|translate}}</p>
+        <ng-container *ngIf="d.document as doc">
+          <p class="review-page__doc-name">{{doc.name}} · {{doc.size|number}} {{'bytes'|translate}}</p>
+          <button class="glass-btn glass-btn--ghost review-page__open" (click)="viewDocument()" [disabled]="documentLoading">{{'View document'|translate}}</button>
+          <p class="glass-error" *ngIf="documentError">{{documentError|translate}}</p>
+          <img *ngIf="documentUrl && !pdfUrl" [src]="documentUrl" [alt]="'Supporting document'|translate" />
+          <iframe *ngIf="pdfUrl" [src]="pdfUrl" [title]="'Supporting document'|translate"></iframe>
+        </ng-container>
+      </section>
+
+      <section class="review-page__block">
+        <h2>{{'History'|translate}}</h2>
+        <ol class="review-page__timeline">
+          <li *ngFor="let event of d.history; let i = index" [style.--account-index]="i"><strong>{{eventLabel(event.eventType)|translate}}</strong> · {{event.createdAt|date:'medium'}}<p>{{event.reviewer}} {{event.remarks}}</p></li>
+        </ol>
+      </section>
+
+      <ng-container *ngIf="d.state==='AWAITING_REVIEW'">
+        <div class="review-page__block review-page__decision">
+          <label class="glass-field"><span class="glass-field__label">{{'Decision reason'|translate}}</span><textarea name="reason" [(ngModel)]="reason" (ngModelChange)="confirm=null" maxlength="500" [placeholder]="'10-500 characters; required for rejection'|translate"></textarea></label>
+          <p class="review-page__confirm" *ngIf="confirm">{{'Confirm this KYC decision?'|translate}}</p>
+          <div class="review-page__decision-actions">
+            <button class="glass-btn review-page__submit" (click)="decide('APPROVE')" [disabled]="busy">{{(confirm==='APPROVE'?'Confirm approval':'Approve')|translate}}</button>
+            <button class="glass-btn glass-btn--ghost review-page__reject" (click)="decide('REJECT')" [disabled]="busy">{{(confirm==='REJECT'?'Confirm rejection':'Reject')|translate}}</button>
+          </div>
+        </div>
+      </ng-container>
+    </section>
+
+  </main>
+</app-workspace-shell>
