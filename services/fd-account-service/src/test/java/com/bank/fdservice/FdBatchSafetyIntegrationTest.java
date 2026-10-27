@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.server.ResponseStatusException;
@@ -45,6 +46,7 @@ class FdBatchSafetyIntegrationTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired FdBatchService batches;
     @Autowired DemoClockService clock;
+    @Autowired FdLifecycleController lifecycle;
 
     private long savingsId;
 
@@ -153,6 +155,19 @@ class FdBatchSafetyIntegrationTest {
         assertEquals("MATURED", status(maturesDuringAdvance));
         assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM fd_journals WHERE fj_key=?", Integer.class,
                 "INTEREST:" + maturesDuringAdvance + ":MATURITY"));
+        java.sql.Timestamp maturityTimestamp = jdbc.queryForObject("SELECT ft_txn_date FROM fd_transactions WHERE ft_account_id=? AND ft_txn_type_id=(SELECT tt_txn_type_id FROM transaction_types WHERE tt_txn_type_code='FD_MATURITY')",
+                java.sql.Timestamp.class, maturesDuringAdvance);
+        assertNotNull(maturityTimestamp);
+        assertEquals(advanceTarget, maturityTimestamp.toInstant().atZone(java.time.ZoneOffset.UTC).toLocalDate());
+        assertTrue(Math.abs(java.time.Duration.between(clock.status().effectiveTime(), maturityTimestamp.toInstant()).toSeconds()) <= 3,
+                "the maturity activity timestamp must use the simulated effective time");
+        var actor = new UsernamePasswordAuthenticationToken("batch-probe-user-980", "", java.util.List.of());
+        actor.setDetails(java.util.Map.of("userId", 980L));
+        var maturityActivity = lifecycle.transactions(actor, maturesDuringAdvance).stream()
+                .filter(row -> "FD_MATURITY".equals(row.get("event_type"))).findFirst().orElseThrow();
+        assertTrue(maturityActivity.get("occurred_at").toString().endsWith("Z"),
+                "activity timestamps must be serialized as UTC instants for correct browser conversion");
+        assertEquals("Account matured; settlement can be completed using the account's close action", maturityActivity.get("remarks"));
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM fd_journals WHERE fj_key=?", Integer.class,
                 "SETTLEMENT:" + maturesDuringAdvance));
         assertEquals("ACTIVE", status(remainsActive));

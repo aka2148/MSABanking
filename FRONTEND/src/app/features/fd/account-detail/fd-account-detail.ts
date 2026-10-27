@@ -159,6 +159,7 @@ export class FdAccountDetail implements OnInit {
   entryLabel(entryType: string): string {
     const labels: Record<string, string> = {
       FUNDING: 'Initial funding', ACCRUAL: 'Interest accrued', CAPITALIZATION: 'Interest capitalized', MATURITY: 'Maturity',
+      FD_MATURITY: 'Account matured',
       CLOSURE: 'Final payout', SETTLEMENT: 'Final payout', PENALTY: 'Penalty', TRANSACTION: 'Transaction',
       INTEREST_ACCRUED: 'Interest accrued', FINAL_PAYOUT: 'Final payout', PREMATURE_SETTLEMENT: 'Final payout',
     };
@@ -174,6 +175,7 @@ export class FdAccountDetail implements OnInit {
       ACCRUAL: 'Interest accrued for this date.',
       CAPITALIZATION: 'Interest was added to the deposit balance.',
       MATURITY: 'This deposit reached maturity.',
+      FD_MATURITY: 'Your fixed deposit reached its maturity date.',
       CLOSURE: 'The deposit was closed and the final payout was recorded to your linked savings account.',
       SETTLEMENT: 'The final payout was recorded to your linked savings account.',
       PENALTY: 'The premature-closure penalty was deducted from accrued interest.',

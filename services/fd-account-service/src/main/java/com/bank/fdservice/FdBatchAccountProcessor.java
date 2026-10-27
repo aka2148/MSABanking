@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -23,13 +24,15 @@ public class FdBatchAccountProcessor {
     private final ObjectMapper json;
     private final PostingService postings;
     private final FdLifecycleRecordService lifecycleRecords;
+    private final DemoClockService clock;
 
     public FdBatchAccountProcessor(JdbcTemplate jdbc, ObjectMapper json, PostingService postings,
-                                   FdLifecycleRecordService lifecycleRecords) {
+                                   FdLifecycleRecordService lifecycleRecords, DemoClockService clock) {
         this.jdbc = jdbc;
         this.json = json;
         this.postings = postings;
         this.lifecycleRecords = lifecycleRecords;
+        this.clock = clock;
     }
 
     @Transactional
@@ -101,10 +104,11 @@ public class FdBatchAccountProcessor {
                             new PostingService.LedgerLine("FIXED_DEPOSIT", null,
                                     BigDecimal.ZERO.setScale(terms.currencyScale()), interest)));
         }
-        jdbc.update("INSERT INTO fd_transactions(ft_account_id,ft_txn_type_id,ft_amount,ft_balance_after,ft_currency_id,ft_remarks,ft_created_by) " +
-                        "VALUES(?,?,?,?,?,?,?)",
+        jdbc.update("INSERT INTO fd_transactions(ft_account_id,ft_txn_type_id,ft_amount,ft_balance_after,ft_currency_id,ft_remarks,ft_created_by,ft_txn_date) " +
+                        "VALUES(?,?,?,?,?,?,?,?)",
                 id, typeId("FD_MATURITY"), balance, balance, currency,
-                "Maturity recorded; settlement requires the customer's explicit close action", "fd-batch");
+                "Account matured; settlement can be completed using the account's close action", "fd-batch",
+                Timestamp.from(clock.status().effectiveTime()));
         event(id, "MATURED", Map.of("status", "MATURED", "maturityAmount", balance, "maturityDate", maturity.toString()));
         lifecycleRecords.recordNoticeIfMissing(id, "FD_MATURED", batchDate, "fd-batch");
         return rows;

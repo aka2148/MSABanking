@@ -122,7 +122,6 @@
               </div>
               <p>
                 {{ entryDescription(entry) | translate }}
-                <span *ngIf="entry.source_savings_account_id && entry.entry_type === 'FUNDING'"> {{ 'Source savings account: {0}.' | translate: [entry.source_savings_account_id] }} </span>
                 <span *ngIf="entry.source_savings_account_id && (entry.entry_type === 'CLOSURE' || entry.entry_type === 'SETTLEMENT')"> {{ 'Payout savings account: {0}.' | translate: [entry.source_savings_account_id] }} </span>
               </p>
             </div>
