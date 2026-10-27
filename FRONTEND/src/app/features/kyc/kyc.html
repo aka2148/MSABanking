@@ -1,119 +1,340 @@
 <app-workspace-shell>
-  <main class="glass-card review-page">
+  <main class="glass-card glass-card--wide kyc-card workflow-page workflow-page--kyc">
+    <header class="kyc-hero">
+      <div class="kyc-hero__grid" aria-hidden="true"></div>
 
-    <header class="review-page__hero">
-      <div class="review-page__hero-copy">
-        <h1>{{ 'KYC review' | translate }}<span class="review-page__gold">.</span></h1>
+      <div class="kyc-hero__copy">
+        <p class="kyc-eyebrow">
+          <span class="kyc-eyebrow__dot"></span>
+          {{ 'Account security' | translate }}
+        </p>
 
-        <nav class="review-page__filters">
-          <button type="button" class="glass-btn glass-btn--ghost review-page__filter" *ngFor="let filter of filters" [attr.aria-pressed]="status===filter.value" (click)="status=filter.value;load()">{{filter.label|translate}}</button>
-        </nav>
+        <h1>{{ 'KYC' | translate }}<span class="kyc-title-dot">.</span></h1>
+
+        <p class="kyc-hero__description">
+          {{ 'Complete your identity verification to access banking services securely.' | translate }}
+        </p>
+
+        <div class="kyc-hero__badges">
+          <span class="kyc-badge">
+            <span class="kyc-badge__dot"></span>
+            {{ 'Identity verification' | translate }}
+          </span>
+          <span class="kyc-badge kyc-badge--blue">
+            {{ 'Secure profile' | translate }}
+          </span>
+        </div>
       </div>
 
-      <div class="review-page__hero-art" aria-hidden="true">
-        <div class="review-page__hero-orbit"></div>
-        <div class="review-page__hero-orbit review-page__hero-orbit--inner"></div>
-        <div class="review-page__hero-symbol">✓</div>
-        <span class="review-page__hero-spark review-page__hero-spark--one"></span>
-        <span class="review-page__hero-spark review-page__hero-spark--two"></span>
+      <div class="kyc-hero__visual" aria-hidden="true">
+        <span class="kyc-orbit kyc-orbit--outer"></span>
+        <span class="kyc-orbit kyc-orbit--middle"></span>
+        <span class="kyc-orbit kyc-orbit--inner"></span>
+
+        <div class="kyc-hero__icon">
+          <span>🪪</span>
+        </div>
+
+        <span class="kyc-spark kyc-spark--orange"></span>
+        <span class="kyc-spark kyc-spark--blue"></span>
       </div>
     </header>
 
-    <!-- SEARCH -->
-    <form class="review-page__search" (ngSubmit)="load()">
-      <label class="glass-field"><span class="glass-field__label">{{'Search customers'|translate}}</span><input name="search" [(ngModel)]="search" /></label>
-      <button class="glass-btn review-page__submit" type="submit">{{'Search'|translate}}</button>
-    </form>
+    <!-- LOADING -->
+    <p *ngIf="loading" class="kyc-loading" role="status">
+      <span class="kyc-spinner" aria-hidden="true"></span>
+      {{ 'Loading...' | translate }}
+    </p>
 
-    <!-- NOTICES -->
-    <p class="glass-error" *ngIf="error" role="alert">{{error|translate}}</p>
-    <p class="review-page__message" *ngIf="message" role="status">{{message|translate}}</p>
-    <p class="review-page__loading" *ngIf="loading" role="status">{{'Loading…'|translate}}</p>
+    <!-- ERROR -->
+    <p *ngIf="error" class="glass-error kyc-alert" role="alert">
+      {{ error | translate }}
+    </p>
 
-    <!-- QUEUE -->
-    <section class="review-page__queue" *ngIf="!loading && queue as q">
-      <div class="review-page__empty" *ngIf="!q.content.length">
-        <div class="review-page__empty-icon" aria-hidden="true">✓</div>
-        <h4>{{'No KYC applications match this filter.'|translate}}</h4>
-      </div>
+    <ng-container *ngIf="profile as p">
 
-      <article class="review-page__row" *ngFor="let row of q.content; let i = index" [style.--account-index]="i">
-        <div class="review-page__row-icon" aria-hidden="true">♙</div>
-        <div class="review-page__row-main">
-          <strong>{{row.fullName}}</strong>
-          <p>{{row.customerNumber}} · {{row.proofType|translate}} · {{row.proofNumberMasked}}</p>
-          <small>{{row.submittedAt|date:'medium'}} · {{eventLabel(row.state==='AWAITING_REVIEW'?'Awaiting review':row.state==='APPROVED'?'STAFF_VERIFIED':'STAFF_REJECTED')|translate}}</small>
-          <p *ngIf="row.decidedBy">{{row.decidedBy}} · {{row.decidedAt|date:'medium'}} · {{row.reason}}</p>
-        </div>
-        <button class="glass-btn glass-btn--ghost review-page__open" (click)="open(row.customerId)" [disabled]="busy">{{'Review KYC'|translate}}</button>
-      </article>
+      <!-- SUCCESS -->
+      <p *ngIf="verified" role="status" class="kyc-success kyc-alert">
+        <span aria-hidden="true">✓</span>
+        {{ 'KYC verified successfully.' | translate }}
+      </p>
 
-      <nav class="review-page__pager">
-        <button class="glass-btn glass-btn--ghost" (click)="load(q.number-1)" [disabled]="q.number===0">{{'Previous'|translate}}</button>
-        <span>{{'Page {0}'|translate:[q.number+1]}}</span>
-        <button class="glass-btn glass-btn--ghost" (click)="load(q.number+1)" [disabled]="(q.number+1)*q.size>=q.totalElements">{{'Next'|translate}}</button>
-      </nav>
-    </section>
-
-    <!-- DETAIL -->
-    <p class="review-page__loading" *ngIf="detailLoading" role="status">{{'Loading…'|translate}}</p>
-    <p class="glass-error" *ngIf="detailError" role="alert">{{detailError|translate}}</p>
-
-    <section class="review-page__panel review-detail" *ngIf="detail as d">
-      <p *ngIf="d.isResubmission" class="review-chip">{{'Resubmission'|translate}}</p>
-
-      <section class="review-page__block" *ngIf="d.previousDecisions?.length">
-        <h2>{{'Previous decisions'|translate}}</h2>
-        <ol class="review-page__timeline">
-          <li *ngFor="let old of d.previousDecisions; let i = index" [style.--account-index]="i"><strong>{{old.decision|translate}}</strong> · {{old.decidedAt|date:'medium'}}<p>{{old.reason}}</p></li>
-        </ol>
-      </section>
-
-      <section class="review-page__block">
-        <h2>{{'Account details'|translate}}</h2>
-        <dl class="review-page__facts"><div *ngFor="let field of accountFields"><dt>{{field[1]|translate}}</dt><dd>{{d.account[field[0]]||'—'}}</dd></div></dl>
-      </section>
-
-      <section class="review-page__block">
-        <h2>{{'Personal details'|translate}}</h2>
-        <dl class="review-page__facts"><div *ngFor="let field of personalFields"><dt>{{field[1]|translate}}</dt><dd>{{(d.personal[field[0]]||'—')|translate}}</dd></div></dl>
-      </section>
-
-      <section class="review-page__block">
-        <h2>{{'Identity proof'|translate}}</h2>
-        <dl class="review-page__facts"><div><dt>{{'Proof of ID type'|translate}}</dt><dd>{{d.proof.type|translate}}</dd></div><div><dt>{{'ID number'|translate}}</dt><dd>{{d.proof.numberMasked}}</dd></div><div><dt>{{'ID issue date'|translate}}</dt><dd>{{d.proof.issueDate|date:'mediumDate'}}</dd></div></dl>
-      </section>
-
-      <section class="review-page__block">
-        <h2>{{'Document'|translate}}</h2>
-        <p class="review-page__note" *ngIf="!d.document">{{'No supporting document is available.'|translate}}</p>
-        <ng-container *ngIf="d.document as doc">
-          <p class="review-page__doc-name">{{doc.name}} · {{doc.size|number}} {{'bytes'|translate}}</p>
-          <button class="glass-btn glass-btn--ghost review-page__open" (click)="viewDocument()" [disabled]="documentLoading">{{'View document'|translate}}</button>
-          <p class="glass-error" *ngIf="documentError">{{documentError|translate}}</p>
-          <img *ngIf="documentUrl && !pdfUrl" [src]="documentUrl" [alt]="'Supporting document'|translate" />
-          <iframe *ngIf="pdfUrl" [src]="pdfUrl" [title]="'Supporting document'|translate"></iframe>
-        </ng-container>
-      </section>
-
-      <section class="review-page__block">
-        <h2>{{'History'|translate}}</h2>
-        <ol class="review-page__timeline">
-          <li *ngFor="let event of d.history; let i = index" [style.--account-index]="i"><strong>{{eventLabel(event.eventType)|translate}}</strong> · {{event.createdAt|date:'medium'}}<p>{{event.reviewer}} {{event.remarks}}</p></li>
-        </ol>
-      </section>
-
-      <ng-container *ngIf="d.state==='AWAITING_REVIEW'">
-        <div class="review-page__block review-page__decision">
-          <label class="glass-field"><span class="glass-field__label">{{'Decision reason'|translate}}</span><textarea name="reason" [(ngModel)]="reason" (ngModelChange)="confirm=null" maxlength="500" [placeholder]="'10-500 characters; required for rejection'|translate"></textarea></label>
-          <p class="review-page__confirm" *ngIf="confirm">{{'Confirm this KYC decision?'|translate}}</p>
-          <div class="review-page__decision-actions">
-            <button class="glass-btn review-page__submit" (click)="decide('APPROVE')" [disabled]="busy">{{(confirm==='APPROVE'?'Confirm approval':'Approve')|translate}}</button>
-            <button class="glass-btn glass-btn--ghost review-page__reject" (click)="decide('REJECT')" [disabled]="busy">{{(confirm==='REJECT'?'Confirm rejection':'Reject')|translate}}</button>
+      <!-- ACCOUNT DETAILS -->
+      <section class="kyc-panel">
+        <div class="kyc-section-heading">
+          <div class="kyc-section-icon" aria-hidden="true">👤</div>
+          <div>
+            <p class="kyc-section-eyebrow">{{ 'Profile information' | translate }}</p>
+            <h2>{{ 'Account details' | translate }}</h2>
           </div>
         </div>
-      </ng-container>
-    </section>
 
+        <div class="kyc-grid">
+          <label class="glass-field" *ngFor="let field of accountFields">
+            <span class="glass-field__label">{{ field.label | translate }}</span>
+            <input [value]="p.accountDetails[field.key] || ''" disabled />
+          </label>
+        </div>
+      </section>
+
+      <!-- REJECTED NOTICE -->
+      <section *ngIf="p.kycStatus === 'REJECTED'" class="glass-error kyc-alert">
+        <p>{{ 'Your KYC was rejected. Review the reason and re-apply with your MPIN.' | translate }}</p>
+        <p *ngIf="p.reviewDecision?.reason">{{p.reviewDecision?.reason}}</p>
+        <p *ngIf="!p.canReapply">{{ 'The re-apply limit has been reached. Please contact your branch.' | translate }}</p>
+        <form *ngIf="p.canReapply" (ngSubmit)="requestReapply()" class="kyc-reapply-form">
+          <label class="glass-field"><span class="glass-field__label">{{'Optional note'|translate}}</span><textarea name="reapplyNote" [(ngModel)]="reapplyNote" [placeholder]="reapplyNote ? '' : ('Optional note (10–500 characters)'|translate)"></textarea></label>
+          <label class="glass-field"><span class="glass-field__label">{{'MPIN'|translate}}</span><app-mpin-input [(ngModel)]="reapplyMpin" name="reapplyMpin"></app-mpin-input></label>
+          <p class="glass-field__error" *ngIf="reapplyError">{{reapplyError|translate}} <a *ngIf="mpinNotSet" routerLink="/mpin">{{'Set up your MPIN'|translate}}</a></p>
+          <button class="glass-btn" type="submit" [disabled]="reapplyBusy">{{reapplyConfirm ? ('Confirm re-apply'|translate) : ('Re-apply for KYC'|translate)}}</button>
+        </form>
+      </section>
+
+      <!-- READ-ONLY STATUS -->
+      <ng-container *ngIf="!p.editingAllowed">
+        <section class="kyc-panel">
+          <div class="kyc-section-heading">
+            <div class="kyc-section-icon" aria-hidden="true">🛡️</div>
+            <div>
+              <p class="kyc-section-eyebrow">{{ 'Verification status' | translate }}</p>
+              <h2>
+                {{
+                  (
+                    p.kycStatus === 'VERIFIED'
+                      ? 'KYC verified'
+                      : (
+                          p.kycStatus === 'PENDING'
+                            ? 'KYC submitted for staff review'
+                            : 'KYC rejected'
+                        )
+                  ) | translate
+                }}
+              </h2>
+            </div>
+          </div>
+
+          <div class="kyc-status-grid">
+            <div class="kyc-status-item">
+              <span>{{ 'Proof of ID type' | translate }}</span>
+              <strong>{{ proofLabel() | translate }}</strong>
+            </div>
+
+            <div class="kyc-status-item">
+              <span>{{ 'ID number' | translate }}</span>
+              <strong>{{ p.proofNumberMasked || '—' }}</strong>
+            </div>
+
+            <div class="kyc-status-item" *ngIf="p.verifiedAt && p.kycStatus === 'VERIFIED'">
+              <span>{{ 'Verified on' | translate }}</span>
+              <strong>{{ p.verifiedAt | date:'medium' }}</strong>
+            </div>
+          </div>
+
+          <div class="kyc-actions">
+            <button
+              *ngIf="p.kycStatus === 'VERIFIED' && !requesting"
+              type="button"
+              class="glass-btn"
+              (click)="requesting = true"
+            >
+              {{ 'Request re-KYC' | translate }}
+              <span aria-hidden="true">→</span>
+            </button>
+          </div>
+        </section>
+      </ng-container>
+
+      <!-- EDITABLE KYC FORM -->
+      <form
+        *ngIf="p.editingAllowed"
+        class="kyc-form"
+        (ngSubmit)="saveAll()"
+        (focusout)="flush()"
+      >
+        <section class="kyc-panel kyc-completion">
+          <div class="kyc-completion__heading">
+            <div>
+              <p class="kyc-section-eyebrow">{{ 'Verification progress' | translate }}</p>
+              <h2>{{ 'KYC completion' | translate }}</h2>
+            </div>
+            <strong>{{ p.completionPercent }}%</strong>
+          </div>
+
+          <div
+            class="kyc-progress"
+            role="progressbar"
+            [attr.aria-valuenow]="p.completionPercent"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            [attr.aria-label]="'KYC completion' | translate"
+          >
+            <span class="kyc-progress__fill" [style.width.%]="p.completionPercent"></span>
+          </div>
+        </section>
+
+        <section class="kyc-panel" *ngFor="let section of sections">
+          <div class="kyc-section-heading">
+            <div class="kyc-section-icon" aria-hidden="true">◇</div>
+            <div>
+              <p class="kyc-section-eyebrow">{{ 'Identity information' | translate }}</p>
+              <h2>{{ section.label | translate }}</h2>
+            </div>
+          </div>
+
+          <div class="kyc-grid">
+            <label class="glass-field" *ngFor="let field of section.fields">
+              <span class="glass-field__label">{{ labels[field] | translate }}</span>
+
+              <app-glass-select
+                *ngIf="options[field] || field === 'countryOfOrigin'; else textField"
+                [options]="field === 'countryOfOrigin' ? countries() : options[field]!"
+                [translateOptions]="field !== 'countryOfOrigin'"
+                [ngModel]="form[field]"
+                [name]="field"
+                (ngModelChange)="changed(field, $event); flush()"
+                [placeholder]="'Select' | translate"
+              ></app-glass-select>
+
+              <ng-template #textField>
+                <input
+                  [type]="field === 'dateOfBirth' || field === 'idIssueDate' ? 'date' : 'text'"
+                  [max]="field === 'dateOfBirth' || field === 'idIssueDate' ? utcToday : null"
+                  [ngModel]="form[field]"
+                  [name]="field"
+                  (ngModelChange)="changed(field, $event)"
+                  [placeholder]="field === 'proofOfIdValue' ? (p.proofNumberMasked || '') : ''"
+                  autocomplete="off"
+                />
+              </ng-template>
+
+              <span class="glass-field__error" *ngIf="errors[field]">
+                {{ errors[field] | translate }}
+              </span>
+            </label>
+          </div>
+        </section>
+
+        <!-- DOCUMENT -->
+        <section class="kyc-panel">
+          <div class="kyc-section-heading">
+            <div class="kyc-section-icon" aria-hidden="true">📄</div>
+            <div>
+              <p class="kyc-section-eyebrow">{{ 'Supporting documents' | translate }}</p>
+              <h2>{{ 'Document (optional)' | translate }}</h2>
+            </div>
+          </div>
+
+          <label class="glass-field kyc-file-field">
+            <span class="glass-field__label">{{ 'Document (optional)' | translate }}</span>
+            <input
+              type="file"
+              accept="application/pdf,image/jpeg,image/png"
+              (change)="upload($event)"
+              [disabled]="busy"
+            />
+
+            <span *ngIf="p.document" class="kyc-file-name">
+              {{ p.document.name }} ({{ p.document.size }} {{ 'bytes' | translate }})
+            </span>
+
+            <span *ngIf="documentError" class="glass-field__error">
+              {{ documentError | translate }}
+            </span>
+          </label>
+
+          <div class="kyc-actions">
+            <button
+              *ngIf="p.document"
+              type="button"
+              class="glass-btn glass-btn--ghost"
+              (click)="removeDocument()"
+              [disabled]="busy"
+            >
+              {{ 'Remove document' | translate }}
+            </button>
+          </div>
+        </section>
+
+        <!-- ACTIONS -->
+        <div class="kyc-actions kyc-actions--primary">
+          <button type="submit" class="glass-btn">
+            {{ 'Save details' | translate }}
+          </button>
+
+          <button
+            type="button"
+            class="glass-btn kyc-submit-btn"
+            (click)="submitKyc()"
+            [disabled]="p.completionPercent !== 100 || busy"
+          >
+            {{ 'Submit KYC' | translate }}
+            <span aria-hidden="true">↓</span>
+          </button>
+
+          <span *ngIf="saved" role="status" class="kyc-saved">
+            ✓ {{ 'Draft saved' | translate }}
+          </span>
+        </div>
+      </form>
+
+      <!-- RE-KYC REQUEST -->
+      <form
+        *ngIf="requesting && p.kycStatus === 'VERIFIED'"
+        class="kyc-form"
+        (ngSubmit)="requestRekyc()"
+      >
+        <section class="kyc-panel">
+          <div class="kyc-section-heading">
+            <div class="kyc-section-icon" aria-hidden="true">🔐</div>
+            <div>
+              <p class="kyc-section-eyebrow">{{ 'Identity verification' | translate }}</p>
+              <h2>{{ 'Request re-KYC' | translate }}</h2>
+            </div>
+          </div>
+
+          <p class="kyc-rekyc-notice">
+            {{ 'FDs, loans and forex are unavailable until re-KYC is completed.' | translate }}
+          </p>
+
+          <label class="glass-field">
+            <span class="glass-field__label">{{ 'Remarks' | translate }}</span>
+            <textarea
+              name="remarks"
+              [(ngModel)]="remarks"
+              [placeholder]="'Reason for re-KYC (10–500 characters)' | translate"
+            ></textarea>
+            <span class="glass-field__error" *ngIf="remarksError">
+              {{ remarksError | translate }}
+            </span>
+          </label>
+
+          <label class="glass-field">
+            <span class="glass-field__label">{{ 'MPIN' | translate }}</span>
+            <app-mpin-input [(ngModel)]="rekycMpin" name="rekycMpin"></app-mpin-input>
+            <span class="glass-field__error" *ngIf="mpinNotSet">
+              {{ 'Set up your MPIN before continuing.' | translate }}
+              <a routerLink="/mpin">{{ 'Set up your MPIN' | translate }}</a>
+            </span>
+          </label>
+
+          <div class="kyc-actions">
+            <button class="glass-btn" type="submit" [disabled]="busy">
+              {{ 'Send' | translate }}
+              <span aria-hidden="true">→</span>
+            </button>
+
+            <button
+              class="glass-btn glass-btn--ghost"
+              type="button"
+              (click)="requesting = false"
+              [disabled]="busy"
+            >
+              {{ 'Cancel' | translate }}
+            </button>
+          </div>
+        </section>
+      </form>
+
+    </ng-container>
   </main>
 </app-workspace-shell>
