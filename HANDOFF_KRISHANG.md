@@ -1,5 +1,14 @@
 # Ledger and savings transfer handoff
 
+## Readiness after client-testing fixes
+
+Baseline suites were identity 24, FD 55, product 34, and Angular production
+build passed. Current source compiles for identity and FD, and the Angular build
+passes. Current integration reruns are recorded in `identity-current.log` and
+`fd-current.log`; migration-count assertions were updated for customer V12 and
+FD V16. Docker-dependent gateway smoke remains unverified unless an isolated
+compose project is explicitly started with `-p moneypal-e2e`.
+
 **Baseline:** `efe761c` (`main`) with the approved ledger and transfer changes in the working tree  
 **Active implementation:** `services/fd-account-service` (MySQL 8.4 + Flyway), Angular `FRONTEND/`, and the existing nginx gateway. `BACKEND/` Java is legacy; only its FD service migration directory supplies migrations to the active service.
 

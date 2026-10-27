@@ -11,6 +11,7 @@ export interface KycProfile {
   proofNumberMasked: string | null;
   editingAllowed: boolean;
   verifiedAt: string | null;
+  reviewDecision?: {decision:'APPROVE'|'REJECT';reason:string|null;decidedAt:string}|null;
   fieldErrors: Partial<Record<KycField, string>>;
   accountDetails: { fullName: string; username: string; customerNumber: string; email: string | null; mobile: string | null };
   document: { name: string; size: number; contentType: string } | null;

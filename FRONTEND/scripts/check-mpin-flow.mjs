@@ -26,7 +26,8 @@ try {
   assert.match(read('src/app/features/fd/account-detail/fd-account-detail.ts'), /requestProof\(purpose,[\s\S]*?run\(r\.proofToken\)/, 'FD close and premature-closure actions should use the MPIN proof helper');
   assert.match(read('src/app/features/kyc/kyc.ts'), /rekyc\(this\.remarks,this\.rekycMpin\)[\s\S]*?this\.rekycMpin=''/, 'Re-KYC should submit and clear the in-memory MPIN');
   assert.match(read('src/app/features/auth/mpin/mpin-page.ts'), /clearPin\(\)/, 'MPIN setup/change should clear local PIN fields after attempts');
-  assert.match(read('src/app/features/staff/accounts/staff-account-dashboard.ts'), /verifyCustomerMpin[\s\S]*?post\(p\.proofToken\)/, 'Teller withdrawal should verify the customer MPIN before posting');
+  assert.doesNotMatch(read('src/app/features/staff/accounts/staff-account-dashboard.ts'), /Customer MPIN|verifyCustomerMpin/, 'Teller withdrawal must not request customer MPIN');
+  assert.match(read('src/app/features/staff/accounts/staff-account-dashboard.ts'), /verificationMethods|Identity verified by/, 'Teller withdrawal should use identity attestation');
   console.log('MPIN strength checks, verify-before-action wiring, teller verification, and local PIN clearing passed.');
 } finally {
   if (fs.existsSync(generated)) fs.unlinkSync(generated);

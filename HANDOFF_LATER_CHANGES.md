@@ -2,6 +2,34 @@
 
 ## Implemented
 
+## Client testing fixes A-H (current working tree)
+
+> **Current A-H correction:** Teller withdrawal is officer-authenticated and requires
+> an identity-verification attestation; it does not accept or verify customer MPIN.
+> The earlier MPIN table/text below predates this correction and is superseded.
+
+The active services now return safe `{message, code?}` error envelopes. MPIN
+verification errors are handled separately from the protected operation that
+follows, and identity/FD use one canonical binding rule for numeric strings,
+account numbers, IDs, and currency codes.
+
+Teller withdrawals use the officer's authentication plus an identity-verification
+attestation (`ID_DOCUMENT_CHECKED`, `SIGNATURE_VERIFIED`, `BIOMETRIC_VERIFIED`,
+or `OTHER`), an optional reference, and a required remark. Customer MPIN is no
+longer accepted by the teller endpoint. Migration V16 records the attestation
+inside the same transaction as the ledger movement.
+
+Migration V12 adds the staff KYC review access log. Staff can queue, inspect
+masked details/documents, and approve or reject submitted applications with a
+reason. The old customer-list status mutation is blocked with HTTP 400; risk
+updates remain available. The customer response includes the latest decision
+without reviewer identity.
+
+`POST /api/v1/fixed-deposits/estimate` uses the same quote resolver as booking
+and performs no writes. The Angular booking preview consumes it. The forex page
+uses the shared workflow-page visual system. `scripts/e2e-smoke.mjs` is a
+Node 18+ built-in-fetch smoke probe for an isolated gateway stack.
+
 - **A — Staff-only demo funds:** customer demo routes and customer UI were removed. `GET /api/v1/savings-accounts/demo-options` and `POST /api/v1/savings-accounts/{id}/demo-opening` require bank staff/admin roles and the demo feature flag. A staff member may credit an active, zero-balance savings account with no transaction history once, subject to the optional cap. The credit is journaled as `DEMO_SUSPENSE` to `SAVINGS`, and is attributed to the staff actor. Staff dashboard confirms the amount and refreshes account data on success.
 - **B — MPIN:** identity service stores a bcrypt hash of a peppered HMAC, encrypted MPIN for teller verification, failure counter, timed lock, and audit events. Setup/change require the customer password; customer reset by staff clears the MPIN and requires setup again. Customer verification issues a short-lived, purpose-bound HS256 proof. Money services validate actor, subject, issuer, expiry, purpose, canonical field binding, and one-time `jti`; proof consumption shares the money-operation transaction. Replays return the prior idempotent result before a proof is required. Protected operations are:
 

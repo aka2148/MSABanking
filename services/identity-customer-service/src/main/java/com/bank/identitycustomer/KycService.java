@@ -111,7 +111,8 @@ public class KycService {
     }
 
     @Transactional
-    public void reviewByStaff(long customerId, String requestedDecision, String reviewerUsername) {
+    public void reviewByStaff(long customerId, String requestedDecision, String reviewerUsername) { reviewByStaff(customerId, requestedDecision, reviewerUsername, "Staff review"); }
+    public void reviewByStaff(long customerId, String requestedDecision, String reviewerUsername, String reason) {
         String decision = requestedDecision == null ? "" : requestedDecision.trim().toUpperCase(Locale.ROOT);
         if (!Set.of("VERIFIED", "REJECTED").contains(decision))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Staff KYC decision must be VERIFIED or REJECTED.");
@@ -123,10 +124,16 @@ public class KycService {
         Long reviewerId = jdbc.query("SELECT ucr_user_id FROM user_credentials WHERE ucr_username=?",
                 rs -> rs.next() ? rs.getLong(1) : null, reviewerUsername);
         if (reviewerId == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Reviewer identity is unavailable.");
+        if (reviewerId.longValue() == ((Number)c.get("cus_user_id")).longValue())
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You cannot review your own KYC.");
+        if (("REJECTED".equals(decision) || reason != null && !reason.isBlank()) && !KycValidation.safeText(reason, 10, 500))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Enter a decision reason of 10-500 characters without markup or control characters.");
         jdbc.update("UPDATE customers SET cus_kyc_status=? WHERE cus_customer_id=?", decision, customerId);
         jdbc.update("UPDATE customer_kyc_profile SET cycle_status='COMPLETED',updated_at=UTC_TIMESTAMP(6) WHERE customer_id=?", customerId);
         c.put("cus_kyc_status", decision);
-        event(c, p, "VERIFIED".equals(decision) ? "STAFF_VERIFIED" : "STAFF_REJECTED", "reviewerUserId=" + reviewerId);
+        jdbc.update("INSERT INTO customer_kyc_events(customer_id,cycle_number,event_type,remarks,reviewer_username) VALUES(?,?,?,?,?)",
+                customerId,p.get("cycle_number"),"VERIFIED".equals(decision)?"STAFF_VERIFIED":"STAFF_REJECTED",reason,reviewerUsername);
+        UserSnapshots.writeUserSnapshot(jdbc, ((Number)c.get("cus_user_id")).longValue());
     }
 
     @Transactional
@@ -196,6 +203,13 @@ public class KycService {
         saved.remove("proofOfIdValue"); result.put("values", saved); result.put("proofNumberMasked", p.get("proof_number_masked"));
         result.put("editingAllowed", "PENDING".equals(c.get("cus_kyc_status")) && "OPEN".equals(p.get("cycle_status")) && !submitted(p, id(c)));
         result.put("fieldErrors", errors);
+        result.put("reviewDecision", jdbc.query("SELECT event_type,remarks,created_at FROM customer_kyc_events WHERE customer_id=? AND event_type IN ('STAFF_VERIFIED','STAFF_REJECTED') ORDER BY cycle_number DESC,id DESC LIMIT 1", rs -> {
+            if (!rs.next()) return null;
+            Map<String,Object> decision=new LinkedHashMap<>();
+            decision.put("decision","STAFF_VERIFIED".equals(rs.getString(1))?"APPROVE":"REJECT");
+            decision.put("reason",rs.getString(2));decision.put("decidedAt",rs.getTimestamp(3).toInstant().toString());
+            return decision;
+        },id(c)));
         result.put("document", p.get("document_name") == null ? null : Map.of("name", p.get("document_name"), "size", p.get("document_size"), "contentType", p.get("document_content_type")));
         result.put("verifiedAt", jdbc.query("SELECT created_at FROM customer_kyc_events WHERE customer_id=? AND event_type IN ('AUTO_VERIFIED','STAFF_VERIFIED') ORDER BY id DESC LIMIT 1", rs -> rs.next() ? rs.getTimestamp(1).toInstant().toString() : null, id(c)));
         Map<String, Object> account = new LinkedHashMap<>();

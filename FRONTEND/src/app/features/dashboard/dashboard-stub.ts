@@ -7,6 +7,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { WorkspaceShell } from '../../shared/components/workspace-shell/workspace-shell';
 import { MpinProofService } from '../../core/services/mpin-proof.service';
 import { OnInit } from '@angular/core';
+import { KycReviewService } from '../../core/services/kyc-review.service';
 
 @Component({
   selector: 'app-dashboard-stub',
@@ -24,6 +25,7 @@ import { OnInit } from '@angular/core';
         <app-kyc-progress-ring *ngIf="!canManageProducts"></app-kyc-progress-ring>
 
         <nav class="workspace-home__links" [attr.aria-label]="'Workspace shortcuts' | translate">
+          <a *ngIf="canManageProducts" routerLink="/staff/kyc"><span>{{'KYC review'|translate}}</span><small>{{'Awaiting review'|translate}}: {{awaitingReview ?? '—'}}</small></a>
           <a *ngIf="!canManageProducts" routerLink="/savings"><span> {{ 'Savings accounts' | translate }} </span><small> {{ 'Open and manage savings' | translate }} </small></a>
           <a *ngIf="!canManageProducts" routerLink="/fd"><span> {{ 'Fixed deposits' | translate }} </span><small> {{ 'Browse eligible offers' | translate }} </small></a>
           <a *ngIf="!canManageProducts" routerLink="/fd/accounts"><span> {{ 'My deposits' | translate }} </span><small> {{ 'View account activity' | translate }} </small></a>
@@ -55,8 +57,9 @@ import { OnInit } from '@angular/core';
 })
 export class DashboardStub implements OnInit {
   mpinSet=true;
-  constructor(private readonly auth: AuthService,private readonly mpin:MpinProofService) {}
-  ngOnInit():void{if(!this.canManageProducts)this.mpin.status().subscribe({next:s=>this.mpinSet=s.set,error:()=>{}});}
+  awaitingReview:number|null=null;
+  constructor(private readonly auth: AuthService,private readonly mpin:MpinProofService,private readonly kycReview:KycReviewService) {}
+  ngOnInit():void{if(!this.canManageProducts)this.mpin.status().subscribe({next:s=>this.mpinSet=s.set,error:()=>{}});else this.kycReview.queue('AWAITING_REVIEW','',0,1).subscribe({next:q=>this.awaitingReview=q.totalElements,error:()=>{}});}
 
   get isAdmin(): boolean { return this.auth.currentRole() === 'ROLE_ADMIN'; }
   get canManageProducts(): boolean { return ['ROLE_BANK_OFFICER', 'ROLE_ADMIN'].includes(this.auth.currentRole() ?? ''); }

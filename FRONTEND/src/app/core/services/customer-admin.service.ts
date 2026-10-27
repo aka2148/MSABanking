@@ -10,6 +10,7 @@ export interface CustomerAdminRecord {
   username: string;
   fullName: string;
   kycStatus: string;
+  kycAwaitingReview: boolean;
   riskCategory: string;
   legalEntityType: string;
 }
@@ -40,7 +41,7 @@ export class CustomerAdminService {
     return this.http.get<CustomerAdminRecord>(apiUrl(this.baseUrl, `/api/v1/customers/by-user/${userId}`));
   }
 
-  update(customerId: number, update: Pick<CustomerAdminRecord, 'fullName' | 'kycStatus' | 'riskCategory' | 'legalEntityType'>): Observable<CustomerAdminRecord> {
+  update(customerId: number, update: Pick<CustomerAdminRecord, 'fullName' | 'riskCategory' | 'legalEntityType'>): Observable<CustomerAdminRecord> {
     return this.http.put<CustomerAdminRecord>(apiUrl(this.baseUrl, `/api/v1/customers/${customerId}`), update);
   }
 }

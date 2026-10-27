@@ -38,7 +38,7 @@ public class CustomerAdminController {
         String from=" FROM customers c JOIN users x ON x.usr_user_id=c.cus_user_id LEFT JOIN user_credentials u ON u.ucr_user_id=x.usr_user_id LEFT JOIN customer_details d ON d.cud_customer_id=c.cus_customer_id";
         Long total=jdbc.queryForObject("SELECT COUNT(DISTINCT c.cus_customer_id)"+from+where,Long.class,args.toArray());
         List<Object> pageArgs=new ArrayList<>(args);pageArgs.add(s);pageArgs.add((long)p*s);
-        List<CustomerResponse> content=jdbc.query("SELECT c.cus_customer_id,c.cus_customer_number,u.ucr_username,d.cud_full_name,c.cus_kyc_status,c.cus_risk_category,c.cus_legal_entity_type"+from+where+" ORDER BY c.cus_customer_id LIMIT ? OFFSET ?",(rs,n)->new CustomerResponse(rs.getLong(1),rs.getString(2),rs.getString(3),rs.getString(4),rs.getString(5),rs.getString(6),rs.getString(7)),pageArgs.toArray());
+        List<CustomerResponse> content=jdbc.query("SELECT c.cus_customer_id,c.cus_customer_number,u.ucr_username,d.cud_full_name,c.cus_kyc_status,c.cus_risk_category,c.cus_legal_entity_type"+from+where+" ORDER BY c.cus_customer_id LIMIT ? OFFSET ?",(rs,n)->new CustomerResponse(rs.getLong(1),rs.getString(2),rs.getString(3),rs.getString(4),rs.getString(5),rs.getString(6),rs.getString(7),awaitingReview(rs.getLong(1))),pageArgs.toArray());
         long count=total==null?0:total;
         long pages=(count+s-1)/s;
         return new CustomerPage(content,count,pages,p,s,pages==0||p==0,pages==0||p>=pages-1);
@@ -82,7 +82,7 @@ public class CustomerAdminController {
         CustomerResponse existing=findCustomer(customerId);
         if(request.legalEntityType!=null) jdbc.update("UPDATE customers SET cus_legal_entity_type=? WHERE cus_customer_id=?",request.legalEntityType,customerId);
         if(request.kycStatus!=null&&!request.kycStatus.trim().equalsIgnoreCase(existing.kycStatus()))
-            kyc.reviewByStaff(customerId,request.kycStatus,actor.getName());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Use the KYC review screen.");
         if(request.riskCategory!=null) jdbc.update("UPDATE customers SET cus_risk_category=? WHERE cus_customer_id=?",validatedRisk(request.riskCategory),customerId);
         if(request.fullName!=null) {
             List<Long> detailIds=jdbc.queryForList("SELECT cud_detail_id FROM customer_details WHERE cud_customer_id=? ORDER BY cud_detail_id LIMIT 1",Long.class,customerId);
@@ -98,14 +98,17 @@ public class CustomerAdminController {
     public CustomerResponse updateStatus(@PathVariable long customerId,@RequestBody Map<String,String> body, Authentication actor) {
         String status=body.get("status"),risk=body.get("riskCategory");
         CustomerResponse existing=findCustomer(customerId);
-        if(status!=null&&!status.trim().equalsIgnoreCase(existing.kycStatus())) kyc.reviewByStaff(customerId,status,actor.getName());
+        if(status!=null&&!status.trim().equalsIgnoreCase(existing.kycStatus())) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Use the KYC review screen.");
         if(risk!=null) jdbc.update("UPDATE customers SET cus_risk_category=? WHERE cus_customer_id=?",validatedRisk(risk),customerId);
         UserSnapshots.writeUserSnapshot(jdbc, jdbc.queryForObject("SELECT cus_user_id FROM customers WHERE cus_customer_id=?", Long.class, customerId));
         return findCustomer(customerId);
     }
 
     private CustomerResponse findCustomer(long id) {
-        return jdbc.query("SELECT c.cus_customer_id,c.cus_customer_number,u.ucr_username,d.cud_full_name,c.cus_kyc_status,c.cus_risk_category,c.cus_legal_entity_type FROM customers c LEFT JOIN user_credentials u ON u.ucr_user_id=c.cus_user_id LEFT JOIN customer_details d ON d.cud_customer_id=c.cus_customer_id WHERE c.cus_customer_id=? ORDER BY d.cud_detail_id LIMIT 1",rs->{if(!rs.next())throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Customer not found");return new CustomerResponse(rs.getLong(1),rs.getString(2),rs.getString(3),rs.getString(4),rs.getString(5),rs.getString(6),rs.getString(7));},id);
+        return jdbc.query("SELECT c.cus_customer_id,c.cus_customer_number,u.ucr_username,d.cud_full_name,c.cus_kyc_status,c.cus_risk_category,c.cus_legal_entity_type FROM customers c LEFT JOIN user_credentials u ON u.ucr_user_id=c.cus_user_id LEFT JOIN customer_details d ON d.cud_customer_id=c.cus_customer_id WHERE c.cus_customer_id=? ORDER BY d.cud_detail_id LIMIT 1",rs->{if(!rs.next())throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Customer not found");return new CustomerResponse(rs.getLong(1),rs.getString(2),rs.getString(3),rs.getString(4),rs.getString(5),rs.getString(6),rs.getString(7),awaitingReview(rs.getLong(1)));},id);
+    }
+    private boolean awaitingReview(long id) {
+        return jdbc.queryForObject("SELECT COUNT(*) FROM customers c JOIN customer_kyc_profile p ON p.customer_id=c.cus_customer_id JOIN customer_kyc_events e ON e.customer_id=p.customer_id AND e.cycle_number=p.cycle_number AND e.event_type='KYC_SUBMITTED' WHERE c.cus_customer_id=? AND c.cus_kyc_status='PENDING' AND NOT EXISTS (SELECT 1 FROM customer_kyc_events d WHERE d.customer_id=p.customer_id AND d.cycle_number=p.cycle_number AND d.event_type IN ('STAFF_VERIFIED','STAFF_REJECTED'))",Integer.class,id)>0;
     }
     private String username(long userId) { return jdbc.query("SELECT ucr_username FROM user_credentials WHERE ucr_user_id=?",rs->rs.next()?rs.getString(1):"Customer",userId); }
     private boolean present(String value) { return value!=null&&!value.isBlank(); }
@@ -117,7 +120,7 @@ public class CustomerAdminController {
 
     public record CreateCustomer(@NotNull Long userId,String customerNumber,String legalEntityType,String kycStatus,String riskCategory,String fullName) {}
     public record UpdateCustomer(String legalEntityType,String kycStatus,String riskCategory,String fullName) {}
-    public record CustomerResponse(Long id,String customerNumber,String username,String fullName,String kycStatus,String riskCategory,String legalEntityType) {}
+    public record CustomerResponse(Long id,String customerNumber,String username,String fullName,String kycStatus,String riskCategory,String legalEntityType,boolean kycAwaitingReview) {}
     public record CustomerPage(List<CustomerResponse> content,long totalElements,long totalPages,int number,int size,boolean first,boolean last) {
         public int getNumberOfElements(){return content.size();}
         public boolean isEmpty(){return content.isEmpty();}

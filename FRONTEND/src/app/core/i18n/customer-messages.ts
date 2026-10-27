@@ -1,5 +1,34 @@
 // English | Hindi | Kannada | Japanese | Arabic | Spanish
 export const CUSTOMER_MESSAGES = `
+MoneyPal forex|मनीपाल विदेशी मुद्रा|ಮನಿಪಾಲ್ ವಿದೇಶಿ ವಿನಿಮಯ|MoneyPal 外国為替|موني بال للصرف الأجنبي|Divisas MoneyPal
+Forex services|विदेशी मुद्रा सेवाएँ|ವಿದೇಶಿ ವಿನಿಮಯ ಸೇವೆಗಳು|外国為替サービス|خدمات الصرف الأجنبي|Servicios de divisas
+My forex requests|मेरे विदेशी मुद्रा अनुरोध|ನನ್ನ ವಿದೇಶಿ ವಿನಿಮಯ ವಿನಂತಿಗಳು|外国為替の申請一覧|طلبات الصرف الخاصة بي|Mis solicitudes de divisas
+Forex request|विदेशी मुद्रा अनुरोध|ವಿದೇಶಿ ವಿನಿಮಯ ವಿನಂತಿ|外国為替の申請|طلب صرف أجنبي|Solicitud de divisas
+Indicative requests only. No live quote, currency trade, or funds transfer is performed.|केवल सांकेतिक अनुरोध। कोई लाइव दर, मुद्रा व्यापार या धन हस्तांतरण नहीं होता।|ಸೂಚಕ ವಿನಂತಿಗಳು ಮಾತ್ರ. ನೇರ ದರ, ಕರೆನ್ಸಿ ವ್ಯಾಪಾರ ಅಥವಾ ಹಣ ವರ್ಗಾವಣೆ ನಡೆಯುವುದಿಲ್ಲ.|参考申請のみです。実勢レートの提示、為替取引、送金は行いません。|طلبات استرشادية فقط. لا يتم تقديم سعر مباشر أو تداول عملة أو تحويل أموال.|Solo solicitudes orientativas. No se cotiza, negocia ni transfiere dinero.
+Browse forex|विदेशी मुद्रा देखें|ವಿದೇಶಿ ವಿನಿಮಯ ವೀಕ್ಷಿಸಿ|外国為替を見る|تصفح الصرف الأجنبي|Explorar divisas
+My requests|मेरे अनुरोध|ನನ್ನ ವಿನಂತಿಗಳು|申請一覧|طلباتي|Mis solicitudes
+No forex services are open right now. Check back later.|अभी विदेशी मुद्रा सेवाएँ उपलब्ध नहीं हैं। बाद में देखें।|ಈಗ ವಿದೇಶಿ ವಿನಿಮಯ ಸೇವೆಗಳು ಲಭ್ಯವಿಲ್ಲ. ನಂತರ ಪರಿಶೀಲಿಸಿ.|現在利用できる外国為替サービスはありません。後ほどご確認ください。|لا تتوفر خدمات صرف حالياً. تحقق لاحقاً.|No hay servicios de divisas disponibles ahora. Vuelve más tarde.
+Create an indicative request|सांकेतिक अनुरोध बनाएँ|ಸೂಚಕ ವಿನಂತಿ ರಚಿಸಿ|参考申請を作成|إنشاء طلب استرشادي|Crear solicitud orientativa
+Funding currency|वित्तपोषण मुद्रा|ಹಣಕಾಸು ಕರೆನ್ಸಿ|支払通貨|عملة التمويل|Moneda de financiación
+Destination currency|गंतव्य मुद्रा|ಗಮ್ಯಸ್ಥಾನ ಕರೆನ್ಸಿ|受取通貨|عملة الوجهة|Moneda de destino
+Funding amount|वित्तपोषण राशि|ಹಣಕಾಸು ಮೊತ್ತ|支払金額|مبلغ التمويل|Importe de financiación
+Indicative configured markup|निर्धारित सांकेतिक मार्जिन|ಸೂಚಕ ನಿಗದಿತ ಮಾರ್ಕಪ್|設定された参考上乗せ率|الهامش الاسترشادي المحدد|Margen orientativo configurado
+Enter an amount within a supported band|समर्थित सीमा में राशि दर्ज करें|ಬೆಂಬಲಿತ ಮಿತಿಯೊಳಗೆ ಮೊತ್ತ ನಮೂದಿಸಿ|対応する範囲内で金額を入力|أدخل مبلغاً ضمن النطاق المدعوم|Introduce un importe dentro del rango admitido
+No live reference rate is supplied, so a destination amount cannot be quoted. No fee is charged for recording this request.|लाइव दर न होने से गंतव्य राशि नहीं बताई जा सकती। अनुरोध दर्ज करने का कोई शुल्क नहीं है।|ನೇರ ದರ ಇಲ್ಲದ ಕಾರಣ ಗಮ್ಯಸ್ಥಾನದ ಮೊತ್ತ ನೀಡಲಾಗುವುದಿಲ್ಲ. ವಿನಂತಿ ದಾಖಲಿಸಲು ಶುಲ್ಕವಿಲ್ಲ.|実勢レートがないため受取金額は提示できません。申請の記録に手数料はかかりません。|لا يتوفر سعر مباشر لتقدير مبلغ الوجهة. لا تُفرض رسوم لتسجيل الطلب.|Sin tipo de referencia en vivo no se cotiza el importe de destino. Registrar esta solicitud es gratuito.
+Record request|अनुरोध दर्ज करें|ವಿನಂತಿ ದಾಖಲಿಸಿ|申請を記録|تسجيل الطلب|Registrar solicitud
+You have no forex requests yet.|आपका कोई विदेशी मुद्रा अनुरोध नहीं है।|ನಿಮ್ಮ ವಿದೇಶಿ ವಿನಿಮಯ ವಿನಂತಿಗಳು ಇನ್ನೂ ಇಲ್ಲ.|外国為替の申請はまだありません。|ليس لديك طلبات صرف بعد.|Aún no tienes solicitudes de divisas.
+View request|अनुरोध देखें|ವಿನಂತಿ ವೀಕ್ಷಿಸಿ|申請を表示|عرض الطلب|Ver solicitud
+Configured markup|निर्धारित मार्जिन|ನಿಗದಿತ ಮಾರ್ಕಪ್|設定上乗せ率|الهامش المحدد|Margen configurado
+Request fee|अनुरोध शुल्क|ವಿನಂತಿ ಶುಲ್ಕ|申請手数料|رسوم الطلب|Comisión de solicitud
+Request recorded|अनुरोध दर्ज किया गया|ವಿನಂತಿ ದಾಖಲಿಸಲಾಗಿದೆ|申請を記録済み|تم تسجيل الطلب|Solicitud registrada
+REQUESTED|अनुरोधित|ವಿನಂತಿಸಲಾಗಿದೆ|申請済み|مطلوب|Solicitado
+CANCELLED|रद्द|ರದ್ದುಪಡಿಸಲಾಗಿದೆ|取消済み|ملغى|Cancelado
+Invalid forex link.|अमान्य विदेशी मुद्रा लिंक।|ಅಮಾನ್ಯ ವಿದೇಶಿ ವಿನಿಮಯ ಲಿಂಕ್.|外国為替のリンクが無効です。|رابط الصرف غير صالح.|Enlace de divisas no válido.
+Choose a supported destination currency and enter an amount within the offered range.|समर्थित गंतव्य मुद्रा और प्रस्तावित सीमा में राशि चुनें।|ಬೆಂಬಲಿತ ಗಮ್ಯಸ್ಥಾನ ಕರೆನ್ಸಿ ಮತ್ತು ನೀಡಿರುವ ಮಿತಿಯ ಮೊತ್ತ ಆಯ್ಕೆಮಾಡಿ.|対応する受取通貨を選択し、指定範囲内の金額を入力してください。|اختر عملة وجهة مدعومة وأدخل مبلغاً ضمن النطاق المتاح.|Elige una moneda de destino admitida e introduce un importe dentro del rango ofrecido.
+Calculating estimate…|अनुमान की गणना हो रही है…|ಅಂದಾಜು ಲೆಕ್ಕಹಾಕಲಾಗುತ್ತಿದೆ…|見積もりを計算中…|جارٍ حساب التقدير…|Calculando estimación…
+Mother|माता|ತಾಯಿ|母|الأم|Madre
+Father's / Spouse's / Mother's name|पिता / जीवनसाथी / माता का नाम|ತಂದೆ / ಸಂಗಾತಿ / ತಾಯಿಯ ಹೆಸರು|父／配偶者／母の氏名|اسم الأب / الزوج أو الزوجة / الأم|Nombre del padre / cónyuge / madre
+Please re-enter your MPIN.|कृपया अपना एमपिन फिर से दर्ज करें।|ದಯವಿಟ್ಟು ನಿಮ್ಮ ಎಂಪಿನ್ ಮತ್ತೆ ನಮೂದಿಸಿ.|暗証番号を再入力してください。|يرجى إعادة إدخال رقم المعاملة.|Vuelve a ingresar tu PIN.
 Set up your MPIN before continuing.|आगे बढ़ने से पहले अपना एमपिन सेट करें।|ಮುಂದುವರಿಯುವ ಮೊದಲು ಎಂಪಿನ್ ಹೊಂದಿಸಿ.|続行する前に暗証番号を設定してください。|أعد رقم المعاملة قبل المتابعة.|Configura tu PIN antes de continuar.
 Enter a six digit MPIN.|छह अंकों का एमपिन दर्ज करें।|ಆರು ಅಂಕಿಯ ಎಂಪಿನ್ ನಮೂದಿಸಿ.|6桁の暗証番号を入力してください。|أدخل رقم معاملة من ستة أرقام.|Ingresa un PIN de seis dígitos.
 MPIN is incorrect. Attempts remaining: {0}.|एमपिन गलत है। शेष प्रयास: {0}।|ಎಂಪಿನ್ ತಪ್ಪಾಗಿದೆ. ಉಳಿದ ಪ್ರಯತ್ನಗಳು: {0}.|暗証番号が違います。残り試行回数: {0}。|رقم المعاملة غير صحيح. المحاولات المتبقية: {0}.|El PIN es incorrecto. Intentos restantes: {0}.

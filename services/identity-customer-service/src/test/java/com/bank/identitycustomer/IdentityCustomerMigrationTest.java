@@ -100,7 +100,7 @@ class IdentityCustomerMigrationTest {
                 Integer.class);
 
         assertEquals(1, appliedMigrations);
-        assertEquals(11,jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1",Integer.class));
+        assertEquals(12,jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1",Integer.class));
         assertTrue(tableExists("users"));
         assertTrue(tableExists("user_credentials"));
         assertTrue(tableExists("customers"));
@@ -207,11 +207,11 @@ class IdentityCustomerMigrationTest {
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/v1/customers/"+customerId+"/status")
                         .header("Authorization","Bearer "+admin).contentType("application/json")
                         .content("{\"status\":\"VERIFIED\",\"riskCategory\":\"MEDIUM\"}"))
-                .andExpect(status().isConflict());
+                .andExpect(status().isBadRequest());
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/v1/customers/"+customerId)
                         .header("Authorization","Bearer "+admin).contentType("application/json")
                         .content("{\"kycStatus\":\"VERIFIED\"}"))
-                .andExpect(status().isConflict());
+                .andExpect(status().isBadRequest());
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/v1/customers/"+customerId+"/status")
                         .header("Authorization","Bearer "+admin).contentType("application/json").content("{\"riskCategory\":\"MEDIUM\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.kycStatus").value("PENDING"));

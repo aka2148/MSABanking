@@ -38,7 +38,6 @@ public class MpinService {
     private static final long PROOF_SECONDS=90;
     private static final Map<String,List<String>> FIELDS=Map.of(
             "TRANSFER",List.of("fromAccountId","toAccountNumber","amount"),
-            "WITHDRAWAL",List.of("accountId","amount"),
             "FD_FUNDING",List.of("fdId","principal"),
             "FD_CLOSE",List.of("fdId"),
             "FD_PREMATURE_REQUEST",List.of("fdId"),
@@ -124,21 +123,9 @@ public class MpinService {
         jdbc.update("DELETE FROM customer_mpin WHERE cmp_user_id=?",userId); event(userId,"RESET_BY_STAFF",staff,null);
     }
 
-    @Transactional
-    public Verification staffVerify(long userId,String staff,String pin,Map<String,Object> fields) {
-        List<String> expected=FIELDS.get("WITHDRAWAL"); if(!fields.keySet().equals(Set.copyOf(expected)))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Unknown MPIN fields.");
-        Attempt result=checkLockedRow(userId,staff,pin,"WITHDRAWAL");
-        if(!result.ok()) return new Verification(Map.of("code",result.code(),"attemptsRemaining",result.attemptsRemaining(),"lockedUntil",result.lockedUntil()==null?"":result.lockedUntil().toString()),null,null);
-        event(userId,"VERIFY_OK",staff,"WITHDRAWAL"); Instant now=Instant.now(),exp=now.plusSeconds(PROOF_SECONDS);
-        String token=Jwts.builder().setHeaderParam("typ","JWT").setIssuer("identity").setSubject(Long.toString(userId)).claim("typ","mpin-proof").claim("act",staff).claim("purpose","WITHDRAWAL").claim("bind",hashBinding(binding("WITHDRAWAL",fields))).claim("jti",UUID.randomUUID().toString()).setIssuedAt(Date.from(now)).setExpiration(Date.from(exp)).signWith(Keys.hmacShaKeyFor(proofKey),SignatureAlgorithm.HS256).compact();
-        return new Verification(Map.of(),token,exp);
-    }
-
     public static String binding(String purpose,Map<String,Object> values) {
         List<String> fields=FIELDS.get(purpose); if(fields==null||!values.keySet().equals(Set.copyOf(fields)))throw new IllegalArgumentException("Invalid MPIN binding fields");
-        StringBuilder out=new StringBuilder(purpose);
-        for(String f:fields){Object v=values.get(f);if(v==null)throw new IllegalArgumentException("Missing binding field");String value=v.toString();if(v instanceof java.math.BigDecimal d)value=d.stripTrailingZeros().toPlainString();else if(v instanceof Number)value=new java.math.BigDecimal(value).stripTrailingZeros().toPlainString();else if(f.equals("toAccountNumber")||f.toLowerCase(Locale.ROOT).contains("currencycode"))value=value.trim();out.append('|').append(value);}
-        return out.toString();
+        return MpinBinding.canonical(purpose, fields.stream().map(values::get).toArray());
     }
     public static String hashBinding(String value) { try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));}catch(Exception e){throw new IllegalStateException(e);} }
     public static byte[] deriveProofKey(String jwtSecretBase64) { return hmac(Decoders.BASE64.decode(jwtSecretBase64),"mpin-proof-v1"); }

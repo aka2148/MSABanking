@@ -37,78 +37,31 @@ public class FixedDepositController {
     @GetMapping("/{id}")
     public FdView getMine(Authentication actor,@PathVariable long id){return find(id,userId(actor));}
 
+    @PostMapping("/estimate")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('CUSTOMER')")
+    public Estimate estimate(@Valid @RequestBody EstimateRequest request){
+        var q=new FdQuoteService(jdbc,clock).resolve(new BookingRequest(request.productId(),null,request.principal(),request.currencyCode(),request.tenureMonths()),null);
+        return new Estimate(request.productId(),request.currencyCode().toUpperCase(java.util.Locale.ROOT),q.scale(),q.principal(),q.rate(),q.compounding(),q.payout(),q.open(),q.maturity(),q.estimate().subtract(q.principal()),q.estimate());
+    }
+    public record EstimateRequest(@NotNull @Min(1) Long productId,@NotBlank @Size(max=10) String currencyCode,@NotNull @DecimalMin("0.01") BigDecimal principal,@Min(1) int tenureMonths){}
+    public record Estimate(long productId,String currencyCode,int currencyScale,BigDecimal principal,BigDecimal annualRate,String compoundingBasis,String payoutFrequency,LocalDate openDate,LocalDate maturityDate,BigDecimal estimatedInterest,BigDecimal estimatedMaturityAmount){}
     @PostMapping @ResponseStatus(HttpStatus.CREATED) @Transactional
     public FdView book(Authentication actor,@RequestHeader("Idempotency-Key") @NotBlank @Size(max=255) String key,@Valid @RequestBody BookingRequest request){
-        long userId=userId(actor);CustomerProductAccess.requireVerified(userId);String hash=hash(request.productId+"|"+request.savingsAccountId+"|"+request.principal+"|"+request.currencyCode+"|"+request.tenureMonths);
+        long userId=userId(actor);CustomerProductAccess.requireVerified(userId);String hash=hash(request.productId()+"|"+request.savingsAccountId()+"|"+request.principal()+"|"+request.currencyCode()+"|"+request.tenureMonths);
         Long replay=claim("FD_BOOKING",userId,key,hash);if(replay!=null)return find(replay,userId);
-        Map<String,Object> product=jdbc.query("SELECT fpr_product_code,fpr_product_name,fpr_status FROM fd_product_ref WHERE fpr_product_id=?",r->r.next()?Map.of("code",r.getString(1),"name",r.getString(2),"status",r.getString(3)):null,request.productId);
-        if(product==null)throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Fixed deposit product not found");
-        if(!"ACTIVE".equalsIgnoreCase((String)product.get("status")))throw bad("Fixed deposit product is not active");
-        Map<String,Object> currency=jdbc.query("SELECT fcr_currency_id,fcr_decimal_places FROM fd_currency_ref WHERE UPPER(fcr_iso_code)=UPPER(?)",r->r.next()?Map.of("id",r.getLong(1),"scale",r.getInt(2)):null,request.currencyCode);
-        if(currency==null)throw bad("Currency reference has not arrived from the Product service");
-        long currencyId=((Number)currency.get("id")).longValue();int scale=((Number)currency.get("scale")).intValue();
-        if(scale<0||scale>8)throw bad("Currency decimal scale is invalid");
-        if(request.principal.compareTo(BigDecimal.ZERO)<=0)throw bad("Principal amount must be positive");
-        BigDecimal principal;try{principal=request.principal.setScale(scale,RoundingMode.UNNECESSARY);}catch(ArithmeticException e){throw bad("Principal exceeds the currency decimal scale");}
-        if(request.tenureMonths<1)throw bad("Tenure months must be at least 1");
-        Map<String,Object> ownerAccount=jdbc.query("SELECT sa_account_id FROM savings_accounts WHERE sa_account_id=? AND sa_holder_id=? AND sa_currency_id=? AND sa_status='ACTIVE'",r->r.next()?Map.of("id",r.getLong(1)):null,request.savingsAccountId,userId,currencyId);
-        if(ownerAccount==null)throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Eligible owned savings account not found");
-        Map<String,Object> pcc=jdbc.query("SELECT minimum_amount,maximum_amount,premature_penalty_points FROM fd_product_currency_ref WHERE product_id=? AND currency_id=?",r->r.next()?Map.of("min",r.getBigDecimal(1),"max",r.getBigDecimal(2),"penalty",r.getBigDecimal(3)==null?"":r.getBigDecimal(3).toPlainString()):null,request.productId,currencyId);
-        if(pcc==null)throw bad("Currency "+request.currencyCode+" is not supported for this product");
-        BigDecimal minAmount=(BigDecimal)pcc.get("min");BigDecimal maxAmount=(BigDecimal)pcc.get("max");
-        if(principal.compareTo(minAmount)<0||principal.compareTo(maxAmount)>0)throw bad("Principal amount "+principal+" is outside permitted bounds ["+minAmount+", "+maxAmount+"]");
-        LocalDate open=clock.businessDate();
-        List<Map<String,Object>> candidateBands=jdbc.queryForList("SELECT annual_rate,compounding_basis,payout_frequency,effective_from,effective_to FROM fd_product_rate_ref WHERE product_id=? AND currency_id=? AND minimum_tenure_months<=? AND maximum_tenure_months>=?",request.productId,currencyId,request.tenureMonths,request.tenureMonths);
-        if(candidateBands.isEmpty())throw bad("Requested tenure of "+request.tenureMonths+" months does not match any configured tenure rate band");
-        List<Map<String,Object>> effectiveBands=candidateBands.stream().filter(b->{
-            LocalDate from=b.get("effective_from")==null?null:(b.get("effective_from") instanceof java.sql.Date d?d.toLocalDate():LocalDate.parse(b.get("effective_from").toString().substring(0,10)));
-            LocalDate to=b.get("effective_to")==null?null:(b.get("effective_to") instanceof java.sql.Date d?d.toLocalDate():LocalDate.parse(b.get("effective_to").toString().substring(0,10)));
-            return (from==null||!open.isBefore(from))&&(to==null||!open.isAfter(to));
-        }).toList();
-        if(effectiveBands.isEmpty()){
-            boolean allFuture=candidateBands.stream().allMatch(b->{
-                LocalDate from=b.get("effective_from")==null?null:(b.get("effective_from") instanceof java.sql.Date d?d.toLocalDate():LocalDate.parse(b.get("effective_from").toString().substring(0,10)));
-                return from!=null&&open.isBefore(from);
-            });
-            if(allFuture){
-                LocalDate earliest=candidateBands.stream().map(b->b.get("effective_from") instanceof java.sql.Date d?d.toLocalDate():LocalDate.parse(b.get("effective_from").toString().substring(0,10))).min(LocalDate::compareTo).orElse(null);
-                throw bad("NOT_YET_EFFECTIVE: The rate schedule is not effective until "+earliest);
-            }
-            boolean allPast=candidateBands.stream().allMatch(b->{
-                LocalDate to=b.get("effective_to")==null?null:(b.get("effective_to") instanceof java.sql.Date d?d.toLocalDate():LocalDate.parse(b.get("effective_to").toString().substring(0,10)));
-                return to!=null&&open.isAfter(to);
-            });
-            if(allPast){
-                LocalDate latest=candidateBands.stream().map(b->b.get("effective_to") instanceof java.sql.Date d?d.toLocalDate():LocalDate.parse(b.get("effective_to").toString().substring(0,10))).max(LocalDate::compareTo).orElse(null);
-                throw bad("EXPIRED: The rate schedule expired on "+latest);
-            }
-            throw bad("NO_APPLICABLE_RATE: No active rate schedule is effective on "+open);
-        }
-        BigDecimal rate;
-        String compounding;
-        String payout;
-        if(effectiveBands.size()>1){
-            BigDecimal firstRate=(BigDecimal)effectiveBands.get(0).get("annual_rate");
-            boolean allSame=effectiveBands.stream().allMatch(b->((BigDecimal)b.get("annual_rate")).compareTo(firstRate)==0);
-            if(!allSame)throw new ResponseStatusException(HttpStatus.CONFLICT,"AMBIGUOUS_CONFIGURATION: Multiple rate schedules overlap on "+open+" with differing rates");
-            rate=firstRate;compounding=(String)effectiveBands.get(0).get("compounding_basis");payout=(String)effectiveBands.get(0).get("payout_frequency");
-        } else {
-            rate=(BigDecimal)effectiveBands.get(0).get("annual_rate");compounding=(String)effectiveBands.get(0).get("compounding_basis");payout=(String)effectiveBands.get(0).get("payout_frequency");
-        }
-        if(request.expectedAnnualRate!=null && rate.compareTo(request.expectedAnnualRate)!=0){
-            throw new ResponseStatusException(HttpStatus.CONFLICT,"Disclosed interest rate ("+request.expectedAnnualRate+") differs from authoritative rate ("+rate+") on "+open+". Please review the updated disclosure before booking.");
-        }
-        String penaltyStr=(String)pcc.get("penalty");
-        LocalDate maturity=open.plusMonths(request.tenureMonths);BigDecimal estimate=FdCompounding.maturity(principal,rate,open,maturity,scale,compounding);
-        String policy="academic-v2-"+FdCompounding.basis(compounding).toLowerCase(java.util.Locale.ROOT);
-        Map<String,Object> termsMap=mapOf("productId",request.productId,"productCode",product.get("code"),"productName",product.get("name"),"currencyCode",request.currencyCode,"currencyScale",scale,"principal",principal,"annualRate",rate,"tenureMonths",request.tenureMonths,"compoundingBasis",compounding,"payoutFrequency",payout,"prematurePenaltyPoints",penaltyStr==null||penaltyStr.isBlank()?null:penaltyStr,"policyVersion",policy,"bookingDate",open.toString(),"maturityDate",maturity.toString(),"calculationConvention","ACTUAL_365");
-        if(request.expectedAnnualRate!=null){
-            termsMap.put("disclosedAnnualRate",request.expectedAnnualRate);
+        FdQuoteService.Quote quote=new FdQuoteService(jdbc,clock).resolve(request,userId);
+        Map<String,Object> product=quote.product();long currencyId=quote.currencyId();int scale=quote.scale();
+        BigDecimal principal=quote.principal(),rate=quote.rate(),estimate=quote.estimate();
+        String compounding=quote.compounding(),payout=quote.payout(),penaltyStr=quote.penaltyStr(),policy=quote.policy();
+        LocalDate open=quote.open(),maturity=quote.maturity();
+        Map<String,Object> termsMap=mapOf("productId",request.productId(),"productCode",product.get("code"),"productName",product.get("name"),"currencyCode",request.currencyCode(),"currencyScale",scale,"principal",principal,"annualRate",rate,"tenureMonths",request.tenureMonths(),"compoundingBasis",compounding,"payoutFrequency",payout,"prematurePenaltyPoints",penaltyStr==null||penaltyStr.isBlank()?null:penaltyStr,"policyVersion",policy,"bookingDate",open.toString(),"maturityDate",maturity.toString(),"calculationConvention","ACTUAL_365");
+        if(request.expectedAnnualRate()!=null){
+            termsMap.put("disclosedAnnualRate",request.expectedAnnualRate());
             termsMap.put("disclosureVerified",true);
         }
         String terms=json(termsMap);
         String accountNumber="FD-"+UUID.randomUUID().toString().replace("-","").substring(0,16).toUpperCase();
-        jdbc.update("INSERT INTO fd_accounts(fa_account_number,fa_primary_holder_id,fa_product_id,fa_principal_amount,fa_currency_id,fa_tenure_months,fa_interest_rate,fa_compounding_frequency,fa_payout_frequency,fa_open_date,fa_maturity_date,fa_maturity_amount,fa_status,fa_funding_savings_account_id,fa_terms_snapshot,fa_policy_version) VALUES(?,?,?,?,?,?,?,?,?, ?,?,?,'PENDING',?,CAST(? AS JSON),?)",accountNumber,userId,request.productId,principal.setScale(scale,RoundingMode.HALF_UP),currencyId,request.tenureMonths,rate,compounding,payout,open.atStartOfDay(),java.sql.Date.valueOf(maturity),estimate.setScale(scale,RoundingMode.HALF_UP),request.savingsAccountId,terms,policy);
+        jdbc.update("INSERT INTO fd_accounts(fa_account_number,fa_primary_holder_id,fa_product_id,fa_principal_amount,fa_currency_id,fa_tenure_months,fa_interest_rate,fa_compounding_frequency,fa_payout_frequency,fa_open_date,fa_maturity_date,fa_maturity_amount,fa_status,fa_funding_savings_account_id,fa_terms_snapshot,fa_policy_version) VALUES(?,?,?,?,?,?,?,?,?, ?,?,?,'PENDING',?,CAST(? AS JSON),?)",accountNumber,userId,request.productId(),principal.setScale(scale,RoundingMode.HALF_UP),currencyId,request.tenureMonths(),rate,compounding,payout,open.atStartOfDay(),java.sql.Date.valueOf(maturity),estimate.setScale(scale,RoundingMode.HALF_UP),request.savingsAccountId(),terms,policy);
         long id=jdbc.queryForObject("SELECT LAST_INSERT_ID()",Long.class);
         jdbc.update("INSERT INTO fd_account_events(fae_account_id,fae_event_type,fae_payload,fae_aggregate_version) VALUES(?,'BOOKED',CAST(? AS JSON),1)",id,"{\"status\":\"PENDING\"}");
         complete("FD_BOOKING",userId,key,id);

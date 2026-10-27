@@ -1,0 +1,10 @@
+.review-page { max-width:1100px; margin:auto; padding:clamp(16px,3vw,32px); }
+.review-actions { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-block:20px; }
+.review-actions .glass-btn,.review-row .glass-btn { width:auto; margin:0; }
+.review-actions [aria-pressed=true] { border-color:var(--gold-500); }
+.review-row { display:flex; justify-content:space-between; align-items:center; gap:20px; padding:20px; margin-block:12px; border:1px solid var(--ws-line); border-radius:12px; background:var(--ws-surface-raised); }
+.review-detail { margin-top:30px; border-top:1px solid var(--ws-line); padding-top:20px; }
+dl { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:18px; } dt { color:var(--ink-400); } dd { margin:6px 0; overflow-wrap:anywhere; }
+img { display:block; max-width:100%; max-height:650px; margin-block:20px; } iframe { width:100%; min-height:600px; border:0; margin-block:20px; }
+textarea { min-height:100px; } li { padding-block:10px; }
+@media(max-width:600px) {.review-row {align-items:flex-start;flex-direction:column;} }

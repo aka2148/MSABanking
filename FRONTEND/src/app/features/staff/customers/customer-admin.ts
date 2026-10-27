@@ -45,7 +45,6 @@ export class CustomerAdmin implements OnInit {
     this.message = '';
     this.customers.update(customer.id, {
       fullName: customer.fullName.trim(),
-      kycStatus: customer.kycStatus,
       riskCategory: customer.riskCategory,
       legalEntityType: customer.legalEntityType,
     }).subscribe({

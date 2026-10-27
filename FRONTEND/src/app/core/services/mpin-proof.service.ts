@@ -2,8 +2,9 @@ import { Inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { API_BASE_URL, apiUrl } from './api-config';
+import { normalizeApiError } from './fd.service';
 
-export type MpinPurpose = 'TRANSFER'|'WITHDRAWAL'|'FD_FUNDING'|'FD_CLOSE'|'FD_PREMATURE_REQUEST'|'LOAN_APPLICATION'|'FOREX_REQUEST';
+export type MpinPurpose = 'TRANSFER'|'FD_FUNDING'|'FD_CLOSE'|'FD_PREMATURE_REQUEST'|'LOAN_APPLICATION'|'FOREX_REQUEST';
 export interface MpinProof { proofToken: string; expiresAt: string; }
 export function weakMpin(pin:string):boolean {
   if(!/^\d{6}$/.test(pin))return true;
@@ -20,7 +21,6 @@ export class MpinProofService {
   setup(password:string,mpin:string):Observable<void>{return this.http.post<void>(`${this.url}/setup`,{password,mpin});}
   change(currentMpin:string,newMpin:string):Observable<void>{return this.http.post<void>(`${this.url}/change`,{currentMpin,newMpin});}
   requestProof(purpose:MpinPurpose,fields:Record<string,unknown>,mpin:string):Observable<MpinProof>{return this.http.post<MpinProof>(`${this.url}/verify`,{mpin,purpose,fields});}
-  verifyAtTeller(customerId:number,accountId:number,amount:number,mpin:string):Observable<MpinProof>{return this.http.post<MpinProof>(apiUrl(this.urlBase,'/api/v1/customers/'+customerId+'/mpin/verify'),{accountId,amount,mpin});}
   reset(customerId:number):Observable<void>{return this.http.post<void>(apiUrl(this.urlBase,`/api/v1/customers/${customerId}/mpin/reset`),{});}
   private get urlBase():string{return this.url.replace(/\/api\/v1\/auth\/mpin$/,'');}
 }
@@ -30,5 +30,16 @@ export function mpinErrorMessage(error:any):string {
   if(code==='MPIN_NOT_SET')return 'MPIN_NOT_SET';
   if(code==='MPIN_INVALID')return `MPIN_INVALID:${error?.error?.attemptsRemaining ?? ''}`;
   if(code==='MPIN_LOCKED')return `MPIN_LOCKED:${error?.error?.lockedUntil ?? ''}`;
-  return error?.error?.message ?? 'MPIN verification failed.';
+  return normalizeApiError(error).message;
+}
+
+export function classifyMpinError(stage: 'verify' | 'operation', error: any): string {
+  const code = error?.error?.code;
+  if (stage === 'verify') {
+    if (code === 'MPIN_NOT_SET') return 'Set up your MPIN before continuing.';
+    if (code === 'MPIN_INVALID') return `MPIN is incorrect. Attempts remaining: ${error.error.attemptsRemaining ?? ''}.`;
+    if (code === 'MPIN_LOCKED') return `MPIN is locked until ${error.error.lockedUntil ?? ''}.`;
+  }
+  if (code === 'MPIN_REQUIRED' || code === 'MPIN_PROOF_INVALID') return 'Please re-enter your MPIN.';
+  return normalizeApiError(error).message;
 }

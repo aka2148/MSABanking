@@ -80,6 +80,7 @@
       <!-- REJECTED NOTICE -->
       <p *ngIf="p.kycStatus === 'REJECTED'" class="glass-error kyc-alert">
         {{ 'Please consult your bank officer about your rejected KYC.' | translate }}
+        <span *ngIf="p.reviewDecision?.reason">{{p.reviewDecision?.reason | translate}}</span>
       </p>
 
       <!-- READ-ONLY STATUS -->

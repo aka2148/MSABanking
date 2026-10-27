@@ -34,7 +34,7 @@ final class KycValidation {
                         ? null : "You must be at least 18.";
             }
             case "gender" -> Set.of("MALE", "FEMALE", "OTHER").contains(value) ? null : "Select a valid option.";
-            case "relationship" -> Set.of("FATHER", "SPOUSE").contains(value) ? null : "Select a valid option.";
+            case "relationship" -> Set.of("FATHER", "SPOUSE", "MOTHER").contains(value) ? null : "Select a valid option.";
             case "occupation" -> Set.of("STUDENT", "SALARIED", "SELF_EMPLOYED", "BUSINESS", "PROFESSIONAL", "HOMEMAKER", "RETIRED", "UNEMPLOYED", "OTHER").contains(value) ? null : "Select a valid option.";
             case "countryOfOrigin" -> COUNTRIES.contains(value) ? null : "Select a valid country.";
             case "fatherOrSpouseName" -> safeText(value, 2, 100) && value.codePoints().anyMatch(Character::isLetter)

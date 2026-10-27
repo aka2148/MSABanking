@@ -5,7 +5,7 @@
       <div>
         <p class="fd-eyebrow"> {{ 'Staff workspace' | translate }} </p>
         <h2> {{ 'Customer management' | translate }} </h2>
-        <p class="glass-card__sub"> {{ 'Search customer profiles and update their name, KYC status, risk category, and entity type.' | translate }} </p>
+        <p class="glass-card__sub"> {{ 'Search customer profiles and update their name, risk category, and entity type.' | translate }} </p>
       </div>
       <span class="fd-admin-badge"> {{ 'STAFF ONLY' | translate }} </span>
     </header>
@@ -38,9 +38,9 @@
           </label>
           <label class="glass-field">
             <span class="glass-field__label"> {{ 'KYC status' | translate }} </span>
-            <select [name]="'kyc-' + customer.id" [(ngModel)]="customer.kycStatus">
-              <option *ngFor="let status of kycStatuses" [ngValue]="status">{{ status }}</option>
-            </select>
+            <span>{{customer.kycStatus|translate}}</span>
+            <span *ngIf="customer.kycAwaitingReview">{{'Awaiting review'|translate}}</span>
+            <a *ngIf="customer.kycAwaitingReview" routerLink="/staff/kyc" [queryParams]="{customerId:customer.id}" class="glass-link">{{'Review KYC'|translate}}</a>
           </label>
           <label class="glass-field">
             <span class="glass-field__label"> {{ 'Risk category' | translate }} </span>

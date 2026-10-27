@@ -46,6 +46,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/staff/product-builder/product-builder').then((m) => m.ProductBuilder),
   },
   {
+    path: 'staff/kyc',
+    canActivate: [authGuard, staffGuard],
+    loadComponent: () => import('./features/staff/kyc/kyc-review').then(m => m.KycReview),
+  },
+  {
     path: 'staff/customers',
     canActivate: [authGuard, staffGuard],
     loadComponent: () => import('./features/staff/customers/customer-admin').then((m) => m.CustomerAdmin),

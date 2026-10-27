@@ -33,6 +33,12 @@ export interface TransactionQuery {
   txn_type_id?: number;
 }
 
+export interface FdEstimate {
+  productId:number;currencyCode:string;currencyScale:number;principal:number;annualRate:number;
+  compoundingBasis:string;payoutFrequency:string;openDate:string;maturityDate:string;
+  estimatedInterest:number;estimatedMaturityAmount:number;
+}
+
 export function normalizeApiError(error: HttpErrorResponse): ApiErrorResponse {
   const payload = isApiErrorEnvelope(error.error) ? error.error : {};
   const status = error.status || 500;
@@ -49,6 +55,9 @@ export function normalizeApiError(error: HttpErrorResponse): ApiErrorResponse {
 
 @Injectable({ providedIn: 'root' })
 export class FdService {
+  estimate(request:{productId:number;currencyCode:string;principal:number;tenureMonths:number}):Observable<FdEstimate> {
+    return this.http.post<FdEstimate>(this.path('/fixed-deposits/estimate'),request);
+  }
   private readonly pendingSubmissionStorageKey = 'fd.pending-submissions.v1';
   private readonly inMemorySubmissions = new Map<string, PendingSubmission>();
 

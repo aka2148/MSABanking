@@ -2,7 +2,8 @@ import { CustomerProductWarning } from '../../../shared/components/customer-prod
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Subject, timer, of, switchMap, catchError, takeUntil } from 'rxjs';
 import {
   AbstractControl,
   FormBuilder,
@@ -23,11 +24,11 @@ import {
   RateTier,
   SavingsAccount,
 } from '../../../core/models/fd.models';
-import { FdService, normalizeApiError } from '../../../core/services/fd.service';
+import { FdService, FdEstimate, normalizeApiError } from '../../../core/services/fd.service';
 import { WorkspaceShell } from '../../../shared/components/workspace-shell/workspace-shell';
 import { GlassSelect, GlassSelectOption } from '../../../shared/components/glass-select/glass-select';
 import { MpinInput } from '../../../shared/components/mpin-input';
-import { MpinProofService, mpinErrorMessage } from '../../../core/services/mpin-proof.service';
+import { MpinProofService, classifyMpinError } from '../../../core/services/mpin-proof.service';
 
 @Component({
   selector: 'app-fd-booking',
@@ -36,7 +37,9 @@ import { MpinProofService, mpinErrorMessage } from '../../../core/services/mpin-
   templateUrl: './fd-booking.html',
   styleUrl: './fd-booking.scss',
 })
-export class FdBooking implements OnInit {
+export class FdBooking implements OnInit, OnDestroy {
+  estimate:FdEstimate|null=null;estimateLoading=false;estimateError='';
+  private readonly destroyed=new Subject<void>();
   productAccessBlocked = true;
   step = 1;
   loading = true;
@@ -71,7 +74,16 @@ export class FdBooking implements OnInit {
       tenureMonths: ['', [this.requiredValue()]],
     });
     this.bookingForm.controls.principalAmount.valueChanges.subscribe(() => this.updateSavingsOptions());
+    this.bookingForm.valueChanges.pipe(switchMap(()=>{
+      this.estimate=null;this.estimateError='';this.estimateLoading=false;
+      const value=this.bookingForm.getRawValue();
+      if(!this.selectedProduct||!this.selectedCurrencyOffer||!value.principalAmount||!value.tenureMonths||this.bookingForm.controls.principalAmount.invalid||this.bookingForm.controls.tenureMonths.invalid)return of(null);
+      const request={productId:this.selectedProduct.product_id,currencyCode:this.selectedCurrencyOffer.currency_code,principal:Number(value.principalAmount),tenureMonths:Number(value.tenureMonths)};
+      this.estimateLoading=true;
+      return timer(300).pipe(switchMap(()=>this.fdService.estimate(request)),catchError(error=>{this.estimateError=normalizeApiError(error).message;return of(null);}));
+    }),takeUntil(this.destroyed)).subscribe(estimate=>{this.estimate=estimate;this.estimateLoading=false;});
   }
+  ngOnDestroy():void{this.destroyed.next();this.destroyed.complete();}
 
   ngOnInit(): void {
     const productId = Number(this.route.snapshot.paramMap.get('productId'));
@@ -176,8 +188,8 @@ export class FdBooking implements OnInit {
   private fundBooked(account:AccountResponse):void {
     const principal=Number(account.principal_amount);this.bookingError='';
     this.mpinProof.requestProof('FD_FUNDING',{fdId:account.account_id,principal},this.mpin).subscribe({
-      next:proof=>this.fdService.fund(account.account_id,{amount:principal,currency_code:account.currency_code,savings_account_id:account.funding_savings_account_id??undefined},proof.proofToken).subscribe({next:()=>{this.mpin='';this.submitting=false;void this.router.navigate(['/fd/accounts',account.account_id]);},error:e=>{this.mpin='';this.submitting=false;this.bookingError=mpinErrorMessage(e);}}),
-      error:e=>{this.mpin='';this.submitting=false;this.bookingError=mpinErrorMessage(e);},
+      next:proof=>this.fdService.fund(account.account_id,{amount:principal,currency_code:account.currency_code,savings_account_id:account.funding_savings_account_id??undefined},proof.proofToken).subscribe({next:()=>{this.mpin='';this.submitting=false;void this.router.navigate(['/fd/accounts',account.account_id]);},error:e=>{this.mpin='';this.submitting=false;this.bookingError=classifyMpinError('operation',e);}}),
+      error:e=>{this.mpin='';this.submitting=false;this.bookingError=classifyMpinError('verify',e);},
     });
   }
 
@@ -203,41 +215,6 @@ export class FdBooking implements OnInit {
   }
 
   private maskAccount(number: string): string { return `•••• ${number.slice(-4)}`; }
-
-  get estimatedMaturityDate(): string {
-    const months = Number(this.bookingForm.controls.tenureMonths.value) || 0;
-    const d = new Date();
-    d.setMonth(d.getMonth() + months);
-    return d.toISOString().slice(0, 10);
-  }
-
-  get estimatedMaturity(): { maturityAmount: number; interestEarned: number } {
-    const p = Number(this.bookingForm.controls.principalAmount.value) || 0;
-    const r = this.selectedRateTier?.annual_rate || 0;
-    const months = Number(this.bookingForm.controls.tenureMonths.value) || 0;
-    if (p <= 0 || r <= 0 || months <= 0) return { maturityAmount: 0, interestEarned: 0 };
-
-    const freq = (this.selectedRateTier?.compounding_frequency || '').toUpperCase();
-    let periodsPerYear = 4;
-    if (freq.includes('MONTH')) periodsPerYear = 12;
-    else if (freq.includes('SEMI')) periodsPerYear = 2;
-    else if (freq.includes('ANNUAL') || freq.includes('YEAR')) periodsPerYear = 1;
-    else if (freq.includes('SIMPLE')) periodsPerYear = 0;
-
-    let total = p;
-    if (periodsPerYear === 0) {
-      const interest = p * r * (months / 12);
-      total = p + interest;
-    } else {
-      const t = months / 12;
-      total = p * Math.pow(1 + (r / periodsPerYear), periodsPerYear * t);
-    }
-    const interest = total - p;
-    return {
-      maturityAmount: Math.round(total * 100) / 100,
-      interestEarned: Math.round(interest * 100) / 100,
-    };
-  }
 
   formatFrequency(value: string | null | undefined): string {
     if (!value) return 'not specified';

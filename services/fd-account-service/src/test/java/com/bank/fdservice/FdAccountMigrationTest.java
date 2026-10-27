@@ -69,8 +69,8 @@ class FdAccountMigrationTest {
 
     @Test
     void appliesAllFdMigrationsAndCreatesWorkflowSchema() {
-        assertEquals(15, jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1", Integer.class));
-        assertEquals(15, jdbc.queryForObject("SELECT MAX(CAST(version AS UNSIGNED)) FROM flyway_schema_history WHERE success=1", Integer.class));
+        assertEquals(16, jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1", Integer.class));
+        assertEquals(16, jdbc.queryForObject("SELECT MAX(CAST(version AS UNSIGNED)) FROM flyway_schema_history WHERE success=1", Integer.class));
         assertTrue(jdbc.queryForObject("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='fd_product_rate_ref' AND column_name='effective_from'", Integer.class) == 1);
         assertTrue(jdbc.queryForObject("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='fd_product_rate_ref' AND column_name='effective_to'", Integer.class) == 1);
 
@@ -266,8 +266,9 @@ class FdAccountMigrationTest {
         long savingsVersionBeforeInjectedFailure = jdbc.queryForObject("SELECT sa_row_version FROM savings_accounts WHERE sa_account_id=1", Long.class);
         jdbc.update("UPDATE savings_accounts SET sa_row_version=? WHERE sa_account_id=1", Long.MAX_VALUE);
         try {
-            assertThrows(jakarta.servlet.ServletException.class, () -> mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/admin/fixed-deposits/{id}/premature-closure/{closureId}/approve", secondFdId, closureId)
-                    .header("Authorization", "Bearer " + adminToken).header("Idempotency-Key", "approve-premature-failure")));
+            mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/admin/fixed-deposits/{id}/premature-closure/{closureId}/approve", secondFdId, closureId)
+                    .header("Authorization", "Bearer " + adminToken).header("Idempotency-Key", "approve-premature-failure"))
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().is5xxServerError());
         } finally {
             jdbc.update("UPDATE savings_accounts SET sa_row_version=? WHERE sa_account_id=1", savingsVersionBeforeInjectedFailure);
         }

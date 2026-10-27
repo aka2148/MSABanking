@@ -1,4 +1,5 @@
 <app-workspace-shell>
+<a class="glass-link" *ngIf="errorMessage.includes('KYC verification is still pending')" routerLink="/kyc">{{ 'Go to KYC' | translate }}</a>
   <main class="glass-card glass-card--wide fd-account-card">
     <app-customer-product-warning (blockedChange)="productAccessBlocked = $event" />
     <a routerLink="/fd" class="glass-link fd-back-link"> {{ '← FD home' | translate }} </a>

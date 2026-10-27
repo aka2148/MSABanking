@@ -11,7 +11,7 @@ import { KycService } from '../../core/services/kyc.service';
 import { GlassSelect } from '../../shared/components/glass-select/glass-select';
 import { WorkspaceShell } from '../../shared/components/workspace-shell/workspace-shell';
 import { MpinInput } from '../../shared/components/mpin-input';
-import { mpinErrorMessage } from '../../core/services/mpin-proof.service';
+import { classifyMpinError } from '../../core/services/mpin-proof.service';
 import { countryOptions, validId } from '../../shared/kyc-validation';
 
 @Component({
@@ -50,16 +50,16 @@ export class Kyc implements OnInit, OnDestroy {
     { key: 'customerNumber' as const, label: 'Customer number' },
   ];
   readonly sections = [
-    { label: 'Personal details', fields: ['dateOfBirth', 'gender', 'relationship', 'fatherOrSpouseName', 'occupation', 'countryOfOrigin'] as KycField[] },
+    { label: 'Personal details', fields: ['dateOfBirth', 'gender', 'fatherOrSpouseName', 'relationship', 'occupation', 'countryOfOrigin'] as KycField[] },
     { label: 'Identity proof', fields: ['proofOfIdType', 'proofOfIdValue', 'idIssueDate'] as KycField[] },
   ];
   readonly labels: Record<KycField, string> = {
-    dateOfBirth: 'Date of birth', gender: 'Gender', relationship: 'Relationship', fatherOrSpouseName: "Father's / Spouse's name",
+    dateOfBirth: 'Date of birth', gender: 'Gender', relationship: 'Relationship', fatherOrSpouseName: "Father's / Spouse's / Mother's name",
     occupation: 'Occupation', countryOfOrigin: 'Country of origin', proofOfIdType: 'Proof of ID type', proofOfIdValue: 'ID number', idIssueDate: 'ID issue date',
   };
   readonly options: Partial<Record<KycField, { label: string; value: string }[]>> = {
     gender: this.choices(['MALE', 'Male'], ['FEMALE', 'Female'], ['OTHER', 'Other']),
-    relationship: this.choices(['FATHER', 'Father'], ['SPOUSE', 'Spouse']),
+    relationship: this.choices(['FATHER', 'Father'], ['MOTHER', 'Mother'], ['SPOUSE', 'Spouse']),
     occupation: this.choices(['STUDENT', 'Student'], ['SALARIED', 'Salaried'], ['SELF_EMPLOYED', 'Self-employed'], ['BUSINESS', 'Business'], ['PROFESSIONAL', 'Professional'], ['HOMEMAKER', 'Homemaker'], ['RETIRED', 'Retired'], ['UNEMPLOYED', 'Unemployed'], ['OTHER', 'Other']),
     proofOfIdType: this.choices(['AADHAAR', 'Aadhaar'], ['PAN', 'PAN'], ['PASSPORT', 'Passport'], ['DRIVING_LICENSE', 'Driving Licence'], ['VOTER_ID', 'Voter ID']),
   };
@@ -151,7 +151,7 @@ export class Kyc implements OnInit, OnDestroy {
     this.busy = true; this.remarksError = '';
     this.api.rekyc(this.remarks,this.rekycMpin).subscribe({
       next: p => { this.restore(p); this.busy = false; this.requesting = false; this.remarks = ''; this.rekycMpin='';this.saved = false; this.verified = false; },
-      error: err => { this.busy = false;this.mpinNotSet=err?.error?.code==='MPIN_NOT_SET'; this.remarksError = err?.error?.code?mpinErrorMessage(err):this.message(err);this.rekycMpin=''; },
+      error: err => { this.busy = false;this.mpinNotSet=err?.error?.code==='MPIN_NOT_SET'; this.remarksError = classifyMpinError('verify',err);this.rekycMpin=''; },
     });
   }
   upload(event: Event): void {

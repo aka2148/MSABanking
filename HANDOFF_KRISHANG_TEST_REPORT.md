@@ -26,3 +26,12 @@ All integration database runs used disposable Testcontainers MySQL 8.4 instances
 ## Go/no-go
 
 **GO for local API demonstration** with the MPIN-protected workflow and staff-only demo funds. All three backend service suites pass, as do the Angular build, MPIN logic check, and product-rules check. The i18n checker still fails on the 33 pre-existing untranslated template strings listed above. This is not a production financial-use approval; see residual risks in [HANDOFF_LATER_CHANGES.md](HANDOFF_LATER_CHANGES.md).
+# Client-testing fixes A-H final verification (2026-10-27)
+
+- Identity customer service: 24 tests, 0 failures, 0 errors (disposable MySQL Testcontainers).
+- FD account service: 55 tests, 0 failures, 0 errors (disposable MySQL Testcontainers).
+- Product baseline: 34 tests passed.
+- Angular production build: passed (`Application bundle generation complete`).
+- `git diff --check`: passed (only normal CRLF conversion warnings).
+- The isolated Node smoke probe was added but not run because the local Node version is not configured; no compose stack or user database was started.
+- `check:i18n` and `check:mpin` remain unavailable/ failing due existing repository tooling issues (pre-existing untranslated strings and Angular JIT/esbuild environment mismatch); the production build is the frontend gate.

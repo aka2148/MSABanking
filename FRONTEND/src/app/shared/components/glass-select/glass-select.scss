@@ -57,10 +57,9 @@
 }
 
 .glass-select__menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
+  position: fixed;
+  box-sizing: border-box;
+  font-family: var(--font-body);
   background: #121117;
   border: 1px solid rgba(199, 154, 62, 0.6);
   border-radius: var(--radius-sm);
@@ -68,17 +67,16 @@
   padding: 10px;
   max-height: 280px;
   overflow-y: auto;
-  z-index: 20;
+  z-index: 100000;
   animation: glassSelectOpen 160ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .glass-select__search {
-  position: sticky;
-  top: -10px;
+  position: static;
   display: block;
   width: 100%;
   box-sizing: border-box;
-  margin: -2px 0 8px;
+  margin: 0 0 8px;
   padding: 11px 12px;
   background: #090a0f;
   border: 1px solid rgba(199, 154, 62, 0.42);
@@ -104,6 +102,7 @@
 }
 
 .glass-select__option {
+  overflow-wrap: anywhere;
   display: block;
   width: 100%;
   text-align: left;

@@ -1,4 +1,5 @@
 <app-workspace-shell>
+<a class="glass-link" *ngIf="bookingError.includes('KYC verification is still pending')" routerLink="/kyc">{{ 'Go to KYC' | translate }}</a>
   <main class="glass-card glass-card--wide fd-booking-card">
     <app-customer-product-warning (blockedChange)="productAccessBlocked = $event" />
     <a routerLink="/fd" class="glass-link fd-back-link"> {{ '← Back to products' | translate }} </a>
@@ -39,6 +40,15 @@
         <p class="fd-step-copy"> {{ 'The final rate is confirmed when you book.' | translate }} </p>
       </section>
 
+      <section *ngIf="step===2 || step===3" aria-live="polite">
+        <p *ngIf="estimateLoading" role="status">{{'Calculating estimate…'|translate}}</p>
+        <p *ngIf="estimateError" class="glass-field__error">{{estimateError|translate}}</p>
+        <dl *ngIf="estimate as quote" class="fd-review-list">
+          <div><dt>{{'Estimated maturity date'|translate}}</dt><dd>{{quote.maturityDate|date:'mediumDate'}}</dd></div>
+          <div><dt>{{'Estimated interest'|translate}}</dt><dd>{{quote.estimatedInterest|number:('1.'+quote.currencyScale+'-'+quote.currencyScale)}} {{quote.currencyCode}}</dd></div>
+          <div><dt>{{'Estimated maturity amount'|translate}}</dt><dd>{{quote.estimatedMaturityAmount|number:('1.'+quote.currencyScale+'-'+quote.currencyScale)}} {{quote.currencyCode}}</dd></div>
+        </dl>
+      </section>
       <form *ngIf="step === 2" [formGroup]="bookingForm" class="fd-step-panel" novalidate>
         <label class="glass-field">
           <span class="glass-field__label"> {{ 'Original funding savings account' | translate }} </span>
@@ -68,8 +78,8 @@
         <p class="fd-step-copy"> {{ 'Confirm the product, amount, tenure, currency, and original funding savings account.' | translate }} </p>
         <label class="glass-field" *ngIf="!submittedAccount"><span class="glass-field__label">{{'MPIN'|translate}}</span><app-mpin-input [(ngModel)]="mpin" [ngModelOptions]="{standalone:true}"></app-mpin-input></label>
         <label class="glass-field" *ngIf="submittedAccount"><span class="glass-field__label">{{'MPIN'|translate}}</span><app-mpin-input [(ngModel)]="mpin" [ngModelOptions]="{standalone:true}"></app-mpin-input><span>{{'The FD is booked and can be funded again if this step fails.'|translate}}</span></label>
-        <p *ngIf="bookingError==='MPIN_NOT_SET'" class="glass-field__error">{{'Set up your MPIN before continuing.'|translate}} <a routerLink="/mpin">{{'Set up your MPIN'|translate}}</a></p>
-        <p class="glass-field__error" *ngIf="bookingError && bookingError!=='MPIN_NOT_SET'">{{bookingError|translate}}</p>
+        <p *ngIf="bookingError==='Set up your MPIN before continuing.'" class="glass-field__error">{{'Set up your MPIN before continuing.'|translate}} <a routerLink="/mpin">{{'Set up your MPIN'|translate}}</a></p>
+        <p class="glass-field__error" *ngIf="bookingError && bookingError!=='Set up your MPIN before continuing.'">{{bookingError|translate}}</p>
         <dl class="fd-review-list" *ngIf="!submittedAccount">
           <div><dt> {{ 'Product' | translate }} </dt><dd>{{ product.product_name }}</dd></div>
           <div><dt> {{ 'Funding savings account' | translate }} </dt><dd> {{ (selectedSavingsAccountLabel()) | translate }} </dd></div>
@@ -77,9 +87,6 @@
           <div><dt> {{ 'Tenure' | translate }} </dt><dd> {{ '{0} months' | translate: [(bookingForm.controls.tenureMonths.value)] }} </dd></div>
           <div><dt> {{ 'Disclosed annual rate' | translate }} </dt><dd>{{ selectedRateTier ? (selectedRateTier.annual_rate * 100 | number:'1.2-2') + '%' : '—' }}</dd></div>
           <div><dt> {{ 'Calculation convention' | translate }} </dt><dd>Actual/365</dd></div>
-          <div><dt> {{ 'Estimated maturity date' | translate }} </dt><dd>{{ estimatedMaturityDate }}</dd></div>
-          <div><dt> {{ 'Estimated interest' | translate }} </dt><dd>{{ estimatedMaturity.interestEarned | number:'1.2-2' }} {{ selectedCurrencyOffer?.currency_code }}</dd></div>
-          <div><dt> {{ 'Estimated maturity amount' | translate }} </dt><dd>{{ estimatedMaturity.maturityAmount | number:'1.2-2' }} {{ selectedCurrencyOffer?.currency_code }}</dd></div>
           <div><dt> {{ 'Interest compounding' | translate }} </dt><dd> {{ '{0} compounding, paid {1}' | translate: [(formatFrequency(selectedRateTier?.compounding_frequency) | translate), (formatFrequency(selectedRateTier?.payout_frequency) | translate)] }} </dd></div>
           <div *ngIf="selectedRateTier?.effective_from || selectedRateTier?.effective_to"><dt> {{ 'Pricing schedule' | translate }} </dt><dd>{{ selectedRateTier?.effective_from || 'Effective' }} to {{ selectedRateTier?.effective_to || 'Indefinite' }}</dd></div>
         </dl>

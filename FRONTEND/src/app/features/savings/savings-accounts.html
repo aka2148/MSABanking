@@ -1,4 +1,5 @@
 <app-workspace-shell>
+<a class="glass-link" *ngIf="transferError.includes('KYC verification is still pending')" routerLink="/kyc">{{ 'Go to KYC' | translate }}</a>
   <main class="glass-card savings-page">
     <header class="savings-page__hero">
       <div class="savings-page__hero-copy">

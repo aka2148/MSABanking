@@ -26,11 +26,10 @@ export class StaffOperationsService {
   transactions(id: number): Observable<StaffTransaction[]> {
     return this.http.get<StaffTransaction[]>(this.path(`/fd/v1/staff/savings-accounts/${id}/transactions`));
   }
-  transact(id: number, action: 'deposit' | 'withdraw', amount: number, remarks: string, idempotencyKey: string,proof?:string): Observable<StaffSavingsRow> {
-    return this.http.post<StaffSavingsRow>(this.path(`/fd/v1/staff/savings-accounts/${id}/${action}`), { amount, remarks }, { headers: { 'Idempotency-Key': idempotencyKey,...(proof?{'X-MPIN-Proof':proof}:{}) } });
+  transact(id: number, action: 'deposit' | 'withdraw', amount: number, remarks: string, idempotencyKey: string,attestation?: {verificationMethod:string;verificationReference?:string}): Observable<StaffSavingsRow> {
+    return this.http.post<StaffSavingsRow>(this.path(`/fd/v1/staff/savings-accounts/${id}/${action}`), { amount, remarks, ...attestation }, { headers: { 'Idempotency-Key': idempotencyKey } });
   }
   customerIdForUser(userId:number):Observable<{id:number}>{return this.http.get<{id:number}>(this.path(`/api/v1/customers/by-user/${userId}`));}
-  verifyCustomerMpin(customerId:number,accountId:number,amount:number,mpin:string):Observable<{proofToken:string;expiresAt:string}>{return this.http.post<{proofToken:string;expiresAt:string}>(this.path(`/api/v1/customers/${customerId}/mpin/verify`),{mpin,accountId,amount});}
   pendingPrematureClosures(page = 0, pageSize = 25): Observable<StaffPrematureQuotePage> {
     return this.http.get<StaffPrematureQuotePage>(this.path('/api/v1/admin/fixed-deposits/premature-closures'), {
       params: new HttpParams().set('page', page).set('pageSize', pageSize),

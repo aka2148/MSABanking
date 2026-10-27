@@ -121,9 +121,9 @@ class LedgerInvariantIntegrationTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.balance").value(110));
         mvc.perform(post("/fd/v1/staff/savings-accounts/{id}/deposit", source).header("Authorization", staffToken).header("Idempotency-Key","teller-deposit").contentType(MediaType.APPLICATION_JSON).content("{\"amount\":10.00,\"remarks\":\"cash\"}"))
                 .andExpect(status().isOk());
-        mvc.perform(post("/fd/v1/staff/savings-accounts/{id}/withdraw", source).header("Authorization", staffToken).header("X-MPIN-Proof",proof(customer,Long.toString(staff),"WITHDRAWAL",MpinProofVerifier.canonical("WITHDRAWAL",source,new java.math.BigDecimal("20.00")))).header("Idempotency-Key","teller-withdraw").contentType(MediaType.APPLICATION_JSON).content("{\"amount\":20.00}"))
+        mvc.perform(post("/fd/v1/staff/savings-accounts/{id}/withdraw", source).header("Authorization", staffToken).header("Idempotency-Key","teller-withdraw").contentType(MediaType.APPLICATION_JSON).content("{\"amount\":20.00,\"remarks\":\"ID checked at teller\",\"verificationMethod\":\"ID_DOCUMENT_CHECKED\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.balance").value(90));
-        mvc.perform(post("/fd/v1/staff/savings-accounts/{id}/withdraw", source).header("Authorization", staffToken).header("X-MPIN-Proof",proof(customer,Long.toString(staff),"WITHDRAWAL",MpinProofVerifier.canonical("WITHDRAWAL",source,new java.math.BigDecimal("1000.00")))).header("Idempotency-Key","teller-overdraft").contentType(MediaType.APPLICATION_JSON).content("{\"amount\":1000.00}"))
+        mvc.perform(post("/fd/v1/staff/savings-accounts/{id}/withdraw", source).header("Authorization", staffToken).header("Idempotency-Key","teller-overdraft").contentType(MediaType.APPLICATION_JSON).content("{\"amount\":1000.00,\"remarks\":\"ID checked at teller\",\"verificationMethod\":\"ID_DOCUMENT_CHECKED\"}"))
                 .andExpect(status().isConflict());
         assertMoney("90.00", source);
         mvc.perform(post("/fd/v1/staff/savings-accounts/{id}/deposit", source)
@@ -194,7 +194,9 @@ class LedgerInvariantIntegrationTest {
 
     private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder transfer(String key,long from,String to,String amount,String remark) {
         String body="{\"fromAccountId\":"+from+",\"toAccountNumber\":\""+to+"\",\"amount\":"+amount+(remark==null?"":",\"remark\":\""+remark+"\"")+"}";
-        String canonical=MpinProofVerifier.canonical("TRANSFER",from,to,new java.math.BigDecimal(amount));
+        String canonical;
+        try { canonical=MpinProofVerifier.canonical("TRANSFER",from,to,new java.math.BigDecimal(amount)); }
+        catch (IllegalArgumentException ex) { canonical="invalid-input"; }
         return post("/api/v1/savings-accounts/transfers").header("Authorization",customerToken).header("X-MPIN-Proof",proof(customer,Long.toString(customer),"TRANSFER",canonical)).header("Idempotency-Key",key).contentType(MediaType.APPLICATION_JSON).content(body);
     }
     private long account(String number,long owner,long currency,String balance) {

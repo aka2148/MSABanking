@@ -32,7 +32,7 @@ public class MpinProofVerifier {
         }catch(RuntimeException e){throw new MpinProofException("MPIN_PROOF_INVALID",HttpStatus.FORBIDDEN);}
     }
     public void consume(String jti,long userId,String purpose){if(!required)return;try{jdbc.update("INSERT INTO fd_mpin_proof_use(jti,user_id,purpose) VALUES(?,?,?)",jti,userId,purpose);}catch(DuplicateKeyException e){throw new MpinProofException("MPIN_PROOF_INVALID",HttpStatus.CONFLICT);}}
-    public static String canonical(String purpose,Object...fields){StringBuilder s=new StringBuilder(purpose);for(Object f:fields){if(f==null)throw new IllegalArgumentException("Missing MPIN binding");String v=f.toString();if(f instanceof java.math.BigDecimal b)v=b.stripTrailingZeros().toPlainString();else if(f instanceof Number)v=new java.math.BigDecimal(v).stripTrailingZeros().toPlainString();else if(f instanceof String)v=v.trim();s.append('|').append(v);}return s.toString();}
+    public static String canonical(String purpose,Object...fields){return MpinBinding.canonical(purpose,fields);}
     public static String hash(String s){try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(s.getBytes(StandardCharsets.UTF_8)));}catch(Exception e){throw new IllegalStateException(e);}}
     private static byte[] hmac(byte[]k,String v){try{Mac m=Mac.getInstance("HmacSHA256");m.init(new SecretKeySpec(k,"HmacSHA256"));return m.doFinal(v.getBytes(StandardCharsets.UTF_8));}catch(Exception e){throw new IllegalStateException(e);}}
     public static class MpinProofException extends RuntimeException{private final String code;private final HttpStatus status;MpinProofException(String c,HttpStatus s){super(c);code=c;status=s;}public String code(){return code;}public HttpStatus status(){return status;}}

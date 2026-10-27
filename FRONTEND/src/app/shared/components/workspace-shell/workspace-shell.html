@@ -16,6 +16,7 @@
         <a *ngIf="!staff" routerLink="/fd/accounts" routerLinkActive="is-active"> {{ 'My deposits' | translate }} </a>
         <a *ngIf="!staff" routerLink="/reports" routerLinkActive="is-active"> {{ 'Reports' | translate }} </a>
         <a *ngIf="!staff" routerLink="/kyc" routerLinkActive="is-active"> {{ 'KYC' | translate }} </a>
+        <a *ngIf="staff" routerLink="/staff/kyc" routerLinkActive="is-active"> {{ 'KYC review' | translate }} </a>
         <a *ngIf="!staff" routerLink="/mpin" routerLinkActive="is-active"> {{ 'MPIN' | translate }} </a>
         <a *ngIf="staff" routerLink="/staff/product-builder" [queryParams]="{ new: 1 }" routerLinkActive="is-active"> {{ 'Product configuration' | translate }} </a>
         <a *ngIf="staff" routerLink="/staff/fd-products" routerLinkActive="is-active"> {{ 'FD offers' | translate }} </a>

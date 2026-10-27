@@ -9,7 +9,7 @@ import { FdService, normalizeApiError, SavingsHistory, SavingsTransferResponse }
 import { WorkspaceShell } from '../../shared/components/workspace-shell/workspace-shell';
 import { GlassSelect } from '../../shared/components/glass-select/glass-select';
 import { MpinInput } from '../../shared/components/mpin-input';
-import { MpinProofService, mpinErrorMessage } from '../../core/services/mpin-proof.service';
+import { MpinProofService, classifyMpinError } from '../../core/services/mpin-proof.service';
 
 @Component({
   selector: 'app-savings-accounts', standalone: true,
@@ -103,11 +103,14 @@ export class SavingsAccounts implements OnInit {
         this.transferMessage = 'Transfer completed. Reference: {0}';
         this.load(); this.loadHistory(fromAccountId);
       },
-      error: error => { this.transferBusy = false; this.readMpinError(error);this.clearTransferPin(); },
-    }),error:error=>{this.transferBusy=false;this.readMpinError(error);this.clearTransferPin();}});
+      error: error => { this.transferBusy = false; this.readMpinError('operation',error);this.clearTransferPin(); },
+    }),error:error=>{this.transferBusy=false;this.readMpinError('verify',error);this.clearTransferPin();}});
   }
   private clearTransferPin():void{this.transferForm.controls.mpin.setValue('');}
-  private readMpinError(error:any):void{const msg=mpinErrorMessage(error);this.mpinNotSet=msg==='MPIN_NOT_SET';this.mpinAttempts=msg.startsWith('MPIN_INVALID:')?msg.split(':')[1]:null;this.mpinLockedUntil=msg.startsWith('MPIN_LOCKED:')?msg.split(':').slice(1).join(':'):null;this.transferError=this.mpinNotSet?'Set up your MPIN before continuing.':this.mpinAttempts!==null?`MPIN is incorrect. Attempts remaining: ${this.mpinAttempts}.`:this.mpinLockedUntil?`MPIN is locked until ${this.mpinLockedUntil}.`:msg;}
+  private readMpinError(stage:'verify'|'operation',error:any):void {
+    this.mpinNotSet=stage==='verify'&&error?.error?.code==='MPIN_NOT_SET';
+    this.transferError=classifyMpinError(stage,error);
+  }
   private loadHistory(accountId: number): void {
     this.historyAccountId = accountId;
     this.fd.savingsTransactions(accountId).subscribe({ next: rows => this.transferHistory = rows, error: () => this.transferHistory = [] });

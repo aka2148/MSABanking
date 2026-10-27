@@ -10,7 +10,7 @@ import { CustomerOffer, LoanApplication, LoanEvent, LoanForexService } from '../
 import { WorkspaceShell } from '../../shared/components/workspace-shell/workspace-shell';
 import { FormsModule } from '@angular/forms';
 import { MpinInput } from '../../shared/components/mpin-input';
-import { MpinProofService,mpinErrorMessage } from '../../core/services/mpin-proof.service';
+import { MpinProofService,classifyMpinError } from '../../core/services/mpin-proof.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
@@ -80,8 +80,8 @@ export class LoanPage implements OnInit {
     const body={ productId: this.offer.productId, ...value, purpose: value.purpose.trim() };
     this.mpinProof.requestProof('LOAN_APPLICATION',{productId:body.productId,amount:body.amount,currencyCode:body.currencyCode,tenureMonths:body.tenureMonths,destinationSavingsAccountId:body.destinationSavingsAccountId},this.mpin).subscribe({next:proof=>this.api.apply(body,this.key!,proof.proofToken).subscribe({
       next: application => { this.busy = false; this.key = null;this.mpin=''; void this.router.navigate(['/applications', application.id]); },
-      error: e => { this.busy = false;this.mpin='';this.mpinNotSet=e?.error?.code==='MPIN_NOT_SET'; this.error = mpinErrorMessage(e); },
-    }),error:e=>{this.busy=false;this.mpin='';this.mpinNotSet=e?.error?.code==='MPIN_NOT_SET';this.error=mpinErrorMessage(e);}});
+      error: e => { this.busy = false;this.mpin='';this.mpinNotSet=e?.error?.code==='MPIN_NOT_SET'; this.error = classifyMpinError('operation',e); },
+    }),error:e=>{this.busy=false;this.mpin='';this.mpinNotSet=e?.error?.code==='MPIN_NOT_SET';this.error=classifyMpinError('verify',e);}});
   }
   private fail(error: HttpErrorResponse): void { this.loading = false; this.error = normalizeApiError(error).message; }
 }

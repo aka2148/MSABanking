@@ -1,4 +1,35 @@
 export const STAFF_MESSAGES = `
+KYC review|केवाईसी समीक्षा|ಕೆವೈಸಿ ಪರಿಶೀಲನೆ|本人確認の審査|مراجعة التحقق من الهوية|Revisión KYC
+Review KYC|केवाईसी की समीक्षा करें|ಕೆವೈಸಿ ಪರಿಶೀಲಿಸಿ|本人確認を審査|مراجعة الهوية|Revisar KYC
+Awaiting review|समीक्षा की प्रतीक्षा|ಪರಿಶೀಲನೆಗಾಗಿ ಕಾಯುತ್ತಿದೆ|審査待ち|بانتظار المراجعة|Pendiente de revisión
+No KYC applications match this filter.|इस फ़िल्टर से कोई केवाईसी आवेदन नहीं मिला।|ಈ ಫಿಲ್ಟರ್‌ಗೆ ಹೊಂದುವ ಕೆವೈಸಿ ಅರ್ಜಿಗಳಿಲ್ಲ.|この条件に一致する本人確認申請はありません。|لا توجد طلبات هوية تطابق هذا المرشح.|No hay solicitudes KYC que coincidan con este filtro.
+Search customers|ग्राहक खोजें|ಗ್ರಾಹಕರನ್ನು ಹುಡುಕಿ|顧客を検索|البحث عن العملاء|Buscar clientes
+Decision reason|निर्णय का कारण|ನಿರ್ಧಾರದ ಕಾರಣ|判断理由|سبب القرار|Motivo de la decisión
+10-500 characters; required for rejection|10-500 अक्षर; अस्वीकृति के लिए आवश्यक|10-500 ಅಕ್ಷರಗಳು; ತಿರಸ್ಕಾರಕ್ಕೆ ಅಗತ್ಯ|10～500文字。却下には必須|10-500 حرف؛ مطلوب للرفض|10-500 caracteres; obligatorio para rechazar
+Confirm this KYC decision?|इस केवाईसी निर्णय की पुष्टि करें?|ಈ ಕೆವೈಸಿ ನಿರ್ಧಾರವನ್ನು ದೃಢೀಕರಿಸುವಿರಾ?|この審査結果を確定しますか？|هل تؤكد قرار التحقق؟|¿Confirmar esta decisión KYC?
+Confirm approval|स्वीकृति की पुष्टि करें|ಅನುಮೋದನೆ ದೃಢೀಕರಿಸಿ|承認を確定|تأكيد الموافقة|Confirmar aprobación
+Confirm rejection|अस्वीकृति की पुष्टि करें|ತಿರಸ್ಕಾರ ದೃಢೀಕರಿಸಿ|却下を確定|تأكيد الرفض|Confirmar rechazo
+KYC decision recorded.|केवाईसी निर्णय दर्ज किया गया।|ಕೆವೈಸಿ ನಿರ್ಧಾರ ದಾಖಲಿಸಲಾಗಿದೆ.|審査結果を記録しました。|تم تسجيل قرار التحقق.|Decisión KYC registrada.
+Enter a decision reason of 10-500 characters without markup or control characters.|बिना मार्कअप या नियंत्रण वर्णों के 10-500 अक्षरों का कारण दर्ज करें।|ಮಾರ್ಕಪ್ ಅಥವಾ ನಿಯಂತ್ರಣ ಅಕ್ಷರಗಳಿಲ್ಲದೆ 10-500 ಅಕ್ಷರಗಳ ಕಾರಣ ನಮೂದಿಸಿ.|マークアップや制御文字を含めず10～500文字で理由を入力してください。|أدخل سبباً من 10-500 حرف دون علامات أو أحرف تحكم.|Introduce un motivo de 10-500 caracteres sin marcado ni caracteres de control.
+No supporting document is available.|कोई सहायक दस्तावेज़ उपलब्ध नहीं है।|ಯಾವುದೇ ಪೂರಕ ದಾಖಲೆ ಲಭ್ಯವಿಲ್ಲ.|添付書類はありません。|لا تتوفر وثيقة داعمة.|No hay documentos justificativos disponibles.
+View document|दस्तावेज़ देखें|ದಾಖಲೆ ವೀಕ್ಷಿಸಿ|書類を表示|عرض الوثيقة|Ver documento
+Supporting document|सहायक दस्तावेज़|ಪೂರಕ ದಾಖಲೆ|添付書類|الوثيقة الداعمة|Documento justificativo
+Document|दस्तावेज़|ದಾಖಲೆ|書類|الوثيقة|Documento
+bytes|बाइट|ಬೈಟ್‌ಗಳು|バイト|بايت|bytes
+Submitted|जमा किया गया|ಸಲ್ಲಿಸಲಾಗಿದೆ|提出済み|تم الإرسال|Enviado
+Re-KYC requested|पुनः केवाईसी अनुरोधित|ಮರು ಕೆವೈಸಿ ಕೋರಲಾಗಿದೆ|本人確認の更新申請|تم طلب إعادة التحقق|Renovación KYC solicitada
+Search customer profiles and update their name, risk category, and entity type.|ग्राहक प्रोफ़ाइल खोजें और नाम, जोखिम श्रेणी और संस्था प्रकार बदलें।|ಗ್ರಾಹಕರ ಪ್ರೊಫೈಲ್ ಹುಡುಕಿ ಹೆಸರು, ಅಪಾಯ ವರ್ಗ ಮತ್ತು ಸಂಸ್ಥೆಯ ಪ್ರಕಾರ ನವೀಕರಿಸಿ.|顧客情報を検索し、氏名、リスク区分、法人種別を更新します。|ابحث عن ملفات العملاء وحدّث الاسم وفئة المخاطر ونوع الكيان.|Busca clientes y actualiza su nombre, categoría de riesgo y tipo de entidad.
+Identity verified by|पहचान सत्यापन विधि|ಗುರುತು ಪರಿಶೀಲನೆ ವಿಧಾನ|本人確認方法|طريقة التحقق من الهوية|Identidad verificada mediante
+ID document checked|पहचान दस्तावेज़ जाँचा गया|ಗುರುತಿನ ದಾಖಲೆ ಪರಿಶೀಲಿಸಲಾಗಿದೆ|本人確認書類を確認|تم فحص وثيقة الهوية|Documento de identidad revisado
+Signature verified|हस्ताक्षर सत्यापित|ಸಹಿ ಪರಿಶೀಲಿಸಲಾಗಿದೆ|署名を確認|تم التحقق من التوقيع|Firma verificada
+Biometric verified|बायोमेट्रिक सत्यापित|ಬಯೋಮೆಟ್ರಿಕ್ ಪರಿಶೀಲಿಸಲಾಗಿದೆ|生体情報を確認|تم التحقق من البيانات الحيوية|Biometría verificada
+Verification reference (optional)|सत्यापन संदर्भ (वैकल्पिक)|ಪರಿಶೀಲನೆ ಉಲ್ಲೇಖ (ಐಚ್ಛಿಕ)|確認参照番号（任意）|مرجع التحقق (اختياري)|Referencia de verificación (opcional)
+Slip reference only; no government ID number|केवल पर्ची संदर्भ; सरकारी पहचान संख्या नहीं|ಚೀಟಿ ಉಲ್ಲೇಖ ಮಾತ್ರ; ಸರ್ಕಾರಿ ಗುರುತಿನ ಸಂಖ್ಯೆ ಬೇಡ|伝票番号のみ。公的身分証番号は入力しないでください|مرجع الإيصال فقط؛ دون رقم الهوية الحكومية|Solo referencia del comprobante; sin número de identidad
+Choose an identity verification method.|पहचान सत्यापन विधि चुनें।|ಗುರುತು ಪರಿಶೀಲನೆ ವಿಧಾನ ಆಯ್ಕೆಮಾಡಿ.|本人確認方法を選択してください。|اختر طريقة للتحقق من الهوية.|Elige un método de verificación de identidad.
+Verification reference must contain at most 40 letters, digits, slashes or hyphens.|संदर्भ में अधिकतम 40 अक्षर, अंक, स्लैश या हाइफ़न होने चाहिए।|ಉಲ್ಲೇಖದಲ್ಲಿ ಗರಿಷ್ಠ 40 ಅಕ್ಷರಗಳು, ಅಂಕಿಗಳು, ಸ್ಲ್ಯಾಶ್ ಅಥವಾ ಹೈಫನ್ ಇರಬೇಕು.|参照番号は英数字、スラッシュ、ハイフン40文字以内で入力してください。|يجب ألا يتجاوز المرجع 40 حرفاً أو رقماً أو شرطة أو شرطة مائلة.|La referencia admite hasta 40 letras, dígitos, barras o guiones.
+Enter a withdrawal remark of 5-140 characters.|5-140 अक्षरों की निकासी टिप्पणी दर्ज करें।|5-140 ಅಕ್ಷರಗಳ ಹಿಂಪಡೆಯುವ ಟಿಪ್ಪಣಿ ನಮೂದಿಸಿ.|出金備考を5～140文字で入力してください。|أدخل ملاحظة للسحب من 5 إلى 140 حرفاً.|Introduce una observación de retiro de 5 a 140 caracteres.
+Deposit recorded.|जमा दर्ज किया गया।|ಠೇವಣಿ ದಾಖಲಿಸಲಾಗಿದೆ.|入金を記録しました。|تم تسجيل الإيداع.|Depósito registrado.
+Withdrawal recorded.|निकासी दर्ज की गई।|ಹಿಂಪಡೆಯುವಿಕೆ ದಾಖಲಿಸಲಾಗಿದೆ.|出金を記録しました。|تم تسجيل السحب.|Retiro registrado.
 Customer MPIN|ग्राहक एमपिन|ಗ್ರಾಹಕರ ಎಂಪಿನ್|お客様の暗証番号|رقم معاملة العميل|PIN del cliente
 Verifying…|सत्यापित किया जा रहा है…|ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ…|確認中…|جارٍ التحقق…|Verificando…
 Customer has not set an MPIN.|ग्राहक ने एमपिन सेट नहीं किया है।|ಗ್ರಾಹಕರು ಎಂಪಿನ್ ಹೊಂದಿಸಿಲ್ಲ.|お客様は暗証番号を設定していません。|لم يعيّن العميل رقم المعاملة.|El cliente no ha configurado un PIN.

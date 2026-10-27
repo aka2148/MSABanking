@@ -1,4 +1,5 @@
 <app-workspace-shell>
+<a class="glass-link" *ngIf="error.includes('KYC verification is still pending')" routerLink="/kyc">{{ 'Go to KYC' | translate }}</a>
   <main class="glass-card workflow-page">
 
     <header class="workflow-page__hero">
@@ -39,7 +40,7 @@
         <span class="workflow-page__loader"></span>
         Loading…
       </div>
-      <p class="glass-error" role="alert" *ngIf="error">{{ error }}</p>
+      <p class="glass-error" role="alert" *ngIf="error">{{ error | translate }}</p>
     </div>
 
     <!-- CATALOG -->

@@ -28,9 +28,9 @@ import java.util.UUID;
 @RequestMapping("/fd/v1/staff")
 @PreAuthorize("hasAnyRole('BANK_OFFICER','ADMIN')")
 public class StaffAccountController {
-    private final JdbcTemplate jdbc; private final StaffSavingsMovementService movements;private final MpinProofVerifier mpin;
+    private final JdbcTemplate jdbc; private final StaffSavingsMovementService movements;
 
-    public StaffAccountController(JdbcTemplate jdbc, StaffSavingsMovementService movements,MpinProofVerifier mpin) { this.jdbc = jdbc; this.movements=movements;this.mpin=mpin; }
+    public StaffAccountController(JdbcTemplate jdbc, StaffSavingsMovementService movements) { this.jdbc = jdbc; this.movements=movements; }
 
     @GetMapping("/accounts")
     public Page<FdRow> fixedDeposits(@RequestParam(defaultValue = "0") int page,
@@ -71,18 +71,15 @@ public class StaffAccountController {
 
     @PostMapping("/savings-accounts/{id}/deposit")
     public SavingsRow deposit(Authentication actor, @PathVariable long id, @RequestHeader("Idempotency-Key") @NotBlank @Size(max = 255) String key, @Valid @RequestBody MoneyRequest request) {
-        return movements.transact(actor.getName(), id, key, request, true,null,0);
+        return movements.transact(actor.getName(), id, key, request, true);
     }
 
     @PostMapping("/savings-accounts/{id}/withdraw")
-    public SavingsRow withdraw(Authentication actor, @PathVariable long id, @RequestHeader("Idempotency-Key") @NotBlank @Size(max = 255) String key,@RequestHeader(value="X-MPIN-Proof",required=false)String proof, @Valid @RequestBody MoneyRequest request) {
-        SavingsRow replay=movements.replayIfPresent(actor.getName(),id,key,request);if(replay!=null)return replay;
-        Long owner=jdbc.query("SELECT sa_holder_id FROM savings_accounts WHERE sa_account_id=?",rs->rs.next()?rs.getLong(1):null,id);
-        if(owner==null)throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Savings account not found");
-        String jti=mpin.verify(actor,proof,"WITHDRAWAL",owner,MpinProofVerifier.canonical("WITHDRAWAL",id,request.amount()));
-        return movements.transact(actor.getName(),id,key,request,false,jti,owner);
+    public SavingsRow withdraw(Authentication actor, @PathVariable long id,
+            @RequestHeader("Idempotency-Key") @NotBlank @Size(max=255) String key,
+            @Valid @RequestBody MoneyRequest request) {
+        return movements.transact(actor.getName(),id,key,request,false);
     }
-
     private Map<String, Object> requireSavings(long id, boolean lock) {
         return jdbc.query("SELECT sa_account_id FROM savings_accounts WHERE sa_account_id=?" + (lock ? " FOR UPDATE" : ""), rs -> rs.next() ? Map.of("id", rs.getLong(1)) : null, id);
     }
@@ -94,5 +91,6 @@ public class StaffAccountController {
     public record Page<T>(List<T> content, int number, int size, long totalElements) {}
     public record FdRow(long id, String accountNumber, String status, BigDecimal principal, String currency, BigDecimal rate, int tenureMonths, String openedAt, String maturityAt, String customerName, String productName) {}
     public record SavingsRow(long id, String accountNumber, String displayName, BigDecimal balance, String currency, int decimalPlaces, String status, String createdAt, String customerName,long customerUserId,long transactionCount) {}
-    public record MoneyRequest(@NotNull @DecimalMin("0.01") @Digits(integer = 16, fraction = 8) BigDecimal amount, @Size(max = 500) String remarks) {}
+    public enum VerificationMethod { ID_DOCUMENT_CHECKED, SIGNATURE_VERIFIED, BIOMETRIC_VERIFIED, OTHER }
+    public record MoneyRequest(@NotNull @DecimalMin("0.01") @Digits(integer = 16, fraction = 8) BigDecimal amount, @Size(max = 500) String remarks, VerificationMethod verificationMethod, String verificationReference) {}
 }

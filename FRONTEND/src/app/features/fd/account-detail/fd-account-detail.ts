@@ -18,7 +18,7 @@ import { FdService, normalizeApiError } from '../../../core/services/fd.service'
 import { WorkspaceShell } from '../../../shared/components/workspace-shell/workspace-shell';
 import { FormsModule } from '@angular/forms';
 import { MpinInput } from '../../../shared/components/mpin-input';
-import { MpinProofService, MpinPurpose, mpinErrorMessage } from '../../../core/services/mpin-proof.service';
+import { MpinProofService, MpinPurpose, classifyMpinError } from '../../../core/services/mpin-proof.service';
 
 export type AccountAction = 'FUND' | 'CLOSE' | 'REQUEST_PREMATURE';
 type Result =
@@ -256,7 +256,7 @@ export class FdAccountDetail implements OnInit {
   private withMpin(action:AccountAction,purpose:MpinPurpose,fields:Record<string,unknown>,run:(proof:string)=>void):void {
     if(this.mpin.length!==6||!/^\d{6}$/.test(this.mpin)){this.errorMessage='Enter a six digit MPIN.';return;}
     this.mpinNotSet=false;this.errorMessage='';
-    this.mpinProof.requestProof(purpose,fields,this.mpin).subscribe({next:r=>{this.mpin='';run(r.proofToken);},error:e=>{this.mpin='';const code=e?.error?.code;this.mpinNotSet=code==='MPIN_NOT_SET';this.errorMessage=code==='MPIN_NOT_SET'?'Set up your MPIN before continuing.':code==='MPIN_INVALID'?`MPIN is incorrect. Attempts remaining: ${e?.error?.attemptsRemaining??''}.`:code==='MPIN_LOCKED'?`MPIN is locked until ${e?.error?.lockedUntil??''}.`:mpinErrorMessage(e);}});
+    this.mpinProof.requestProof(purpose,fields,this.mpin).subscribe({next:r=>{this.mpin='';run(r.proofToken);},error:e=>{this.mpin='';const code=e?.error?.code;this.mpinNotSet=code==='MPIN_NOT_SET';this.errorMessage=classifyMpinError('verify',e);}});
   }
 
   private execute<T>(action: AccountAction, request: () => import('rxjs').Observable<T>, onSuccess: (value: T) => void): void {
@@ -272,7 +272,7 @@ export class FdAccountDetail implements OnInit {
       },
       error: (error: HttpErrorResponse) => {
         this.busyAction = null;
-        this.errorMessage = this.messageFor(normalizeApiError(error));
+        this.errorMessage = classifyMpinError('operation',error);
         this.pendingConfirmation = FdAccountDetail.requiresConfirmation(action) ? action : null;
       },
     });

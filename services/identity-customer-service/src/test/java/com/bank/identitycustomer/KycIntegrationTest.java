@@ -108,14 +108,14 @@ class KycIntegrationTest {
         mvc.perform(patch("/api/v1/customers/" + c.id() + "/status").header("Authorization", "Bearer " + c.token())
                         .contentType("application/json").content("{\"status\":\"VERIFIED\"}"))
                 .andExpect(status().isForbidden());
-        mvc.perform(patch("/api/v1/customers/" + c.id() + "/status").header("Authorization", "Bearer " + officer)
-                        .contentType("application/json").content("{\"status\":\"VERIFIED\"}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.kycStatus").value("VERIFIED"));
+        mvc.perform(post("/api/v1/customers/kyc/submissions/" + c.id() + "/decision").header("Authorization", "Bearer " + officer)
+                        .contentType("application/json").content("{\"decision\":\"APPROVE\",\"reason\":\"Documents verified\"}"))
+                .andExpect(status().isNoContent());
         assertEquals(1, eventCount(c, "STAFF_VERIFIED"));
         String officerUsername = json.readTree(mvc.perform(get("/api/v1/auth/me").header("Authorization", "Bearer " + officer))
                 .andReturn().getResponse().getContentAsString()).get("username").asText();
         long officerId = jdbc.queryForObject("SELECT ucr_user_id FROM user_credentials WHERE ucr_username=?", Long.class, officerUsername);
-        assertEquals("reviewerUserId=" + officerId, jdbc.queryForObject("SELECT remarks FROM customer_kyc_events WHERE customer_id=? AND event_type='STAFF_VERIFIED'", String.class, c.id()));
+        assertEquals("Documents verified", jdbc.queryForObject("SELECT remarks FROM customer_kyc_events WHERE customer_id=? AND event_type='STAFF_VERIFIED'", String.class, c.id()));
         assertSnapshot(c, "VERIFIED", 3);
     }
     private int eventCount(Customer c, String type) { return jdbc.queryForObject("SELECT COUNT(*) FROM customer_kyc_events WHERE customer_id=? AND event_type=?", Integer.class, c.id(), type); }
@@ -164,9 +164,9 @@ class KycIntegrationTest {
     @Test void staffCanRejectOnlySubmittedKycAndCustomerCannotOverrideDecision() throws Exception {
         Customer c = customer(false); save(c, complete()); submit(c);
         String officer = bankOfficerToken();
-        mvc.perform(patch("/api/v1/customers/" + c.id() + "/status").header("Authorization", "Bearer " + officer)
-                        .contentType("application/json").content("{\"status\":\"REJECTED\"}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.kycStatus").value("REJECTED"));
+        mvc.perform(post("/api/v1/customers/kyc/submissions/" + c.id() + "/decision").header("Authorization", "Bearer " + officer)
+                        .contentType("application/json").content("{\"decision\":\"REJECT\",\"reason\":\"Documents need correction\"}"))
+                .andExpect(status().isNoContent());
         assertEquals(1, eventCount(c, "STAFF_REJECTED"));
         assertSnapshot(c, "REJECTED", 3);
         mvc.perform(patch("/api/v1/customers/" + c.id() + "/status").header("Authorization", "Bearer " + c.token())
@@ -174,9 +174,10 @@ class KycIntegrationTest {
                 .andExpect(status().isForbidden());
     }
     private void staffReview(Customer customer, String decision) throws Exception {
-        mvc.perform(patch("/api/v1/customers/" + customer.id() + "/status").header("Authorization", "Bearer " + bankOfficerToken())
-                        .contentType("application/json").content("{\"status\":\"" + decision + "\"}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.kycStatus").value(decision));
+        String action = "VERIFIED".equals(decision) ? "APPROVE" : "REJECT";
+        mvc.perform(post("/api/v1/customers/kyc/submissions/" + customer.id() + "/decision").header("Authorization", "Bearer " + bankOfficerToken())
+                        .contentType("application/json").content("{\"decision\":\"" + action + "\",\"reason\":\"Documents reviewed\"}"))
+                .andExpect(status().isNoContent());
     }
     private String bankOfficerToken() throws Exception {
         Customer staff = customer(false);

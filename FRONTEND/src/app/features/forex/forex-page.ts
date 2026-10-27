@@ -9,11 +9,12 @@ import { CustomerOffer, ForexRequest, LoanForexService } from '../../core/servic
 import { WorkspaceShell } from '../../shared/components/workspace-shell/workspace-shell';
 import { FormsModule } from '@angular/forms';
 import { MpinInput } from '../../shared/components/mpin-input';
-import { MpinProofService,mpinErrorMessage } from '../../core/services/mpin-proof.service';
+import { MpinProofService,classifyMpinError } from '../../core/services/mpin-proof.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { GlassSelect } from '../../shared/components/glass-select/glass-select';
 
 @Component({ selector: 'app-forex-page', standalone: true,
-  imports: [CustomerProductWarning, CommonModule, ReactiveFormsModule,FormsModule,RouterLink, WorkspaceShell,MpinInput,TranslatePipe],
+  imports: [CustomerProductWarning, CommonModule, ReactiveFormsModule,FormsModule,RouterLink, WorkspaceShell,MpinInput,TranslatePipe,GlassSelect],
   templateUrl: './forex-page.html', styleUrl: '../loans/loan-page.scss' })
 export class ForexPage implements OnInit {
   productAccessBlocked = true;
@@ -31,6 +32,7 @@ export class ForexPage implements OnInit {
     this.form.valueChanges.subscribe(() => { this.key = null; });
   }
   private readonly id: number;
+  get currencyOptions(){return this.offer?.currencies.map(c=>({value:c.code,label:c.code,disabled:c.code===this.offer?.baseCurrencyCode}))??[];}
   ngOnInit(): void {
     if (this.mode === 'catalog') this.api.offers('FOREX').subscribe({ next: rows => { this.offers = rows; this.loading = false; }, error: e => this.fail(e) });
     else if (this.mode === 'requests') this.api.forexRequests().subscribe({ next: rows => { this.requests = rows; this.loading = false; }, error: e => this.fail(e) });
@@ -56,8 +58,8 @@ export class ForexPage implements OnInit {
     const body={ productId: this.offer.productId, amount: value.amount, fundingCurrencyCode: base.code, destinationCurrencyCode: value.destinationCurrencyCode };
     this.mpinProof.requestProof('FOREX_REQUEST',body,this.mpin).subscribe({next:proof=>this.api.requestForex(body,this.key!,proof.proofToken).subscribe({
       next: row => { this.busy = false; this.key = null;this.mpin=''; void this.router.navigate(['/forex/requests', row.id]); },
-      error: e => { this.busy = false;this.mpin='';this.mpinNotSet=e?.error?.code==='MPIN_NOT_SET'; this.error = mpinErrorMessage(e); },
-    }),error:e=>{this.busy=false;this.mpin='';this.mpinNotSet=e?.error?.code==='MPIN_NOT_SET';this.error=mpinErrorMessage(e);}});
+      error: e => { this.busy = false;this.mpin='';this.mpinNotSet=e?.error?.code==='MPIN_NOT_SET'; this.error = classifyMpinError('operation',e); },
+    }),error:e=>{this.busy=false;this.mpin='';this.mpinNotSet=e?.error?.code==='MPIN_NOT_SET';this.error=classifyMpinError('verify',e);}});
   }
   private fail(error: HttpErrorResponse): void { this.loading = false; this.error = normalizeApiError(error).message; }
 }

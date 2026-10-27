@@ -7,11 +7,11 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { StaffOperationsService, StaffPage, StaffFdRow, StaffSavingsRow, StaffTransaction } from '../../../core/services/staff-operations.service';
 import { StaffPrematureQuote } from '../../../core/models/fd.models';
 import { WorkspaceShell } from '../../../shared/components/workspace-shell/workspace-shell';
-import { MpinInput } from '../../../shared/components/mpin-input';
+import { GlassSelect } from '../../../shared/components/glass-select/glass-select';
 
 @Component({
   selector: 'app-staff-account-dashboard', standalone: true,
-  imports: [TranslatePipe, CommonModule, FormsModule, RouterLink, WorkspaceShell,MpinInput],
+  imports: [TranslatePipe, CommonModule, FormsModule, RouterLink, WorkspaceShell,GlassSelect],
   template: `
     <app-workspace-shell><main class="glass-card glass-card--wide staff-accounts">
       <a routerLink="/dashboard" class="glass-link"> {{ '← Staff overview' | translate }} </a>
@@ -30,7 +30,8 @@ import { MpinInput } from '../../../shared/components/mpin-input';
       <section *ngIf="!loading && savingsMode && savingsPage as page" [attr.aria-label]="'Savings account results' | translate"><p class="staff-count"> {{ '{0} account(s)' | translate: [(page.totalElements | number)] }} </p><p class="fd-admin-info" *ngIf="!page.content.length"> {{ 'No savings accounts match this filter.' | translate }} </p>
         <article class="account-row" *ngFor="let account of page.content"><div class="account-main"><div><strong>{{ account.displayName }}</strong><span>{{ account.accountNumber }} · {{ account.customerName || 'Customer name unavailable' }}</span></div><span class="status-pill" [class.status-pill--good]="account.status === 'ACTIVE'">{{ account.status }}</span></div><dl class="account-facts"><div><dt> {{ 'Balance' | translate }} </dt><dd>{{ account.balance | currency:account.currency:'code':'1.' + account.decimalPlaces }}</dd></div><div><dt> {{ 'Opened' | translate }} </dt><dd>{{ account.createdAt | date:'mediumDate' }}</dd></div></dl>
           <div class="account-actions"><button class="glass-btn glass-btn--ghost" type="button" (click)="toggleManage(account)"> {{ (expandedAccountId === account.id ? 'Close actions' : 'Manage account') | translate }} </button><button class="glass-link" type="button" (click)="showTransactions(account)"> {{ (selected?.id === account.id ? 'Hide history' : 'Transaction history') | translate }} </button></div>
-          <div class="account-details" *ngIf="expandedAccountId === account.id"><div class="teller-actions"><label class="glass-field"><span class="glass-field__label"> {{ 'Amount ({0})' | translate: [(account.currency)] }} </span><input type="number" min="0.01" [step]="decimalStep(account.decimalPlaces)" [(ngModel)]="amounts[account.id]" [name]="'amount-'+account.id" /></label><label class="glass-field"><span class="glass-field__label"> {{ 'Remarks' | translate }} </span><input maxlength="500" [(ngModel)]="remarks[account.id]" [name]="'remarks-'+account.id" [placeholder]="'Optional transaction note' | translate" /></label><label class="glass-field"><span class="glass-field__label">{{'Customer MPIN'|translate}}</span><app-mpin-input [(ngModel)]="withdrawalMpins[account.id]" [name]="'withdrawal-mpin-'+account.id"></app-mpin-input></label><button class="glass-btn" type="button" (click)="transact(account,'deposit')" [disabled]="busyId === account.id"> {{ (busyId === account.id && busyAction === 'deposit' ? 'Posting…' : 'Deposit') | translate }} </button><button class="glass-btn glass-btn--ghost" type="button" (click)="transact(account,'withdraw')" [disabled]="busyId === account.id"> {{ (busyId === account.id && busyAction === 'withdraw' ? 'Verifying…' : 'Withdraw') | translate }} </button></div><p *ngIf="withdrawalErrors[account.id]" class="glass-field__error" role="alert">{{withdrawalErrors[account.id]|translate}}</p>
+          <div class="account-details" *ngIf="expandedAccountId === account.id"><div class="teller-actions"><label class="glass-field"><span class="glass-field__label"> {{ 'Amount ({0})' | translate: [(account.currency)] }} </span><input type="number" min="0.01" [step]="decimalStep(account.decimalPlaces)" [(ngModel)]="amounts[account.id]" [name]="'amount-'+account.id" /></label><label class="glass-field"><span class="glass-field__label"> {{ 'Remarks' | translate }} </span><input maxlength="500" [(ngModel)]="remarks[account.id]" [name]="'remarks-'+account.id" [placeholder]="'Optional transaction note' | translate" /></label><label class="glass-field"><span class="glass-field__label">{{ 'Identity verified by' | translate }}</span><app-glass-select [options]="verificationOptions" [(ngModel)]="verificationMethods[account.id]" [name]="'verification-'+account.id" /></label>
+<label class="glass-field"><span class="glass-field__label">{{ 'Verification reference (optional)' | translate }}</span><input maxlength="40" [(ngModel)]="verificationReferences[account.id]" [name]="'verification-reference-'+account.id" [placeholder]="'Slip reference only; no government ID number' | translate" /></label><button class="glass-btn" type="button" (click)="transact(account,'deposit')" [disabled]="busyId === account.id"> {{ (busyId === account.id && busyAction === 'deposit' ? 'Posting…' : 'Deposit') | translate }} </button><button class="glass-btn glass-btn--ghost" type="button" (click)="transact(account,'withdraw')" [disabled]="busyId === account.id"> {{ (busyId === account.id && busyAction === 'withdraw' ? 'Verifying…' : 'Withdraw') | translate }} </button></div><p *ngIf="withdrawalErrors[account.id]" class="glass-field__error" role="alert">{{withdrawalErrors[account.id]|translate}}</p>
             <section *ngIf="demoEnabled && account.status === 'ACTIVE' && account.balance === 0 && account.transactionCount === 0" class="demo-opening"><h3>{{ 'Credit demo opening funds' | translate }}</h3><label class="glass-field"><span class="glass-field__label">{{ 'Amount ({0})' | translate: [account.currency] }}</span><input type="number" min="0.01" [step]="decimalStep(account.decimalPlaces)" [(ngModel)]="demoAmounts[account.id]" (ngModelChange)="demoAmountChanged(account)" [name]="'demo-amount-'+account.id" required /></label><p class="glass-field__error" *ngIf="demoErrors[account.id]">{{ demoErrors[account.id] | translate }}</p><p *ngIf="demoConfirm[account.id]">{{ 'Confirm demo opening credit for {0} {1}?' | translate: [demoAmounts[account.id], account.currency] }}</p><button class="glass-btn" type="button" (click)="creditDemo(account)" [disabled]="busyId === account.id || !demoAmounts[account.id]">{{ (demoConfirm[account.id] ? 'Confirm credit' : 'Review credit') | translate }}</button></section>
           </div>
           <div class="transactions" *ngIf="selected?.id === account.id"><p class="fd-eyebrow"> {{ 'Recent activity · up to 100 entries' | translate }} </p><p *ngIf="transactionLoading"> {{ 'Loading transaction history…' | translate }} </p><p *ngIf="!transactionLoading && !transactions.length"> {{ 'No transactions recorded.' | translate }} </p><div class="transaction-row" *ngFor="let tx of transactions"><span>{{ tx.st_posted_at | date:'medium' }}<small>{{ tx.st_remarks || tx.st_reference_id }}</small></span><strong [class.credit]="tx.st_entry_type === 'CREDIT'" [class.debit]="tx.st_entry_type === 'DEBIT'">{{ tx.st_entry_type === 'CREDIT' ? '+' : '−' }}{{ tx.st_amount | currency:account.currency:'code':'1.' + account.decimalPlaces }}</strong></div></div>
@@ -51,7 +52,13 @@ export class StaffAccountDashboard implements OnInit {
   demoEnabled = false; demoAmounts: Record<number, number | null> = {}; demoConfirm: Record<number, boolean> = {}; demoErrors: Record<number, string> = {};
   decisionReasons: Record<number, string> = {};
   amounts: Record<number, number | null> = {}; remarks: Record<number, string> = {}; idempotencyKeys: Record<string, string> = {}; selected: StaffSavingsRow | null = null; expandedAccountId: number | null = null; transactions: StaffTransaction[] = []; transactionLoading = false;
-  withdrawalMpins:Record<number,string>={};withdrawalErrors:Record<number,string>={};
+  verificationMethods:Record<number,string>={};verificationReferences:Record<number,string>={};withdrawalErrors:Record<number,string>={};
+  readonly verificationOptions = [
+    {value:'ID_DOCUMENT_CHECKED',label:'ID document checked'},
+    {value:'SIGNATURE_VERIFIED',label:'Signature verified'},
+    {value:'BIOMETRIC_VERIFIED',label:'Biometric verified'},
+    {value:'OTHER',label:'Other'},
+  ];
   constructor(route: ActivatedRoute, private readonly api: StaffOperationsService) { this.savingsMode = route.snapshot.routeConfig?.path === 'staff/savings'; this.statuses = this.savingsMode ? ['ACTIVE', 'INACTIVE'] : ['PENDING', 'ACTIVE', 'MATURED', 'CLOSED', 'PREMATURELY_CLOSED']; }
   ngOnInit(): void { this.load(0); if (!this.savingsMode) this.loadPrematureQueue(0); else this.api.demoOptions().subscribe({next: x => this.demoEnabled=x.enabled, error: e => this.error=this.errorText(e)}); }
   loadPrematureQueue(page: number): void { this.quoteLoading = true; this.quoteError = ''; this.prematurePage = page; this.api.pendingPrematureClosures(page).subscribe({ next: result => { this.prematureQuotes = result.content; this.prematureTotal = result.totalElements; this.quoteLoading = false; }, error: e => { this.quoteError = this.errorText(e); this.quoteLoading = false; } }); }
@@ -81,11 +88,24 @@ export class StaffAccountDashboard implements OnInit {
   transact(account: StaffSavingsRow, action: 'deposit' | 'withdraw'): void {
     const amount=this.amounts[account.id];if(!amount||amount<=0){this.error='Enter an amount greater than zero.';return;}
     const key=`${account.id}:${action}`;this.idempotencyKeys[key]??=crypto.randomUUID();this.busyId=account.id;this.busyAction=action;this.error='';this.message='';this.withdrawalErrors[account.id]='';
-    const post=(proof?:string)=>this.api.transact(account.id,action,amount,this.remarks[account.id]??'',this.idempotencyKeys[key],proof).subscribe({next:updated=>{if(this.savingsPage)this.savingsPage.content=this.savingsPage.content.map(row=>row.id===updated.id?updated:row);delete this.idempotencyKeys[key];this.amounts[account.id]=null;this.withdrawalMpins[account.id]='';this.message=`${action==='deposit'?'Deposit':'Withdrawal'} recorded for ${updated.accountNumber}.`;this.busyId=null;this.busyAction=null;if(this.selected?.id===account.id){this.selected=updated;this.loadTransactions(updated);}},error:e=>{this.withdrawalMpins[account.id]='';this.withdrawalErrors[account.id]=this.tellerMpinError(e);this.busyId=null;this.busyAction=null;}});
-    if(action==='deposit'){post();return;}
-    const pin=this.withdrawalMpins[account.id]??'';if(!/^\d{6}$/.test(pin)){this.withdrawalErrors[account.id]='Enter the customer MPIN.';this.busyId=null;this.busyAction=null;return;}
-    this.api.customerIdForUser(account.customerUserId).subscribe({next:c=>this.api.verifyCustomerMpin(c.id,account.id,amount,pin).subscribe({next:p=>{this.withdrawalMpins[account.id]='';post(p.proofToken);},error:e=>{this.withdrawalMpins[account.id]='';this.withdrawalErrors[account.id]=this.tellerMpinError(e);this.busyId=null;this.busyAction=null;}}),error:e=>{this.withdrawalMpins[account.id]='';this.withdrawalErrors[account.id]=this.errorText(e);this.busyId=null;this.busyAction=null;}});
-  }
-  private tellerMpinError(e:HttpErrorResponse):string{const c=e.error?.code;if(c==='MPIN_NOT_SET')return 'Customer has not set an MPIN.';if(c==='MPIN_INVALID')return `Customer MPIN is incorrect. Attempts remaining: ${e.error?.attemptsRemaining??''}.`;if(c==='MPIN_LOCKED')return `Customer MPIN is locked until ${e.error?.lockedUntil??''}.`;return this.errorText(e);}
-  private errorText(e: HttpErrorResponse): string { if (e.status === 401) return 'Your session expired. Sign in again.'; if (e.status === 403) return 'Account operations require a staff account.'; return e.error?.message ?? 'Could not load or update account information.'; }
+    const verificationMethod=this.verificationMethods[account.id];
+    const verificationReference=this.verificationReferences[account.id]??'';
+    const remarks=this.remarks[account.id]??'';
+    if(action==='withdraw') {
+      const problem=!verificationMethod?'Choose an identity verification method.':
+        !/^[A-Za-z0-9/-]{0,40}$/.test(verificationReference)?'Verification reference must contain at most 40 letters, digits, slashes or hyphens.':
+        remarks.trim().length<5||remarks.trim().length>140?'Enter a withdrawal remark of 5-140 characters.':'';
+      if(problem){this.withdrawalErrors[account.id]=problem;this.busyId=null;this.busyAction=null;return;}
+    }
+    this.api.transact(account.id,action,amount,remarks,this.idempotencyKeys[key],action==='withdraw'?{verificationMethod,verificationReference}:undefined).subscribe({
+      next:updated=>{
+        if(this.savingsPage)this.savingsPage.content=this.savingsPage.content.map(row=>row.id===updated.id?updated:row);
+        delete this.idempotencyKeys[key];this.amounts[account.id]=null;
+        this.verificationMethods[account.id]='';this.verificationReferences[account.id]='';
+        this.message=action==='deposit'?'Deposit recorded.':'Withdrawal recorded.';
+        this.busyId=null;this.busyAction=null;
+        if(this.selected?.id===account.id){this.selected=updated;this.loadTransactions(updated);}
+      },error:e=>{this.withdrawalErrors[account.id]=this.errorText(e);this.busyId=null;this.busyAction=null;}
+    });
+  }  private errorText(e: HttpErrorResponse): string { if (e.status === 401) return 'Your session expired. Sign in again.'; if (e.status === 403) return 'Account operations require a staff account.'; return e.error?.message ?? 'Could not load or update account information.'; }
 }

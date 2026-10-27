@@ -36,16 +36,6 @@ public class MpinController {
         return ResponseEntity.ok(Map.of("proofToken",result.proofToken(),"expiresAt",result.expiresAt()));
     }
 
-    @PostMapping("/customers/{customerId}/mpin/verify") @PreAuthorize("hasAnyRole('BANK_OFFICER','ADMIN')")
-    public ResponseEntity<?> staffVerify(Authentication auth,@PathVariable long customerId,@Valid @RequestBody StaffVerifyRequest r){
-        Long user=jdbc.query("SELECT cus_user_id FROM customers WHERE cus_customer_id=?",rs->rs.next()?rs.getLong(1):null,customerId);
-        if(user==null)throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Customer not found.");
-        Map<String,Object> fields=new LinkedHashMap<>();fields.put("accountId",r.accountId());fields.put("amount",r.amount());
-        MpinService.Verification result=service.staffVerify(user,auth.getName(),r.mpin(),fields);
-        if(result.proofToken()==null)return failure(result.fields());
-        return ResponseEntity.ok(Map.of("proofToken",result.proofToken(),"expiresAt",result.expiresAt()));
-    }
-
     @PostMapping("/customers/{customerId}/mpin/reset") @PreAuthorize("hasAnyRole('BANK_OFFICER','ADMIN')")
     public ResponseEntity<?> reset(Authentication auth,@PathVariable long customerId){Long user=jdbc.query("SELECT cus_user_id FROM customers WHERE cus_customer_id=?",rs->rs.next()?rs.getLong(1):null,customerId);if(user==null)throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Customer not found.");service.reset(user,auth.getName());return ResponseEntity.noContent().build();}
 
@@ -56,5 +46,4 @@ public class MpinController {
     public record SetupRequest(@NotBlank String password,@NotBlank String mpin){@Override public String toString(){return "SetupRequest[password=[redacted], mpin=[redacted]]";}}
     public record ChangeRequest(@NotBlank String currentMpin,@NotBlank String newMpin){@Override public String toString(){return "ChangeRequest[currentMpin=[redacted], newMpin=[redacted]]";}}
     public record VerifyRequest(@NotBlank String mpin,@NotBlank String purpose,Map<String,Object> fields){@Override public String toString(){return "VerifyRequest[mpin=[redacted], purpose="+purpose+"]";}}
-    public record StaffVerifyRequest(@NotBlank String mpin,long accountId,@jakarta.validation.constraints.DecimalMin("0.01") java.math.BigDecimal amount){@Override public String toString(){return "StaffVerifyRequest[mpin=[redacted], accountId="+accountId+", amount=[redacted]]";}}
 }
