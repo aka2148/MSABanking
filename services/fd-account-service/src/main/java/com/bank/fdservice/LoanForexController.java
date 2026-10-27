@@ -32,11 +32,13 @@ public class LoanForexController {
     private final JdbcTemplate jdbc;
     private final RestClient products;
     private final MpinProofVerifier mpin;
+    private final PostingService postings;
 
-    public LoanForexController(JdbcTemplate jdbc, @Value("${app.product.base-url:http://localhost:8082}") String productUrl,MpinProofVerifier mpin) {
+    public LoanForexController(JdbcTemplate jdbc, @Value("${app.product.base-url:http://localhost:8082}") String productUrl,MpinProofVerifier mpin,PostingService postings) {
         this.jdbc = jdbc;
         this.products = RestClient.create(productUrl);
         this.mpin=mpin;
+        this.postings=postings;
     }
 
     @GetMapping("/api/v1/loans")
@@ -126,12 +128,24 @@ public class LoanForexController {
     }
 
     @PostMapping("/api/v1/admin/loans/{id}/disburse") @PreAuthorize("hasRole('ADMIN')") @Transactional
-    public Object disburse(Authentication actor,HttpServletRequest http,@PathVariable long id) {
+    public Map<String,Object> disburse(Authentication actor,HttpServletRequest http,@PathVariable long id) {
         Map<String,Object> row=lockedLoan(id);
         if ("DISBURSED".equals(row.get("la_status"))) return loan(id,null);
         if (!"APPROVED".equals(row.get("la_status"))) throw conflict("Only approved applications can be disbursed");
-        return org.springframework.http.ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(Map.of("message","Loan disbursement is unavailable until loan receivable accounting is implemented."));
+        revalidate(row,http);
+        long customer=((Number)row.get("la_customer_id")).longValue();
+        long savings=((Number)row.get("la_destination_savings_id")).longValue();
+        long currency=((Number)row.get("la_currency_id")).longValue();
+        BigDecimal approved=(BigDecimal)row.get("la_approved_amount");
+        if (approved==null) throw conflict("Approved loan amount is unavailable");
+        requireSavings(savings,customer,currency,true);
+        String reference="LOAN:"+id;
+        postings.postSavingsMovement(savings,currency,approved,"CREDIT",reference,"Loan disbursement #"+id,
+                actor.getName(),"LOAN_DISBURSEMENT:"+id,"LOAN_DISBURSEMENT","LOAN_RECEIVABLE","SAVINGS");
+        Long transactionId=jdbc.queryForObject("SELECT st_id FROM savings_transactions WHERE st_reference_id=? AND st_account_id=? AND st_entry_type='CREDIT'",Long.class,reference,savings);
+        jdbc.update("UPDATE loan_applications SET la_status='DISBURSED',la_disbursement_transaction_id=?,la_updated_at=UTC_TIMESTAMP(6) WHERE la_id=?",transactionId,id);
+        event(id,"DISBURSED",userId(actor),null);
+        return loan(id,null);
     }
 
     @GetMapping("/api/v1/forex-requests")

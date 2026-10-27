@@ -86,13 +86,42 @@ class LoanForexIntegrationTest {
         mvc.perform(post("/api/v1/loans").header("Authorization",applicant).header("X-MPIN-Proof",proof(customer,"LOAN_APPLICATION",MpinProofVerifier.canonical("LOAN_APPLICATION",11,1000000,"INR",12,destination))).header("Idempotency-Key","loan-limits").contentType(MediaType.APPLICATION_JSON).content(body.replace("\"amount\":1000","\"amount\":1000000"))).andExpect(status().isBadRequest());
         mvc.perform(post("/api/v1/loans").header("Authorization",applicant).header("Idempotency-Key","loan-1").contentType(MediaType.APPLICATION_JSON).content(body.replace("\"amount\":1000","\"amount\":2000"))).andExpect(status().isConflict());
         mvc.perform(post("/api/v1/admin/loans/{id}/approve",id).header("Authorization",applicant)).andExpect(status().isForbidden());
-        mvc.perform(post("/api/v1/admin/loans/{id}/approve",id).header("Authorization",administrator)).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("APPROVED"));
-        mvc.perform(post("/api/v1/admin/loans/{id}/disburse",id).header("Authorization",administrator)).andExpect(status().isConflict()).andExpect(jsonPath("$.message").value("Loan disbursement is unavailable until loan receivable accounting is implemented."));
-        mvc.perform(get("/api/v1/admin/loans/{id}",id).header("Authorization",administrator)).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("APPROVED"));
         mvc.perform(post("/api/v1/admin/loans/{id}/disburse",id).header("Authorization",administrator)).andExpect(status().isConflict());
-        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM savings_transactions WHERE st_reference_id=?",Integer.class,"LOAN:"+id));
+        mvc.perform(post("/api/v1/admin/loans/{id}/approve",id).header("Authorization",administrator)).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("APPROVED"));
+        String disbursed=mvc.perform(post("/api/v1/admin/loans/{id}/disburse",id).header("Authorization",administrator))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("DISBURSED"))
+                .andExpect(jsonPath("$.disbursementTransactionId").isNumber()).andReturn().getResponse().getContentAsString();
+        long transactionId=json.readTree(disbursed).path("disbursementTransactionId").asLong();
+        assertEquals(0,jdbc.queryForObject("SELECT sa_balance FROM savings_accounts WHERE sa_account_id=?",java.math.BigDecimal.class,destination).compareTo(new java.math.BigDecimal("1000.00")));
+        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM savings_transactions WHERE st_reference_id=? AND st_entry_type='CREDIT' AND st_amount=1000.00",Integer.class,"LOAN:"+id));
+        assertEquals(transactionId,jdbc.queryForObject("SELECT st_id FROM savings_transactions WHERE st_reference_id=? AND st_entry_type='CREDIT'",Long.class,"LOAN:"+id));
+        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM fd_journals WHERE fj_key=? AND fj_operation='LOAN_DISBURSEMENT' AND fj_total_debit=fj_total_credit",Integer.class,"LOAN_DISBURSEMENT:"+id));
+        assertEquals(0,jdbc.queryForObject("SELECT jl_debit-jl_credit FROM fd_journal_lines l JOIN fd_journals j ON j.fj_id=l.jl_journal_id WHERE j.fj_key=? AND l.jl_account_code='LOAN_RECEIVABLE'",java.math.BigDecimal.class,"LOAN_DISBURSEMENT:"+id).compareTo(new java.math.BigDecimal("1000.00")));
+        assertEquals(0,jdbc.queryForObject("SELECT jl_credit-jl_debit FROM fd_journal_lines l JOIN fd_journals j ON j.fj_id=l.jl_journal_id WHERE j.fj_key=? AND l.jl_account_code='SAVINGS'",java.math.BigDecimal.class,"LOAN_DISBURSEMENT:"+id).compareTo(new java.math.BigDecimal("1000.00")));
+        assertEquals(2,jdbc.queryForObject("SELECT COUNT(*) FROM fd_journal_lines l JOIN fd_journals j ON j.fj_id=l.jl_journal_id WHERE j.fj_key=?",Integer.class,"LOAN_DISBURSEMENT:"+id));
+        mvc.perform(get("/api/v1/loans/{id}",id).header("Authorization",applicant)).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("DISBURSED")).andExpect(jsonPath("$.disbursementTransactionId").value(transactionId));
+        mvc.perform(get("/api/v1/loans/{id}/history",id).header("Authorization",applicant)).andExpect(status().isOk()).andExpect(jsonPath("$[2].status").value("DISBURSED"));
+        mvc.perform(get("/api/v1/savings-accounts/{id}/transactions",destination).header("Authorization",applicant)).andExpect(status().isOk()).andExpect(jsonPath("$[0].st_reference_id").value("LOAN:"+id));
+        mvc.perform(post("/api/v1/admin/loans/{id}/disburse",id).header("Authorization",administrator)).andExpect(status().isOk()).andExpect(jsonPath("$.disbursementTransactionId").value(transactionId));
+        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM savings_transactions WHERE st_reference_id=?",Integer.class,"LOAN:"+id));
+        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM fd_journals WHERE fj_key=?",Integer.class,"LOAN_DISBURSEMENT:"+id));
         assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM savings_transactions WHERE st_account_id=?",Integer.class,otherAccount));
         assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM loan_applications WHERE la_id=? AND la_destination_savings_id<>?",Integer.class,id,destination));
+
+        String rollbackBody=body.replace("\"purpose\":\"Education\"","\"purpose\":\"Rollback check\"");
+        long rollbackId=json.readTree(mvc.perform(post("/api/v1/loans").header("Authorization",applicant).header("X-MPIN-Proof",proof(customer,"LOAN_APPLICATION",MpinProofVerifier.canonical("LOAN_APPLICATION",11,1000,"INR",12,destination))).header("Idempotency-Key","loan-rollback").contentType(MediaType.APPLICATION_JSON).content(rollbackBody))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).path("id").asLong();
+        mvc.perform(post("/api/v1/admin/loans/{id}/approve",rollbackId).header("Authorization",administrator)).andExpect(status().isOk());
+        jdbc.update("UPDATE chart_of_accounts SET coa_active=FALSE WHERE coa_code='LOAN_RECEIVABLE'");
+        try {
+            mvc.perform(post("/api/v1/admin/loans/{id}/disburse",rollbackId).header("Authorization",administrator)).andExpect(status().isBadRequest());
+            assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM savings_transactions WHERE st_reference_id=?",Integer.class,"LOAN:"+rollbackId));
+            assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM fd_journals WHERE fj_key=?",Integer.class,"LOAN_DISBURSEMENT:"+rollbackId));
+            mvc.perform(get("/api/v1/admin/loans/{id}",rollbackId).header("Authorization",administrator)).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("APPROVED"));
+        } finally {
+            jdbc.update("UPDATE chart_of_accounts SET coa_active=TRUE WHERE coa_code='LOAN_RECEIVABLE'");
+        }
+        assertEquals(0,jdbc.queryForObject("SELECT sa_balance FROM savings_accounts WHERE sa_account_id=?",java.math.BigDecimal.class,destination).compareTo(new java.math.BigDecimal("1000.00")));
         String rejected=mvc.perform(post("/api/v1/loans").header("Authorization",applicant).header("X-MPIN-Proof",proof(customer,"LOAN_APPLICATION",MpinProofVerifier.canonical("LOAN_APPLICATION",11,1000,"INR",12,destination))).header("Idempotency-Key","loan-2").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         long rejectedId=json.readTree(rejected).path("id").asLong();

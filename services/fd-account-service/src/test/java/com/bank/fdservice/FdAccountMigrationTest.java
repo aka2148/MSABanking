@@ -69,8 +69,8 @@ class FdAccountMigrationTest {
 
     @Test
     void appliesAllFdMigrationsAndCreatesWorkflowSchema() {
-        assertEquals(17, jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1", Integer.class));
-        assertEquals(17, jdbc.queryForObject("SELECT MAX(CAST(version AS UNSIGNED)) FROM flyway_schema_history WHERE success=1", Integer.class));
+        assertEquals(18, jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1", Integer.class));
+        assertEquals(18, jdbc.queryForObject("SELECT MAX(CAST(version AS UNSIGNED)) FROM flyway_schema_history WHERE success=1", Integer.class));
         assertTrue(jdbc.queryForObject("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='fd_product_rate_ref' AND column_name='effective_from'", Integer.class) == 1);
         assertTrue(jdbc.queryForObject("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='fd_product_rate_ref' AND column_name='effective_to'", Integer.class) == 1);
 
@@ -88,6 +88,7 @@ class FdAccountMigrationTest {
         assertTrue(table("loan_application_events"));
         assertTrue(table("forex_requests"));
         assertTrue(table("chart_of_accounts"));
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM chart_of_accounts WHERE coa_code='LOAN_RECEIVABLE' AND coa_type='ASSET' AND coa_active=TRUE", Integer.class));
         assertTrue(table("fd_ledger_cutover"));
         assertTrue(table("fd_mpin_proof_use"));
 
