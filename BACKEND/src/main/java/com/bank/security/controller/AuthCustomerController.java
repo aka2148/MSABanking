@@ -4,6 +4,7 @@ import com.bank.customer.dto.*;
 import com.bank.customer.entity.*;
 import com.bank.customer.repository.*;
 import com.bank.customer.service.AuthCustomerService;
+import com.bank.security.service.OtpService;
 import com.bank.security.dto.*;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
@@ -18,11 +19,22 @@ import java.util.*;
 @RestController
 @RequestMapping("/api/v1")
 public class AuthCustomerController {
-    private final AuthCustomerService service; private final UserRepository users; private final RoleDefinitionRepository roles; private final BranchRepository branches; private final ClassificationTypeRepository classifications; private final EmployeeProfileRepository employees; private final CustomerProfileRepository customerProfiles; private final IdentityProofRepository proofs; private final CustomerAddressRepository addresses; private final CustomerPhoneRepository phones; private final CustomerEmailRepository emails;
-    public AuthCustomerController(AuthCustomerService service, UserRepository users, RoleDefinitionRepository roles, BranchRepository branches, ClassificationTypeRepository classifications, EmployeeProfileRepository employees, CustomerProfileRepository customerProfiles, IdentityProofRepository proofs, CustomerAddressRepository addresses, CustomerPhoneRepository phones, CustomerEmailRepository emails){this.service=service;this.users=users;this.roles=roles;this.branches=branches;this.classifications=classifications;this.employees=employees;this.customerProfiles=customerProfiles;this.proofs=proofs;this.addresses=addresses;this.phones=phones;this.emails=emails;}
+    private final AuthCustomerService service; private final OtpService otpService; private final UserRepository users; private final RoleDefinitionRepository roles; private final BranchRepository branches; private final ClassificationTypeRepository classifications; private final EmployeeProfileRepository employees; private final CustomerProfileRepository customerProfiles; private final IdentityProofRepository proofs; private final CustomerAddressRepository addresses; private final CustomerPhoneRepository phones; private final CustomerEmailRepository emails;
+    public AuthCustomerController(AuthCustomerService service, OtpService otpService, UserRepository users, RoleDefinitionRepository roles, BranchRepository branches, ClassificationTypeRepository classifications, EmployeeProfileRepository employees, CustomerProfileRepository customerProfiles, IdentityProofRepository proofs, CustomerAddressRepository addresses, CustomerPhoneRepository phones, CustomerEmailRepository emails){this.service=service;this.otpService=otpService;this.users=users;this.roles=roles;this.branches=branches;this.classifications=classifications;this.employees=employees;this.customerProfiles=customerProfiles;this.proofs=proofs;this.addresses=addresses;this.phones=phones;this.emails=emails;}
 
-    @PostMapping("/auth/register") public ResponseEntity<JwtResponse> register(@Valid @RequestBody AuthRegisterRequest request){return ResponseEntity.status(HttpStatus.CREATED).body(service.register(request));}
-    @PostMapping("/auth/login") public JwtResponse login(@Valid @RequestBody LoginRequest request){return service.login(request);}
+    @PostMapping("/auth/register") public ResponseEntity<Map<String,Object>> register(@Valid @RequestBody AuthRegisterRequest request){service.register(request);return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("success",true,"message","Account created. Sign in with your password and email verification code."));}
+    @PostMapping("/auth/login") public Map<String, String> login(@Valid @RequestBody LoginRequest request){
+        var identity = service.authenticateForMfa(request);
+        var challenge = otpService.sendEmail(identity.userId().toString(), identity.username(), identity.email(), "MFA");
+        return Map.of("status", "MFA_REQUIRED", "challengeId", challenge.challengeId(), "emailHint", maskEmail(identity.email()));
+    }
+    @PostMapping("/auth/login/otp/verify") public JwtResponse verifyLoginOtp(@Valid @RequestBody LoginOtpRequest request){
+        var challenge = otpService.verify(request.challengeId(), request.otp());
+        if (challenge == null || !"MFA".equals(challenge.purpose())) throw new LoginController.AuthenticationFailureException();
+        return service.completeMfaLogin(challenge.username());
+    }
+    private static String maskEmail(String email){int at=email.indexOf('@'); if(at<1)return "your registered email"; String local=email.substring(0,at); return local.substring(0,1)+"***"+email.substring(at);}
+    public record LoginOtpRequest(@jakarta.validation.constraints.NotBlank String challengeId, @jakarta.validation.constraints.NotBlank String otp) {}
     @PostMapping("/auth/refresh") public JwtResponse refresh(Authentication authentication){return service.refresh(authentication);}
     @PostMapping("/auth/logout") public ResponseEntity<Void> logout(){return ResponseEntity.noContent().build();}
     @GetMapping("/auth/me") public CustomerResponse me(Authentication authentication){return service.me(authentication.getName());}

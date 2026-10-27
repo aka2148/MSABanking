@@ -10,6 +10,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -46,6 +47,7 @@ public class AuthController {
     private final PasswordEncoder passwords;
     private final byte[] jwtKey;
     private final long jwtExpiry;
+    private final int customerIdleSeconds, customerMaxSeconds, adminIdleSeconds, adminMaxSeconds;
     private final TotpService totp;
     private final CustomerRiskConfiguration customerRisk;
     private final RestClient mailApi;
@@ -54,11 +56,18 @@ public class AuthController {
     private final String mailApiKey;
     private final SecureRandom random = new SecureRandom();
     private final ConcurrentHashMap<String, EmailChallenge> emailChallenges = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, LoginChallenge> loginEmailChallenges = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Instant> loginEmailLastSent = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Instant> verifiedEmails = new ConcurrentHashMap<>();
 
+    @Autowired
     public AuthController(JdbcTemplate jdbc, PasswordEncoder passwords,
                           @Value("${app.jwt.secret}") String secret,
                           @Value("${app.jwt.expiration-ms}") long jwtExpiry, TotpService totp, CustomerRiskConfiguration customerRisk,
+                          @Value("${app.auth.customer-idle-seconds:300}") int customerIdleSeconds,
+                          @Value("${app.auth.customer-max-seconds:1800}") int customerMaxSeconds,
+                          @Value("${app.auth.admin-idle-seconds:900}") int adminIdleSeconds,
+                          @Value("${app.auth.admin-max-seconds:28800}") int adminMaxSeconds,
                           @Value("${app.auth.password-reset-from:no-reply@localhost}") String mailFrom,
                           @Value("${app.auth.password-reset-api-url:https://api.brevo.com/v3/smtp/email}") String mailApiUrl,
                           RestClient.Builder mailApiBuilder,
@@ -67,12 +76,21 @@ public class AuthController {
         this.passwords = passwords;
         this.jwtKey = Decoders.BASE64.decode(secret);
         this.jwtExpiry = jwtExpiry;
+        this.customerIdleSeconds = customerIdleSeconds; this.customerMaxSeconds = customerMaxSeconds;
+        this.adminIdleSeconds = adminIdleSeconds; this.adminMaxSeconds = adminMaxSeconds;
         this.totp = totp;
         this.customerRisk = customerRisk;
         this.mailFrom = mailFrom;
         this.mailApiUrl = mailApiUrl;
         this.mailApiKey = mailApiKey;
         this.mailApi = mailApiBuilder.build();
+    }
+
+    public AuthController(JdbcTemplate jdbc, PasswordEncoder passwords, String secret, long jwtExpiry,
+                          TotpService totp, CustomerRiskConfiguration customerRisk, String mailFrom,
+                          String mailApiUrl, RestClient.Builder mailApiBuilder, String mailApiKey) {
+        this(jdbc, passwords, secret, jwtExpiry, totp, customerRisk, 300, 1800, 900, 28800,
+                mailFrom, mailApiUrl, mailApiBuilder, mailApiKey);
     }
 
     @PostMapping("/email/verification/send")
@@ -189,7 +207,7 @@ public class AuthController {
             } else {
                 verifiedEmails.remove(normalizedEmail, verificationExpiry);
             }
-            return response(username, normalizedEmail, List.of("ROLE_CUSTOMER"));
+            return new JwtResponse(true, null, "Bearer", username, normalizedEmail, List.of("ROLE_CUSTOMER"));
         } catch (DuplicateKeyException ex) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email or username is already registered.");
         }
@@ -207,38 +225,47 @@ public class AuthController {
             jdbc.update("UPDATE user_credentials SET ucr_failed_attempt_count=ucr_failed_attempt_count+1, ucr_locked_until=CASE WHEN ucr_failed_attempt_count+1>=5 THEN DATE_ADD(UTC_TIMESTAMP(6),INTERVAL 15 MINUTE) ELSE NULL END WHERE ucr_user_id=?",userId);
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password");
         }
-        if (truthy(row.get("ucr_mfa_enabled"))) {
-            String challenge = Jwts.builder().setSubject(request.username).claim("purpose", "MFA_LOGIN")
-                    .setIssuedAt(new Date()).setExpiration(new Date(System.currentTimeMillis() + 300_000))
-                    .signWith(Keys.hmacShaKeyFor(jwtKey), SignatureAlgorithm.HS512).compact();
-            return new JwtResponse(true, null, "Bearer", request.username, null, List.of(), true, challenge);
+        List<String> roles=jdbc.queryForList("SELECT r.rol_role_code FROM roles r JOIN user_roles ur ON ur.ur_role_id=r.rol_role_id WHERE ur.ur_user_id=?",String.class,userId);
+        if (roles.contains("ROLE_CUSTOMER") && !roles.contains("ROLE_ADMIN")) {
+            String email=jdbc.query("SELECT e.cem_email_address FROM customer_emails e JOIN customers c ON c.cus_customer_id=e.cem_customer_id WHERE c.cus_user_id=? AND e.cem_is_primary=1 AND e.cem_is_verified=1 LIMIT 1",rs->rs.next()?rs.getString(1):null,userId);
+            if (email == null || mailApiKey == null || mailApiKey.isBlank()) throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "A verified email address is required for customer sign-in.");
+            String challengeKey = Long.toString(userId);
+            Instant lastSent = loginEmailLastSent.get(challengeKey);
+            if (lastSent != null && lastSent.plusSeconds(60).isAfter(Instant.now())) throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Wait before requesting another sign-in code.");
+            if (lastSent != null) loginEmailLastSent.remove(challengeKey, lastSent);
+            String challenge = UUID.randomUUID().toString(); String code = String.format("%06d", random.nextInt(1_000_000)); Instant now = Instant.now();
+            loginEmailChallenges.put(challenge, new LoginChallenge(request.username, email, code, now.plusSeconds(300), now, 0));
+            try {
+                Sender sender = parseSender(mailFrom);
+                mailApi.post().uri(mailApiUrl).header("api-key", mailApiKey).contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
+                        .body(Map.of("sender", Map.of("name", sender.name(), "email", sender.email()), "to", List.of(Map.of("email", email)), "subject", "Your MoneyPal sign-in code", "textContent", "Your sign-in code is " + code + ". It expires in 5 minutes."))
+                        .retrieve().onStatus(HttpStatusCode::isError, (req, res) -> { String body = new String(res.getBody().readAllBytes(), StandardCharsets.UTF_8); log.warn("Sign-in email provider returned HTTP {}: {}", res.getStatusCode().value(), safeProviderBody(body, code)); throw new IllegalStateException("Email provider rejected the request"); }).toBodilessEntity();
+            } catch (RuntimeException ex) { loginEmailChallenges.remove(challenge); if (!(ex instanceof IllegalStateException && "Email provider rejected the request".equals(ex.getMessage()))) log.warn("Sign-in email delivery failed before receiving a provider response."); throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "The sign-in code could not be delivered."); }
+            loginEmailLastSent.put(challengeKey, now);
+            return new JwtResponse(true, null, "Bearer", request.username, maskEmail(email), List.of(), true, challenge);
         }
         jdbc.update("UPDATE user_credentials SET ucr_failed_attempt_count=0,ucr_locked_until=NULL,ucr_last_login_at=UTC_TIMESTAMP(6) WHERE ucr_user_id=?",userId);
-        List<String> roles=jdbc.queryForList("SELECT r.rol_role_code FROM roles r JOIN user_roles ur ON ur.ur_role_id=r.rol_role_id WHERE ur.ur_user_id=?",String.class,userId);
         String email=jdbc.query("SELECT e.cem_email_address FROM customer_emails e JOIN customers c ON c.cus_customer_id=e.cem_customer_id WHERE c.cus_user_id=? AND e.cem_is_primary=1 LIMIT 1",rs->rs.next()?rs.getString(1):null,userId);
         return response(request.username,email,roles);
     }
 
     @PostMapping("/login/mfa/verify")
     public JwtResponse verifyMfaLogin(@Valid @RequestBody MfaLoginRequest request) {
-        String username;
-        try {
-            var claims = Jwts.parserBuilder().setSigningKey(Keys.hmacShaKeyFor(jwtKey)).build().parseClaimsJws(request.challengeToken).getBody();
-            if (!"MFA_LOGIN".equals(claims.get("purpose", String.class))) throw new IllegalArgumentException();
-            username = claims.getSubject();
-        } catch (RuntimeException ex) { throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired MFA challenge"); }
-        List<Map<String,Object>> rows = jdbc.queryForList("SELECT u.usr_user_id,u.usr_status,c.ucr_mfa_enabled,c.ucr_mfa_secret,c.ucr_locked_until FROM user_credentials c JOIN users u ON u.usr_user_id=c.ucr_user_id WHERE c.ucr_username=?", username);
-        if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired MFA challenge");
-        Map<String,Object> row = rows.get(0); long userId = ((Number) row.get("usr_user_id")).longValue();
-        if (!"ACTIVE".equals(row.get("usr_status")) || !truthy(row.get("ucr_mfa_enabled"))
-                || (row.get("ucr_locked_until") != null && ((java.sql.Timestamp) row.get("ucr_locked_until")).toInstant().isAfter(java.time.Instant.now())))
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired MFA challenge");
-        String secret = totp.decrypt((String) row.get("ucr_mfa_secret"));
-        Long usedStep = totp.matchingStep(secret, request.code);
-        if (usedStep == null || !consumeTotpStep(userId, usedStep)) {
-            jdbc.update("UPDATE user_credentials SET ucr_failed_attempt_count=ucr_failed_attempt_count+1, ucr_locked_until=CASE WHEN ucr_failed_attempt_count+1>=5 THEN DATE_ADD(UTC_TIMESTAMP(6),INTERVAL 15 MINUTE) ELSE NULL END WHERE ucr_user_id=?", userId);
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired MFA challenge");
+        LoginChallenge challenge = loginEmailChallenges.get(request.challengeToken);
+        if (challenge == null || challenge.expiresAt().isBefore(Instant.now())) { loginEmailChallenges.remove(request.challengeToken); throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired sign-in code"); }
+        String username = challenge.username(), challengeEmail = challenge.email(), code = challenge.code();
+        if (challenge.attempts() >= 5) { loginEmailChallenges.remove(request.challengeToken); throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Too many incorrect codes. Sign in again to request a new code."); }
+        if (!MessageDigest.isEqual(code.getBytes(StandardCharsets.US_ASCII), request.code.trim().getBytes(StandardCharsets.US_ASCII))) {
+            loginEmailChallenges.put(request.challengeToken, new LoginChallenge(challenge.username(), challenge.email(), challenge.code(), challenge.expiresAt(), challenge.sentAt(), challenge.attempts() + 1));
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired sign-in code");
         }
+        if (!loginEmailChallenges.remove(request.challengeToken, challenge)) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired sign-in code");
+        List<Map<String,Object>> rows = jdbc.queryForList("SELECT u.usr_user_id,u.usr_status,(c.ucr_locked_until IS NOT NULL AND c.ucr_locked_until>UTC_TIMESTAMP(6)) AS is_locked FROM user_credentials c JOIN users u ON u.usr_user_id=c.ucr_user_id WHERE c.ucr_username=?", username);
+        if (rows.isEmpty() || !"ACTIVE".equals(rows.get(0).get("usr_status"))) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired sign-in code");
+        long userId = ((Number) rows.get(0).get("usr_user_id")).longValue();
+        if (truthy(rows.get(0).get("is_locked"))) throw new ResponseStatusException(HttpStatus.LOCKED, "Account is temporarily locked");
+        String currentEmail=jdbc.query("SELECT e.cem_email_address FROM customer_emails e JOIN customers c ON c.cus_customer_id=e.cem_customer_id WHERE c.cus_user_id=? AND e.cem_is_primary=1 AND e.cem_is_verified=1 LIMIT 1",rs->rs.next()?rs.getString(1):null,userId);
+        if (currentEmail == null || !currentEmail.equalsIgnoreCase(challengeEmail)) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired sign-in code");
         jdbc.update("UPDATE user_credentials SET ucr_failed_attempt_count=0,ucr_locked_until=NULL,ucr_last_login_at=UTC_TIMESTAMP(6) WHERE ucr_user_id=?", userId);
         List<String> roles = jdbc.queryForList("SELECT r.rol_role_code FROM roles r JOIN user_roles ur ON ur.ur_role_id=r.rol_role_id WHERE ur.ur_user_id=?", String.class, userId);
         String email = jdbc.query("SELECT e.cem_email_address FROM customer_emails e JOIN customers c ON c.cus_customer_id=e.cem_customer_id WHERE c.cus_user_id=? AND e.cem_is_primary=1 LIMIT 1", rs -> rs.next()?rs.getString(1):null, userId);
@@ -282,9 +309,17 @@ public class AuthController {
         String username=authentication.getName();
         List<String> roles=jdbc.queryForList("SELECT r.rol_role_code FROM roles r JOIN user_roles ur ON ur.ur_role_id=r.rol_role_id JOIN user_credentials c ON c.ucr_user_id=ur.ur_user_id WHERE c.ucr_username=?",String.class,username);
         String email=jdbc.query("SELECT e.cem_email_address FROM customer_emails e JOIN customers c ON c.cus_customer_id=e.cem_customer_id JOIN user_credentials u ON u.ucr_user_id=c.cus_user_id WHERE u.ucr_username=? AND e.cem_is_primary=1 LIMIT 1",rs->rs.next()?rs.getString(1):null,username);
-        return response(username,email,roles);
+        String sessionId = (String) authentication.getDetails();
+        java.sql.Timestamp expires = jdbc.query("SELECT us_expires_at FROM user_sessions WHERE us_session_id=? AND us_revoked_at IS NULL", rs -> rs.next()?rs.getTimestamp(1):null, sessionId);
+        if (expires == null || !expires.toInstant().isAfter(Instant.now())) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Session has expired.");
+        Long userId=jdbc.queryForObject("SELECT ucr_user_id FROM user_credentials WHERE ucr_username=?",Long.class,username);
+        Integer tokenVersion=jdbc.queryForObject("SELECT ucr_token_version FROM user_credentials WHERE ucr_username=?",Integer.class,username);
+        Date now=new Date(); String token=Jwts.builder().setSubject(username).claim("userId",userId).claim("roles",String.join(",",roles)).claim("tokenVersion",tokenVersion).claim("sid",sessionId).setIssuedAt(now).setExpiration(expires).signWith(Keys.hmacShaKeyFor(jwtKey), SignatureAlgorithm.HS512).compact();
+        return new JwtResponse(true,token,username,email,roles);
     }
     @PostMapping("/logout") @PreAuthorize("isAuthenticated()") @ResponseStatus(HttpStatus.NO_CONTENT) public void logout(Authentication authentication) {
+        String sessionId = (String) authentication.getDetails();
+        if (sessionId != null) jdbc.update("UPDATE user_sessions SET us_revoked_at=UTC_TIMESTAMP(6) WHERE us_session_id=? AND us_revoked_at IS NULL", sessionId);
         jdbc.update("UPDATE user_credentials SET ucr_token_version=ucr_token_version+1 WHERE ucr_username=?", authentication.getName());
     }
     @GetMapping("/me") @PreAuthorize("isAuthenticated()") public CustomerResponse me(Authentication authentication) {
@@ -302,6 +337,8 @@ public class AuthController {
         return new SessionResponse(((Number) row.get("userId")).longValue(), authentication.getName(), roles,
                 (String) row.get("kycStatus"), (String) row.get("riskCategory"));
     }
+    @PostMapping("/session/heartbeat") @PreAuthorize("isAuthenticated()") @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void sessionHeartbeat() { }
     @PostMapping("/change-password") @PreAuthorize("isAuthenticated()") @ResponseStatus(HttpStatus.NO_CONTENT) @Transactional
     public void changePassword(Authentication authentication,@Valid @RequestBody ChangePasswordRequest request) {
         List<Map<String,Object>> rows=jdbc.queryForList("SELECT ucr_user_id,ucr_password_hash FROM user_credentials WHERE ucr_username=?",authentication.getName());
@@ -316,11 +353,17 @@ public class AuthController {
 
     private boolean consumeTotpStep(long userId,long step){try{jdbc.update("INSERT INTO mfa_used_totp_steps(mut_user_id,mut_time_step) VALUES(?,?)",userId,step);return true;}catch(DuplicateKeyException ex){return false;}}
     private boolean truthy(Object value){return value instanceof Boolean flag?flag:value instanceof Number number&&number.intValue()!=0;}
+    private String maskEmail(String email) { int at=email.indexOf('@'); if(at<2)return "***"+email.substring(Math.max(0,at)); return email.substring(0,2)+"***"+email.substring(at); }
 
     private JwtResponse response(String username,String email,List<String> roles) {
         Long userId=jdbc.query("SELECT ucr_user_id FROM user_credentials WHERE ucr_username=?",rs->rs.next()?rs.getLong(1):null,username);
         Integer tokenVersion=jdbc.query("SELECT ucr_token_version FROM user_credentials WHERE ucr_username=?",rs->rs.next()?rs.getInt(1):0,username);
-        Date now=new Date(); String token=Jwts.builder().setSubject(username).claim("userId",userId).claim("roles",String.join(",",roles)).claim("tokenVersion",tokenVersion).setIssuedAt(now).setExpiration(new Date(now.getTime()+jwtExpiry)).signWith(Keys.hmacShaKeyFor(jwtKey), SignatureAlgorithm.HS512).compact();
+        boolean customer = roles.contains("ROLE_CUSTOMER") && !roles.contains("ROLE_ADMIN");
+        int idleSeconds = customer ? customerIdleSeconds : adminIdleSeconds;
+        int maxSeconds = customer ? customerMaxSeconds : adminMaxSeconds;
+        Instant issued = Instant.now(); String sessionId = UUID.randomUUID().toString(); Instant expires = issued.plusSeconds(maxSeconds);
+        jdbc.update("INSERT INTO user_sessions(us_session_id,us_user_id,us_created_at,us_last_activity_at,us_expires_at,us_idle_timeout_seconds) VALUES(?,?,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),?,?)", sessionId, userId, java.sql.Timestamp.from(expires), idleSeconds);
+        Date now=Date.from(issued); String token=Jwts.builder().setSubject(username).claim("userId",userId).claim("roles",String.join(",",roles)).claim("tokenVersion",tokenVersion).claim("sid",sessionId).setIssuedAt(now).setExpiration(Date.from(expires)).signWith(Keys.hmacShaKeyFor(jwtKey), SignatureAlgorithm.HS512).compact();
         return new JwtResponse(true,token,username,email,roles);
     }
 
@@ -329,6 +372,7 @@ public class AuthController {
     public record EmailOtpVerifyRequest(@NotBlank @Email String email,@NotBlank @Size(min=6,max=6) String code) {}
     public record Message(String message) {}
     private record EmailChallenge(String code,Instant expiresAt,Instant sentAt,int attempts) {}
+    private record LoginChallenge(String username,String email,String code,Instant expiresAt,Instant sentAt,int attempts) {}
     private record Sender(String name, String email) {}
     public record LoginRequest(@NotBlank @JsonAlias({"identifier","email"}) String username,@NotBlank String password) {}
     public record ChangePasswordRequest(@NotBlank String currentPassword,@NotBlank @Size(min=12,max=100) String newPassword) {}

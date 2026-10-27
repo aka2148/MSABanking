@@ -62,6 +62,23 @@ public class FdAccountingService {
         lines.add(credit("SAVINGS_LIABILITY",payout));
         return post(fd,source,"SETTLEMENT",key(fd,"SETTLEMENT"),lines);
     }
+    /** Records the agreed early-closure payout and credits the linked savings account once. */
+    @Transactional(propagation=Propagation.MANDATORY)
+    public FdJournal settlePremature(FdAccount fd,BigDecimal payout) {
+        String key=key(fd,"PREMATURE_SETTLEMENT");
+        var existing=journals.findByJournalKey(key);
+        if(existing.isPresent()) return existing.get();
+        if(payout==null || payout.compareTo(fd.getPrincipalAmount())<0)
+            throw new InvalidInputException("Premature settlement cannot be below FD principal");
+        BigDecimal interest=payout.subtract(fd.getPrincipalAmount());
+        SavingsAccount source=lockedSource(fd);
+        source.setBalance(source.getBalance().add(payout)); savings.save(source);
+        List<FdJournalLine> lines=new ArrayList<>();
+        lines.add(debit("FD_PRINCIPAL_LIABILITY",fd.getPrincipalAmount()));
+        if(interest.signum()>0) lines.add(debit("INTEREST_EXPENSE",interest));
+        lines.add(credit("SAVINGS_LIABILITY",payout));
+        return post(fd,source,"PREMATURE_SETTLEMENT",key,lines);
+    }
     @Transactional(readOnly=true)
     public Optional<FdJournal> settlement(Long fdId) { return journals.findByJournalKey("FD:"+fdId+":SETTLEMENT"); }
     /** Presentation-only opening cash, explicitly journaled; caller locks the owned savings account. */

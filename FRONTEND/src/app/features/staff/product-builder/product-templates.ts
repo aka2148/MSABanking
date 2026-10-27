@@ -40,6 +40,35 @@ const STANDARD_FD_PRICING = [
   { currencyCode: 'USD', from: 37, to: 60, ratePercent: 3.75 },
 ];
 
+const PERSONAL_LOAN_CURRENCIES = [
+  { code: 'INR', minimumAmount: 50000, maximumAmount: 2000000 },
+  { code: 'JPY', minimumAmount: 500000, maximumAmount: 20000000 },
+  { code: 'KWD', minimumAmount: 500, maximumAmount: 20000 },
+  { code: 'USD', minimumAmount: 1000, maximumAmount: 50000 },
+];
+
+const HOME_LOAN_CURRENCIES = [
+  { code: 'INR', minimumAmount: 500000, maximumAmount: 10000000 },
+  { code: 'JPY', minimumAmount: 5000000, maximumAmount: 100000000 },
+  { code: 'KWD', minimumAmount: 5000, maximumAmount: 100000 },
+  { code: 'USD', minimumAmount: 10000, maximumAmount: 200000 },
+];
+
+function loanPricing(currencies: readonly { code: string }[], bands: readonly { from: number; to: number; ratePercent: number }[]) {
+  return currencies.flatMap(({ code }) => bands.map(({ from, to, ratePercent }) => ({
+    currencyCode: code, from, to, ratePercent,
+  })));
+}
+
+const PERSONAL_LOAN_PRICING = loanPricing(PERSONAL_LOAN_CURRENCIES, [
+  { from: 12, to: 36, ratePercent: 11.5 },
+  { from: 37, to: 60, ratePercent: 12 },
+]);
+
+const HOME_LOAN_PRICING = loanPricing(HOME_LOAN_CURRENCIES, [
+  { from: 60, to: 240, ratePercent: 8.5 },
+]);
+
 // Illustrative defaults for the existing Product Builder fields, not bank rates or live products.
 // Category and attribute codes are resolved against Product Service metadata at selection time.
 export const PRODUCT_TEMPLATES: readonly ProductTemplate[] = [
@@ -106,20 +135,17 @@ export const PRODUCT_TEMPLATES: readonly ProductTemplate[] = [
   },
   {
     key: 'personal-loan', name: 'Personal Loan', family: 'LOAN', categoryCode: 'LOAN',
-    productCode: 'LOAN_PERSONAL', description: 'Sample INR personal loan for amounts INR 50,000–2,000,000 and tenures of 12–60 months, with reducing-balance repayment.',
+    productCode: 'LOAN_PERSONAL', description: 'Illustrative personal loan template with currency-specific limits and sample rates for INR, JPY, KWD and USD. Tenures are 12 to 60 months, with reducing-balance repayment.',
     attributes: { MIN_AMOUNT: '50000', MAX_AMOUNT: '2000000', MIN_TENURE_MONTHS: '12', MAX_TENURE_MONTHS: '60', REPAYMENT_METHOD: 'REDUCING_BALANCE' },
-    currencies: [{ code: 'INR', minimumAmount: 50000, maximumAmount: 2000000 }],
-    pricing: [
-      { currencyCode: 'INR', from: 12, to: 36, ratePercent: 11.5 },
-      { currencyCode: 'INR', from: 37, to: 60, ratePercent: 12 },
-    ],
+    currencies: PERSONAL_LOAN_CURRENCIES,
+    pricing: PERSONAL_LOAN_PRICING,
   },
   {
     key: 'home-loan', name: 'Home Loan', family: 'LOAN', categoryCode: 'LOAN',
-    productCode: 'LOAN_HOME', description: 'Sample INR home loan for amounts INR 500,000–10,000,000 and tenures of 60–240 months, with reducing-balance repayment.',
+    productCode: 'LOAN_HOME', description: 'Illustrative home loan template with currency-specific limits and a sample rate for INR, JPY, KWD and USD. Tenures are 60 to 240 months, with reducing-balance repayment.',
     attributes: { MIN_AMOUNT: '500000', MAX_AMOUNT: '10000000', MIN_TENURE_MONTHS: '60', MAX_TENURE_MONTHS: '240', REPAYMENT_METHOD: 'REDUCING_BALANCE' },
-    currencies: [{ code: 'INR', minimumAmount: 500000, maximumAmount: 10000000 }],
-    pricing: [{ currencyCode: 'INR', from: 60, to: 240, ratePercent: 8.5 }],
+    currencies: HOME_LOAN_CURRENCIES,
+    pricing: HOME_LOAN_PRICING,
   },
   {
     key: 'forex-remittance', name: 'Forex Remittance', family: 'FOREX', categoryCode: 'FOREX',

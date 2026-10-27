@@ -183,13 +183,13 @@ export class FdService {
       }
     }
     return this.http.get<BackendHistoryEntry[]>(this.path(`/fixed-deposits/${accountId}/transactions`), { params }).pipe(map(rows => rows.map(row => ({
-      entry_type: row.event_type,
-      entry_date: row.occurred_at,
+      entry_type: normalizeHistoryType(row.entry_type ?? row.event_type ?? ''),
+      entry_date: row.entry_date ?? row.occurred_at ?? '',
       amount: row.amount,
       currency_code: row.currency_code ?? '',
-      running_balance: row.balance_after,
-      source: row.record_type === 'ACCRUAL' ? 'ACCRUAL' : 'TRANSACTION',
-      description: row.remarks ?? row.event_type,
+      running_balance: row.running_balance ?? row.balance_after ?? null,
+      source: row.source ?? (row.record_type === 'ACCRUAL' ? 'ACCRUAL' : 'TRANSACTION'),
+      description: row.description ?? row.remarks ?? row.entry_type ?? row.event_type ?? 'Account activity was recorded.',
       source_savings_account_id: row.source_savings_account_id,
     }))));
   }
@@ -280,6 +280,7 @@ export class FdService {
   private path(path: string): string {
     return `${this.baseUrl.replace(/\/$/, '')}${path}`;
   }
+
 }
 
 export interface SavingsTransferResponse {
@@ -319,9 +320,21 @@ interface BackendFdAccount {
 
 interface BackendCloseResponse { accountId: number; status: string; settledAmount: number; savingsBalanceAfter: number; }
 interface BackendHistoryEntry {
-  record_type: string; record_id: number; occurred_at: string; event_type: string;
-  amount: number; balance_after: number | null; remarks: string | null; currency_code?: string;
+  record_type?: string; record_id?: number; occurred_at?: string; event_type?: string;
+  entry_type?: string; entry_date?: string; source?: 'TRANSACTION' | 'ACCRUAL';
+  amount: number; balance_after?: number | null; running_balance?: number | null;
+  remarks?: string | null; description?: string; currency_code?: string;
   source_savings_account_id?: number | null;
+}
+
+function normalizeHistoryType(value: string): string {
+  const type = value.trim().toUpperCase().replace(/[ -]+/g, '_');
+  if (type.includes('FUND') || type.includes('DEPOSIT')) return 'FUNDING';
+  if (type.includes('INTEREST') || type.includes('ACCRUAL')) return 'ACCRUAL';
+  if (type.includes('PENAL')) return 'PENALTY';
+  if (type.includes('PAYOUT') || type.includes('SETTLEMENT')) return 'SETTLEMENT';
+  if (type.includes('WITHDRAW') || type.includes('CLOSURE')) return 'CLOSURE';
+  return type || 'TRANSACTION';
 }
 
 function accountView(account: BackendFdAccount): AccountResponse {

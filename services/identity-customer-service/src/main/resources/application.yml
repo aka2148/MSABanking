@@ -36,6 +36,10 @@ app:
     secret: ${JWT_SECRET}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
   auth:
+    customer-idle-seconds: ${CUSTOMER_IDLE_TIMEOUT_SECONDS:300}
+    customer-max-seconds: ${CUSTOMER_MAX_SESSION_SECONDS:1800}
+    admin-idle-seconds: ${ADMIN_IDLE_TIMEOUT_SECONDS:900}
+    admin-max-seconds: ${ADMIN_MAX_SESSION_SECONDS:28800}
     max-failed-attempts: 5
     lock-minutes: 15
     password-reset-from: ${PASSWORD_RESET_FROM:no-reply@localhost}

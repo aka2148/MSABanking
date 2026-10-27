@@ -81,7 +81,7 @@ public class HistoryService {
             merged.add(new DatedEntry(transaction.getTransactionDate(), transaction.getId(),
                     new HistoryEntry(entryType, transaction.getTransactionDate(), transaction.getAmount(),
                             currencyCode, transaction.getBalanceAfter(), SOURCE_TRANSACTION,
-                            transaction.getRemarks()), 0));
+                            transaction.getRemarks(), account.getFundingSavingsAccountId()), 0));
         }
 
         for (FdInterestAccrual accrual
@@ -100,13 +100,14 @@ public class HistoryService {
                     new HistoryEntry("ACCRUAL", accrual.getAccrualDate(), amount,
                             currencyCode, runningBalance, SOURCE_ACCRUAL,
                             compounding ? "Daily interest accrued; quarterly capitalization is recorded separately."
-                                    : ACCRUAL_DESCRIPTION), 0));
+                                    : ACCRUAL_DESCRIPTION, account.getFundingSavingsAccountId()), 0));
             if (compounding && accrual.getCapitalizedAmount() != null
                     && accrual.getCapitalizedAmount().signum() > 0) {
                 merged.add(new DatedEntry(accrual.getAccrualDate(), accrual.getId(),
                         new HistoryEntry("CAPITALIZATION", accrual.getAccrualDate(), accrual.getCapitalizedAmount(),
                                 currencyCode, runningBalance, SOURCE_ACCRUAL,
-                                "Quarterly interest capitalized into the FD balance."), 1));
+                                "Quarterly interest capitalized into the FD balance.",
+                                account.getFundingSavingsAccountId()), 1));
             }
         }
 

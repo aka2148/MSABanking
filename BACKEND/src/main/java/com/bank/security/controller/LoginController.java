@@ -38,23 +38,14 @@ public class LoginController {
         if (status.locked() || status.suspended()) {
             throw new AuthenticationFailureException();
         }
-        if (validation.mfaEnabled()) {
-            OtpService.Challenge challenge = createOtp(validation, "MFA");
-            return ResponseEntity.ok(Map.of("status", "MFA_REQUIRED", "challengeId", challenge.challengeId()));
-        }
-        return issueSession(validation, httpRequest);
-    }
-
-    @PostMapping("/login/mfa/challenge")
-    public Map<String, String> mfaChallenge(@Valid @RequestBody ChallengeRequest request) {
-        OtpService.Challenge challenge = otpService.send(request.userId(), request.username(), request.destination(), "MFA");
-        return Map.of("challengeId", challenge.challengeId(), "status", "OTP_SENT");
+        OtpService.Challenge challenge = createOtp(validation, "MFA");
+        return ResponseEntity.ok(Map.of("status", "MFA_REQUIRED", "challengeId", challenge.challengeId()));
     }
 
     @PostMapping("/login/mfa/verify")
     public ResponseEntity<?> mfaVerify(@Valid @RequestBody OtpVerifyRequest request, HttpServletRequest httpRequest) {
         OtpService.Challenge challenge = otpService.verify(request.challengeId(), request.otp());
-        if (challenge == null) throw new AuthenticationFailureException();
+        if (challenge == null || !"MFA".equals(challenge.purpose())) throw new AuthenticationFailureException();
         UserServiceClient.AccountStatus status = userService.getAccountStatus(challenge.userId());
         if (status.locked() || status.suspended()) throw new AuthenticationFailureException();
         return issueSession(new UserServiceClient.CredentialValidation(true, challenge.userId(), challenge.username(), true), httpRequest);
@@ -107,27 +98,11 @@ public class LoginController {
         userService.resetPassword(request.token(), request.newPassword());
     }
 
-    @PostMapping("/otp/send")
-    public Map<String, String> sendOtp(@Valid @RequestBody OtpSendRequest request) {
-        UserServiceClient.Contacts contacts = userService.getContacts(request.userId());
-        String destination = "PHONE".equalsIgnoreCase(request.channel()) ? contacts.phone() : contacts.email();
-        if (destination == null || destination.isBlank()) throw new InvalidInputException("No verified contact available");
-        OtpService.Challenge challenge = otpService.send(request.userId(), request.username(), destination, "OTP_LOGIN");
-        return Map.of("challengeId", challenge.challengeId(), "status", "OTP_SENT");
-    }
-
-    @PostMapping("/otp/verify")
-    public ResponseEntity<?> verifyOtp(@Valid @RequestBody OtpVerifyRequest request, HttpServletRequest httpRequest) {
-        OtpService.Challenge challenge = otpService.verify(request.challengeId(), request.otp());
-        if (challenge == null) throw new AuthenticationFailureException();
-        return issueSession(new UserServiceClient.CredentialValidation(true, challenge.userId(), challenge.username(), false), httpRequest);
-    }
-
     private OtpService.Challenge createOtp(UserServiceClient.CredentialValidation validation, String purpose) {
         UserServiceClient.Contacts contacts = userService.getContacts(validation.userId());
-        String destination = contacts.email() != null ? contacts.email() : contacts.phone();
-        if (destination == null) throw new InvalidInputException("No verified contact available");
-        return otpService.send(validation.userId(), validation.username(), destination, purpose);
+        String destination = contacts.email();
+        if (destination == null || destination.isBlank()) throw new InvalidInputException("No registered email is available for sign-in verification");
+        return otpService.sendEmail(validation.userId(), validation.username(), destination, purpose);
     }
 
     private ResponseEntity<Map<String, String>> issueSession(UserServiceClient.CredentialValidation validation,
@@ -154,13 +129,10 @@ public class LoginController {
     }
 
     public record LoginRequest(@NotBlank String username, @NotBlank String password) {}
-    public record ChallengeRequest(@NotBlank String userId, @NotBlank String username, @NotBlank String destination) {}
-    public record OtpVerifyRequest(@NotBlank String challengeId, @NotBlank String otp) {}
     public record RefreshRequest(@NotBlank String refreshToken) {}
     public record PasswordChangeRequest(@NotBlank String currentPassword, @NotBlank String newPassword) {}
     public record PasswordResetRequest(@NotBlank String token, @NotBlank String newPassword) {}
     public record UsernameRequest(@NotBlank String username) {}
-    public record OtpSendRequest(@NotBlank String userId, @NotBlank String username, String channel) {}
 
     public static class AuthenticationFailureException extends RuntimeException {
         public AuthenticationFailureException() { super("Authentication failed"); }

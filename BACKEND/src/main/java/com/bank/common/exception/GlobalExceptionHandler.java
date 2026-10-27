@@ -83,6 +83,12 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.UNAUTHORIZED, "Authentication failed");
     }
 
+    @ExceptionHandler(com.bank.security.service.OtpService.OtpDeliveryException.class)
+    public ResponseEntity<Map<String, Object>> handleOtpDeliveryFailure(
+            com.bank.security.service.OtpService.OtpDeliveryException ex) {
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, "Could not send the sign-in code. Check email delivery settings and try again.");
+    }
+
     @ExceptionHandler(com.bank.security.userservice.UserServiceClientAdapter.UserServiceUnavailableException.class)
     public ResponseEntity<Map<String, Object>> handleUserServiceUnavailable(Exception ex) {
         return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, "Authentication service is temporarily unavailable");

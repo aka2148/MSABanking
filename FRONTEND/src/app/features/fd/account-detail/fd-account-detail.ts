@@ -87,8 +87,15 @@ export class FdAccountDetail implements OnInit {
   }
 
   get sortedHistory(): HistoryEntry[] {
-    return [...this.history].sort((left, right) =>
-      new Date(left.entry_date).getTime() - new Date(right.entry_date).getTime());
+    const eventOrder: Record<string, number> = {
+      CLOSURE: 0, SETTLEMENT: 0, FINAL_PAYOUT: 0, PREMATURE_SETTLEMENT: 0,
+      PENALTY: 1, ACCRUAL: 2, INTEREST_ACCRUED: 2, FUNDING: 3,
+    };
+    return [...this.history].sort((left, right) => {
+      const dateOrder = new Date(right.entry_date).getTime() - new Date(left.entry_date).getTime();
+      if (dateOrder !== 0) return dateOrder;
+      return (eventOrder[left.entry_type.toUpperCase()] ?? 2) - (eventOrder[right.entry_type.toUpperCase()] ?? 2);
+    });
   }
 
   get closureResult(): ClosureResponse | null {
@@ -151,24 +158,31 @@ export class FdAccountDetail implements OnInit {
 
   entryLabel(entryType: string): string {
     const labels: Record<string, string> = {
-      FUNDING: 'Funding', ACCRUAL: 'Daily interest accrual', CAPITALIZATION: 'Interest capitalized', MATURITY: 'Maturity',
-      CLOSURE: 'Closure', SETTLEMENT: 'Settlement', PENALTY: 'Penalty', TRANSACTION: 'Transaction',
+      FUNDING: 'Initial funding', ACCRUAL: 'Interest accrued', CAPITALIZATION: 'Interest capitalized', MATURITY: 'Maturity',
+      CLOSURE: 'Final payout', SETTLEMENT: 'Final payout', PENALTY: 'Penalty', TRANSACTION: 'Transaction',
+      INTEREST_ACCRUED: 'Interest accrued', FINAL_PAYOUT: 'Final payout', PREMATURE_SETTLEMENT: 'Final payout',
     };
     return labels[entryType.toUpperCase()] ?? 'Account activity';
   }
 
   entryDescription(entry: HistoryEntry): string {
+    if (entry.entry_type.toUpperCase() === 'ACCRUAL' && entry.description?.startsWith('Full interest accrued')) {
+      return entry.description;
+    }
     const descriptions: Record<string, string> = {
       FUNDING: 'Funding was recorded from your linked savings account.',
       ACCRUAL: 'Interest accrued for this date.',
       CAPITALIZATION: 'Interest was added to the deposit balance.',
       MATURITY: 'This deposit reached maturity.',
-      CLOSURE: 'The deposit was closed and proceeds were returned to your linked savings account.',
-      SETTLEMENT: 'Proceeds were recorded for return to your linked savings account.',
-      PENALTY: 'A premature-closure penalty was recorded.',
+      CLOSURE: 'The deposit was closed and the final payout was recorded to your linked savings account.',
+      SETTLEMENT: 'The final payout was recorded to your linked savings account.',
+      PENALTY: 'The premature-closure penalty was deducted from accrued interest.',
+      INTEREST_ACCRUED: 'Interest accrued on this deposit.',
+      FINAL_PAYOUT: 'The final premature-closure payout was recorded to your linked savings account.',
+      PREMATURE_SETTLEMENT: 'The final premature-closure payout was recorded to your linked savings account.',
       TRANSACTION: 'An account transaction was recorded.',
     };
-    return descriptions[entry.entry_type.toUpperCase()] ?? 'Account activity was recorded.';
+    return descriptions[entry.entry_type.toUpperCase()] ?? entry.description ?? 'Account activity was recorded.';
   }
 
   formatFrequency(value: string | null | undefined): string {

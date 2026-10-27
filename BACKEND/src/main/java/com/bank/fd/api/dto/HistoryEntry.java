@@ -18,5 +18,11 @@ public record HistoryEntry(
         @JsonProperty("currency_code") String currencyCode,
         @JsonProperty("running_balance") BigDecimal runningBalance,
         @JsonProperty("source") String source,
-        @JsonProperty("description") String description) {
+        @JsonProperty("description") String description,
+        @JsonProperty("source_savings_account_id") Long sourceSavingsAccountId) {
+
+    public HistoryEntry(String entryType, OffsetDateTime entryDate, BigDecimal amount,
+                        String currencyCode, BigDecimal runningBalance, String source, String description) {
+        this(entryType, entryDate, amount, currencyCode, runningBalance, source, description, null);
+    }
 }

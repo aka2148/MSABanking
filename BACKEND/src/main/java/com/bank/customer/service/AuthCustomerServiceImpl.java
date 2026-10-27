@@ -22,6 +22,7 @@ public class AuthCustomerServiceImpl implements AuthCustomerService {
     private final UserRepository users;
     private final CustomerProfileRepository customers;
     private final CustomerEmailRepository emails;
+    private final EmployeeProfileRepository employees;
     private final RoleDefinitionRepository roles;
     private final PasswordEncoder encoder;
     private final JwtTokenProvider tokens;
@@ -31,6 +32,7 @@ public class AuthCustomerServiceImpl implements AuthCustomerService {
             UserRepository users,
             CustomerProfileRepository customers,
             CustomerEmailRepository emails,
+            EmployeeProfileRepository employees,
             RoleDefinitionRepository roles,
             PasswordEncoder encoder,
             JwtTokenProvider tokens) {
@@ -38,6 +40,7 @@ public class AuthCustomerServiceImpl implements AuthCustomerService {
         this.users = users;
         this.customers = customers;
         this.emails = emails;
+        this.employees = employees;
         this.roles = roles;
         this.encoder = encoder;
         this.tokens = tokens;
@@ -114,6 +117,39 @@ public class AuthCustomerServiceImpl implements AuthCustomerService {
     public JwtResponse login(LoginRequest r) {
         return token(authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(r.getUsername(), r.getPassword())));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public LoginIdentity authenticateForMfa(LoginRequest request) {
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword()));
+        User user = (User) authentication.getPrincipal();
+        String email = customers.findByUserId(user.getId())
+                .map(profile -> emails.findByCustomerId(profile.getId()).stream()
+                        .filter(candidate -> candidate.isPrimaryEmail() || candidate.isPrimarySignupEmail())
+                        .sorted(Comparator.comparing(CustomerEmail::isPrimaryEmail).reversed())
+                        .map(CustomerEmail::getEmailAddress)
+                        .filter(address -> address != null && !address.isBlank())
+                        .findFirst().orElse(null))
+                .orElseGet(() -> employees.findByUserForeignKey(Math.toIntExact(user.getId()))
+                        .map(EmployeeProfile::getEmail).orElse(null));
+        if (email == null || email.isBlank()) {
+            throw new ResourceNotFoundException("Registered email not found for this account");
+        }
+        return new LoginIdentity(user.getId(), user.getUsername(), email);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public JwtResponse completeMfaLogin(String username) {
+        User user = users.findByCredentialsUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        if (!user.isEnabled() || !user.isAccountNonLocked()) {
+            throw new BadCredentialsException("Authentication failed");
+        }
+        Authentication authentication = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+        return token(authentication);
     }
 
     @Override

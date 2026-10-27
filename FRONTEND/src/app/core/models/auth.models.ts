@@ -67,7 +67,10 @@ export interface LoginRequest {
 // error status codes (401/403), caught in the service's error callback, not
 // as `success: false` in the body.
 export interface LoginResponse {
-  success: boolean;
+  success?: boolean;
+  mfaRequired?: boolean;
+  mfaToken?: string;
+  email?: string;
   token?: string;
   role?: string;
   roles?: string[];

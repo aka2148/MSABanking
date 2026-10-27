@@ -69,6 +69,7 @@ public class PrematureClosureService {
     private final FdTimePolicy timePolicy;
     private final FdIdempotencyGuard idempotencyGuard;
     private final FdAccessPolicy accessPolicy;
+    private final FdAccountingService accounting;
 
     @Autowired
     public PrematureClosureService(FdAccountRepository accountRepository,
@@ -82,7 +83,8 @@ public class PrematureClosureService {
                                    FdLifecycleStateMachine stateMachine,
                                    FdTimePolicy timePolicy,
                                    FdIdempotencyGuard idempotencyGuard,
-                                   FdAccessPolicy accessPolicy) {
+                                   FdAccessPolicy accessPolicy,
+                                   FdAccountingService accounting) {
         this.accountRepository = accountRepository;
         this.closureRepository = closureRepository;
         this.transactionRepository = transactionRepository;
@@ -95,6 +97,25 @@ public class PrematureClosureService {
         this.timePolicy = timePolicy;
         this.idempotencyGuard = idempotencyGuard;
         this.accessPolicy = accessPolicy;
+        this.accounting = accounting;
+    }
+
+    /** Test compatibility constructor; application wiring uses the accounting-aware constructor. */
+    public PrematureClosureService(FdAccountRepository accountRepository,
+                                   FdPrematureClosureRepository closureRepository,
+                                   FdTransactionRepository transactionRepository,
+                                   FdInterestAccrualRepository accrualRepository,
+                                   TransactionTypeRepository transactionTypeRepository,
+                                   FdCurrencyReferenceRepository currencyRepository,
+                                   FdRuleOutcomeReferenceRepository ruleOutcomeRepository,
+                                   FdActorResolver actorResolver,
+                                   FdLifecycleStateMachine stateMachine,
+                                   FdTimePolicy timePolicy,
+                                   FdIdempotencyGuard idempotencyGuard,
+                                   FdAccessPolicy accessPolicy) {
+        this(accountRepository, closureRepository, transactionRepository, accrualRepository,
+                transactionTypeRepository, currencyRepository, ruleOutcomeRepository, actorResolver,
+                stateMachine, timePolicy, idempotencyGuard, accessPolicy, null);
     }
 
     @Transactional
@@ -214,6 +235,8 @@ public class PrematureClosureService {
         Long closureTypeId = transactionTypeRepository.findIdByCode(CLOSURE)
                 .orElseThrow(() -> new ResourceNotFoundException("CLOSURE transaction type is not configured"));
         String currencyCode = resolveCurrencyCode(account);
+
+        if (accounting != null) accounting.settlePremature(account, settlement);
 
         // Apply the stored request-time snapshot verbatim: no requote, so
         // request, approve, and history agree on the same amounts.

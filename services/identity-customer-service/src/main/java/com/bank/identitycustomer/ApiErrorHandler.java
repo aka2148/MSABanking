@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.ErrorResponse;
+import org.springframework.jdbc.BadSqlGrammarException;
 import java.util.Map;
 
 /** Safe fallback; controller-local and dedicated MPIN handlers retain precedence. */
@@ -50,8 +51,15 @@ public class ApiErrorHandler {
                 default -> "The request could not be completed.";
             }));
         }
-        // Never log exception messages/causes: JDBC and binding exceptions may embed values.
-        log.error("Unexpected API failure; diagnostic type={}", ex.getClass().getSimpleName());
+        // Log only the prepared statement and vendor code; bound parameter values are never included.
+        if (ex instanceof BadSqlGrammarException sqlError) {
+            var databaseError = sqlError.getSQLException();
+            log.error("Database query failed; vendorCode={} sqlState={} preparedSql={}",
+                    databaseError.getErrorCode(), databaseError.getSQLState(), sqlError.getSql());
+        } else {
+            // Never log exception messages/causes: JDBC and binding exceptions may embed values.
+            log.error("Unexpected API failure; diagnostic type={}", ex.getClass().getSimpleName());
+        }
         return ResponseEntity.internalServerError().body(Map.of("message", "The request could not be completed. Please try again later."));
     }
 }

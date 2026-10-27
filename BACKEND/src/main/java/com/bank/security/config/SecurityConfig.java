@@ -78,7 +78,8 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**", "/auth/**").permitAll()
-                .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/logout").permitAll()
+                .requestMatchers("/api/v1/auth/login", "/api/v1/auth/login/otp/verify",
+                        "/api/v1/auth/register", "/api/v1/auth/logout").permitAll()
                 .requestMatchers("/api/v1/fd-products/**", "/api/v1/products/**",
                         "/api/v1/product-categories/**", "/api/v1/currencies/**",
                         "/api/v1/charges/**", "/api/v1/rules/**", "/api/v1/rule-types/**",

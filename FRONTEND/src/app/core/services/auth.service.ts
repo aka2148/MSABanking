@@ -47,6 +47,21 @@ export class AuthService {
     );
   }
 
+  verifyLoginOtp(challengeId: string, otp: string): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(apiUrl(this.apiBaseUrl, '/api/v1/auth/login/mfa/verify'), { challengeToken: challengeId, code: otp }).pipe(
+      tap((response) => {
+        if (response.token) {
+          const sessionRole = response.roles?.find((role) => role === 'ROLE_ADMIN')
+            ?? response.roles?.find((role) => role === 'ROLE_BANK_OFFICER')
+            ?? response.role
+            ?? response.roles?.[0]
+            ?? null;
+          this.setSession(response.token, sessionRole);
+        }
+      })
+    );
+  }
+
   signup(form: Omit<SignupRequest, 'context'>): Observable<SignupResponse> {
     const payload: SignupRequest = { ...form, context: this.buildContext() };
     return this.http.post<SignupResponse>(apiUrl(this.apiBaseUrl, '/api/v1/auth/register'), payload);
@@ -85,6 +100,18 @@ export class AuthService {
     localStorage.removeItem(this.tokenKey);
     localStorage.removeItem(this.roleKey);
     this.sessionSubject.next({ authenticated: false, token: null, role: null });
+  }
+
+  endSession(): void {
+    if (!this.getToken()) { this.logout(); return; }
+    this.http.post<void>(apiUrl(this.apiBaseUrl, '/api/v1/auth/logout'), {}).subscribe({
+      complete: () => this.logout(),
+      error: () => this.logout(),
+    });
+  }
+
+  heartbeat(): Observable<void> {
+    return this.http.post<void>(apiUrl(this.apiBaseUrl, '/api/v1/auth/session/heartbeat'), {});
   }
 
   private setSession(token: string, role: string | null): void {

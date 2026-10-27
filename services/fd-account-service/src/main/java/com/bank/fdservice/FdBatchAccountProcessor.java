@@ -158,8 +158,6 @@ public class FdBatchAccountProcessor {
                     id, day.atStartOfDay(), daily, cumulative, currency, balance, capitalized);
             created++;
         }
-        jdbc.update("UPDATE fd_accounts SET fa_maturity_amount=?,fa_updated_by='fd-batch',fa_updated_date=UTC_TIMESTAMP(6) WHERE fa_account_id=?",
-                balance.add(pending).setScale(terms.currencyScale(), RoundingMode.HALF_UP), id);
         event(id, "INTEREST_ACCRUED", Map.of("throughDate", end.toString(),
                 "cumulativeInterest", cumulative.setScale(terms.currencyScale(), RoundingMode.HALF_UP), "newAccrualDays", created));
         return created;

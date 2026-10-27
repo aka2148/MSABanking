@@ -101,7 +101,17 @@ public class FixedDepositController {
     }
     private void complete(String scope,long actor,String key,long id){jdbc.update("UPDATE fd_operation_idempotency SET foi_status='COMPLETED',foi_aggregate_id=?,foi_response_reference=?,foi_completed_at=UTC_TIMESTAMP(6) WHERE foi_operation_scope=? AND foi_actor_key=? AND foi_idempotency_key=?",id,Long.toString(id),scope,Long.toString(actor),key);}
     private FdView find(long id,long user){return jdbc.query("SELECT a.fa_account_id,a.fa_account_number,a.fa_principal_amount,a.fa_currency_id,c.fcr_iso_code,a.fa_tenure_months,a.fa_interest_rate,a.fa_open_date,a.fa_maturity_date,a.fa_maturity_amount,a.fa_status,a.fa_funding_savings_account_id,a.fa_product_id,p.fpr_product_code,p.fpr_product_name,a.fa_compounding_frequency,a.fa_payout_frequency,a.fa_policy_version FROM fd_accounts a JOIN fd_currency_ref c ON c.fcr_currency_id=a.fa_currency_id JOIN fd_product_ref p ON p.fpr_product_id=a.fa_product_id WHERE a.fa_account_id=? AND a.fa_primary_holder_id=?",r->{if(!r.next())throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Fixed deposit not found");return view(r);},id,user);}
-    private FdView view(java.sql.ResultSet r)throws java.sql.SQLException{return new FdView(r.getLong(1),r.getString(2),r.getBigDecimal(3),r.getLong(4),r.getString(5),r.getInt(6),r.getBigDecimal(7),r.getObject(8,java.time.LocalDateTime.class).toLocalDate(),r.getDate(9).toLocalDate(),r.getBigDecimal(10),r.getString(11),r.getLong(12),r.getLong(13),r.getString(14),r.getString(15),r.getString(16),r.getString(17),r.getString(18));}
+    private FdView view(java.sql.ResultSet r)throws java.sql.SQLException{
+        long currencyId=r.getLong(4);
+        BigDecimal principal=r.getBigDecimal(3),rate=r.getBigDecimal(7);
+        java.time.LocalDate openDate=r.getObject(8,java.time.LocalDateTime.class).toLocalDate();
+        java.time.LocalDate maturityDate=r.getDate(9).toLocalDate();
+        String compounding=r.getString(16);
+        BigDecimal finalMaturityAmount=FdCompounding.maturity(principal,rate,openDate,maturityDate,currencyScale(currencyId),compounding);
+        return new FdView(r.getLong(1),r.getString(2),principal,currencyId,r.getString(5),r.getInt(6),rate,
+                openDate,maturityDate,finalMaturityAmount,r.getString(11),r.getLong(12),r.getLong(13),
+                r.getString(14),r.getString(15),compounding,r.getString(17),r.getString(18));
+    }
     private long userId(Authentication actor){Object value=actor.getDetails() instanceof Map<?,?> d?d.get("userId"):null;if(!(value instanceof Number n)||n.longValue()<=0)throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,"Token does not contain a valid customer identity");return n.longValue();}
     private String hash(String value){try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));}catch(Exception e){throw new IllegalStateException(e);}}
     private String json(Object value){try{return this.json.writeValueAsString(value);}catch(Exception e){throw new IllegalStateException("Could not serialize FD terms",e);}}

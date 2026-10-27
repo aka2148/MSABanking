@@ -5,7 +5,7 @@
 
     <p class="glass-error" *ngIf="errorMessage"> {{ (errorMessage) | translate }} </p>
 
-    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <form *ngIf="!challengeId; else otpStep" [formGroup]="form" (ngSubmit)="submit()" novalidate>
       <label class="glass-field">
         <span class="glass-field__label"> {{ 'Mobile number or username' | translate }} </span>
         <input type="text" formControlName="identifier" autocomplete="username" placeholder="9876543210" />
@@ -20,6 +20,18 @@
 
       <button type="submit" class="glass-btn glass-btn--full" [disabled]="loading"> {{ (loading ? 'Signing in…' : 'Sign in') | translate }} </button>
     </form>
+
+    <ng-template #otpStep>
+      <form (ngSubmit)="submit()" novalidate>
+        <p class="glass-card__sub">{{ 'Enter the six digit code sent to {0}.' | translate: [emailHint] }}</p>
+        <label class="glass-field">
+          <span class="glass-field__label">{{ 'Email verification code' | translate }}</span>
+          <input name="otp" [(ngModel)]="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" />
+        </label>
+        <button type="submit" class="glass-btn glass-btn--full" [disabled]="loading">{{ (loading ? 'Verifying…' : 'Verify and sign in') | translate }}</button>
+        <button type="button" class="glass-btn glass-btn--ghost glass-btn--full" (click)="resendOtp()" [disabled]="loading">{{ 'Send a new code' | translate }}</button>
+      </form>
+    </ng-template>
 
     <p class="glass-card__footer"> {{ 'New here?' | translate }} <a routerLink="/signup" class="glass-link"> {{ 'Create an account' | translate }} </a>
     </p>
