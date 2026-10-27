@@ -97,6 +97,7 @@
                     <include>V11__kyc_staff_review_events.sql</include>
                       <include>V12__kyc_review_access.sql</include><include>V13__kyc_reapply.sql</include>
                     <include>V14__role_aware_sessions.sql</include>
+                    <include>V15__drop_empty_generic_version_columns.sql</include>
                 </includes>
             </resource>
         </resources>

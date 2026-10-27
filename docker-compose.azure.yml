@@ -55,6 +55,7 @@ services:
       FD_DB_URL: jdbc:mysql://${MYSQL_HOST}:3306/moneypal_fd?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&sslMode=VERIFY_IDENTITY
       FD_DB_USERNAME: ${FD_DB_USERNAME:?Set FD_DB_USERNAME}
       FD_DB_PASSWORD: ${FD_DB_PASSWORD:?Set FD_DB_PASSWORD}
+      APP_FOREX_REFERENCE_RATES: ${APP_FOREX_REFERENCE_RATES:-INR/USD=83.25}
       FD_BATCH_SCHEDULE_ENABLED: "true"
       FD_BATCH_INTEREST_CRON: "0 0 0 * * *"
       FD_BATCH_MATURITY_CRON: "0 0 1 * * *"
