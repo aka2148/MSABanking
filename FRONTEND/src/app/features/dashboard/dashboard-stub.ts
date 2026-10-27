@@ -59,7 +59,7 @@ export class DashboardStub implements OnInit {
   mpinSet=true;
   awaitingReview:number|null=null;
   constructor(private readonly auth: AuthService,private readonly mpin:MpinProofService,private readonly kycReview:KycReviewService) {}
-  ngOnInit():void{if(!this.canManageProducts)this.mpin.status().subscribe({next:s=>this.mpinSet=s.set,error:()=>{}});else this.kycReview.queue('AWAITING_REVIEW','',0,1).subscribe({next:q=>this.awaitingReview=q.totalElements,error:()=>{}});}
+  ngOnInit():void{if(!this.canManageProducts)this.mpin.status().subscribe({next:s=>this.mpinSet=s.set,error:()=>{}});else {this.kycReview.awaitingCount$.subscribe(n=>this.awaitingReview=n);this.kycReview.refreshAwaiting();}}
 
   get isAdmin(): boolean { return this.auth.currentRole() === 'ROLE_ADMIN'; }
   get canManageProducts(): boolean { return ['ROLE_BANK_OFFICER', 'ROLE_ADMIN'].includes(this.auth.currentRole() ?? ''); }

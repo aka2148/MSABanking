@@ -11,7 +11,7 @@ import { KycService } from '../../core/services/kyc.service';
 import { GlassSelect } from '../../shared/components/glass-select/glass-select';
 import { WorkspaceShell } from '../../shared/components/workspace-shell/workspace-shell';
 import { MpinInput } from '../../shared/components/mpin-input';
-import { classifyMpinError } from '../../core/services/mpin-proof.service';
+import { MpinProofService, classifyMpinError } from '../../core/services/mpin-proof.service';
 import { countryOptions, validId } from '../../shared/kyc-validation';
 
 @Component({
@@ -21,6 +21,7 @@ import { countryOptions, validId } from '../../shared/kyc-validation';
 })
 export class Kyc implements OnInit, OnDestroy {
   private readonly api = inject(KycService);
+  private readonly mpinProof = inject(MpinProofService);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly translations = inject(TranslationService);
@@ -35,7 +36,7 @@ export class Kyc implements OnInit, OnDestroy {
   busy = false;
   requesting = false;
   remarks = '';
-  rekycMpin='';mpinNotSet=false;
+  rekycMpin='';mpinNotSet=false; reapplyMpin=''; reapplyNote=''; reapplyError=''; reapplyConfirm=false; reapplyBusy=false;
   form = Object.fromEntries(KYC_FIELDS.map(f => [f, ''])) as Record<KycField, string>;
   errors: Partial<Record<KycField, string>> = {};
   private pending: KycDraft = {};
@@ -152,6 +153,17 @@ export class Kyc implements OnInit, OnDestroy {
     this.api.rekyc(this.remarks,this.rekycMpin).subscribe({
       next: p => { this.restore(p); this.busy = false; this.requesting = false; this.remarks = ''; this.rekycMpin='';this.saved = false; this.verified = false; },
       error: err => { this.busy = false;this.mpinNotSet=err?.error?.code==='MPIN_NOT_SET'; this.remarksError = classifyMpinError('verify',err);this.rekycMpin=''; },
+    });
+  }
+  requestReapply(): void {
+    if (!this.profile?.canReapply || this.reapplyBusy) return;
+    const note=this.reapplyNote.trim(); this.reapplyError='';
+    if ((note && (note.length<10||note.length>500||/[<>\u0000-\u001f\u007f]/.test(this.reapplyNote)))) { this.reapplyError='Enter a re-apply note of 10-500 characters without markup or control characters.'; return; }
+    if (!this.reapplyConfirm) { this.reapplyConfirm=true; return; }
+    this.reapplyBusy=true;
+    this.mpinProof.requestProof('KYC_REAPPLY',{customerUserId:this.profile.accountDetails.userId,cycleNumber:this.profile.cycleNumber},this.reapplyMpin).subscribe({
+      next: proof=>this.api.reapply(note,proof.proofToken).subscribe({next:p=>{this.restore(p);this.reapplyBusy=false;this.reapplyConfirm=false;this.reapplyMpin='';this.reapplyNote='';},error:e=>{this.reapplyBusy=false;this.reapplyError=classifyMpinError('operation',e);}}),
+      error:e=>{this.reapplyBusy=false;this.reapplyMpin='';this.mpinNotSet=e?.error?.code==='MPIN_NOT_SET';this.reapplyError=classifyMpinError('verify',e);}
     });
   }
   upload(event: Event): void {

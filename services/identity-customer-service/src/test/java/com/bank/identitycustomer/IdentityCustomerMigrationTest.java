@@ -100,7 +100,7 @@ class IdentityCustomerMigrationTest {
                 Integer.class);
 
         assertEquals(1, appliedMigrations);
-        assertEquals(12,jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1",Integer.class));
+        assertEquals(13,jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1",Integer.class));
         assertTrue(tableExists("users"));
         assertTrue(tableExists("user_credentials"));
         assertTrue(tableExists("customers"));

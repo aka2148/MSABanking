@@ -36,30 +36,25 @@
             <input [name]="'name-' + customer.id" [(ngModel)]="customer.fullName" maxlength="160" />
             <span class="glass-field__error" *ngIf="!customer.fullName?.trim()"> {{ 'Enter the customer\'s full name before saving.' | translate }} </span>
           </label>
-          <label class="glass-field">
+          <div class="glass-field">
             <span class="glass-field__label"> {{ 'KYC status' | translate }} </span>
-            <span>{{customer.kycStatus|translate}}</span>
-            <span *ngIf="customer.kycAwaitingReview">{{'Awaiting review'|translate}}</span>
-            <a *ngIf="customer.kycAwaitingReview" routerLink="/staff/kyc" [queryParams]="{customerId:customer.id}" class="glass-link">{{'Review KYC'|translate}}</a>
-          </label>
+            <span class="status-pill" [ngClass]="statusTone(customer.kycStatus)">{{customer.kycStatus|translate}}</span>
+            <span *ngIf="customer.kycAwaitingReview" class="status-pill status-pill--awaiting">{{'Awaiting review'|translate}}</span>
+          </div>
           <label class="glass-field">
             <span class="glass-field__label"> {{ 'Risk category' | translate }} </span>
-            <select [name]="'risk-' + customer.id" [(ngModel)]="customer.riskCategory">
-              <option *ngFor="let risk of riskCategories" [ngValue]="risk">{{ risk }}</option>
-            </select>
+            <app-glass-select [options]="riskOptions" [(ngModel)]="customer.riskCategory" [name]="'risk-' + customer.id" />
           </label>
           <label class="glass-field">
             <span class="glass-field__label"> {{ 'Entity type' | translate }} </span>
-            <select [name]="'entity-' + customer.id" [(ngModel)]="customer.legalEntityType">
-              <option value="INDIVIDUAL"> {{ 'Individual' | translate }} </option>
-              <option value="COMPANY"> {{ 'Company' | translate }} </option>
-            </select>
+            <app-glass-select [options]="entityOptions" [(ngModel)]="customer.legalEntityType" [name]="'entity-' + customer.id" />
           </label>
         </div>
         <div class="customer-row__actions">
           <button class="glass-btn glass-btn--ghost" type="button" [disabled]="savingId === customer.id" (click)="save(customer)" [attr.aria-label]="'Save changes for {0}' | translate: [customer.fullName || customer.customerNumber]"> {{ (savingId === customer.id ? 'Saving…' : 'Save changes') | translate }} </button>
           <button class="glass-btn glass-btn--ghost" type="button" [disabled]="resettingId === customer.id" (click)="resetMpin(customer)">{{(resetConfirmId===customer.id?'Confirm MPIN reset':'Reset MPIN')|translate}}</button>
           <p *ngIf="resetConfirmId===customer.id">{{'Resetting MPIN removes the existing PIN and requires the customer to set a new one.'|translate}}</p>
+          <a *ngIf="customer.kycAwaitingReview" routerLink="/staff/kyc" [queryParams]="{customerId:customer.id}" class="glass-btn glass-btn--ghost">{{'Review KYC'|translate}}</a>
         </div>
       </article>
       <nav class="customer-pages" *ngIf="page.totalPages > 1" [attr.aria-label]="'Customer pages' | translate">

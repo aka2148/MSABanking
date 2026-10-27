@@ -5,7 +5,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { SavingsAccount } from '../../core/models/fd.models';
-import { FdService, normalizeApiError, SavingsHistory, SavingsTransferResponse } from '../../core/services/fd.service';
+import { FdService, normalizeApiError, SavingsHistory, SavingsTransferResponse, SavingsWithdrawalResponse } from '../../core/services/fd.service';
 import { WorkspaceShell } from '../../shared/components/workspace-shell/workspace-shell';
 import { GlassSelect } from '../../shared/components/glass-select/glass-select';
 import { MpinInput } from '../../shared/components/mpin-input';
@@ -26,6 +26,8 @@ export class SavingsAccounts implements OnInit {
   transferReference = '';
   transferOptions: Array<{ label: string; value: string }> = [];
   transferHistory: SavingsHistory[] = [];
+  withdrawalBusy=false; withdrawalError=''; withdrawalMessage=''; withdrawalReference=''; withdrawalOptions:Array<{label:string;value:string}>=[]; withdrawalForm;
+  private withdrawalSubmission:{signature:string;key:string}|null=null;
   mpinNotSet=false;mpinAttempts:string|null=null;mpinLockedUntil:string|null=null;
   historyAccountId: number | null = null;
   currenciesLoading = true;
@@ -46,6 +48,7 @@ export class SavingsAccounts implements OnInit {
       remark: ['', Validators.maxLength(140)],
       mpin: ['', [Validators.required,Validators.pattern(/^[0-9]{6}$/)]],
     });
+    this.withdrawalForm=fb.group({fromAccountId:['',Validators.required],amount:[null as number|null,[Validators.required,Validators.min(0.00000001)]],remark:['',Validators.maxLength(140)],mpin:['',[Validators.required,Validators.pattern(/^[0-9]{6}$/)]]});
   }
   ngOnInit(): void {
     this.load();
@@ -78,6 +81,7 @@ export class SavingsAccounts implements OnInit {
         this.accounts = accounts; this.loading = false;
         const active = accounts.filter(account => account.status === 'ACTIVE');
         this.transferOptions = active.map(account => ({ label: `${account.display_name} (••••${account.account_number.slice(-4)})`, value: String(account.account_id) }));
+        this.withdrawalOptions=this.transferOptions;
         if (!active.some(account => account.account_id === Number(this.transferForm.controls.fromAccountId.value)))
           this.transferForm.controls.fromAccountId.setValue(active[0] ? String(active[0].account_id) : '');
       },
@@ -106,6 +110,7 @@ export class SavingsAccounts implements OnInit {
       error: error => { this.transferBusy = false; this.readMpinError('operation',error);this.clearTransferPin(); },
     }),error:error=>{this.transferBusy=false;this.readMpinError('verify',error);this.clearTransferPin();}});
   }
+  withdraw():void{if(this.withdrawalBusy)return;if(this.withdrawalForm.invalid){this.withdrawalForm.markAllAsTouched();return;}const r=this.withdrawalForm.getRawValue(),account=Number(r.fromAccountId),amount=Number(r.amount),remark=(r.remark??'').trim(),signature=`${account}|${String(amount)}|${remark}`;if(this.withdrawalSubmission?.signature!==signature)this.withdrawalSubmission={signature,key:crypto.randomUUID()};this.withdrawalBusy=true;this.withdrawalError='';this.withdrawalMessage='';this.mpin.requestProof('WITHDRAWAL',{accountId:account,amount},r.mpin??'').subscribe({next:p=>this.fd.withdrawSavings({fromAccountId:account,amount,...(remark?{remark}:{})},this.withdrawalSubmission!.key,p.proofToken).subscribe({next:(x:SavingsWithdrawalResponse)=>{this.withdrawalBusy=false;this.withdrawalSubmission=null;this.withdrawalReference=x.reference;this.withdrawalMessage='Withdrawal completed. Reference: {0}';this.withdrawalForm.controls.mpin.setValue('');this.load();this.loadHistory(account);},error:e=>{this.withdrawalBusy=false;this.withdrawalForm.controls.mpin.setValue('');this.withdrawalError=classifyMpinError('operation',e);}}),error:e=>{this.withdrawalBusy=false;this.withdrawalForm.controls.mpin.setValue('');this.mpinNotSet=e?.error?.code==='MPIN_NOT_SET';this.withdrawalError=classifyMpinError('verify',e);}});}
   private clearTransferPin():void{this.transferForm.controls.mpin.setValue('');}
   private readMpinError(stage:'verify'|'operation',error:any):void {
     this.mpinNotSet=stage==='verify'&&error?.error?.code==='MPIN_NOT_SET';

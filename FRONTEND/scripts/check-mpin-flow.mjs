@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
+import '@angular/compiler';
 
 process.chdir(path.resolve(import.meta.dirname, '..'));
 const generated = path.resolve('.mpin-flow-check.mjs');

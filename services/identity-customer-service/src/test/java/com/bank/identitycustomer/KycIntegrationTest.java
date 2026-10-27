@@ -161,6 +161,13 @@ class KycIntegrationTest {
             assertSnapshot(c, "PENDING", 2);
         } finally { pool.shutdownNow(); }
     }
+    @Test void rejectedCustomerCanReapplyWithSingleUseProofAndNeedsApproval() throws Exception {
+        Customer c=customer(false); save(c,complete()); submit(c); mvc.perform(post("/api/v1/customers/kyc/submissions/"+c.id()+"/decision").header("Authorization","Bearer "+bankOfficerToken()).contentType("application/json").content("{\"decision\":\"REJECT\",\"reason\":\"Please correct the submitted document\"}")).andExpect(status().isNoContent());
+        mvc.perform(post("/api/v1/auth/mpin/setup").header("Authorization","Bearer "+c.token()).contentType("application/json").content("{\"password\":\"SkyRiver82!Mint\",\"mpin\":\"864209\"}")).andExpect(status().isNoContent());
+        String proof=json.readTree(mvc.perform(post("/api/v1/auth/mpin/verify").header("Authorization","Bearer "+c.token()).contentType("application/json").content("{\"mpin\":\"864209\",\"purpose\":\"KYC_REAPPLY\",\"fields\":{\"customerUserId\":"+jdbc.queryForObject("SELECT cus_user_id FROM customers WHERE cus_customer_id=?",Long.class,c.id())+",\"cycleNumber\":1}}" )).andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).get("proofToken").asText();
+        mvc.perform(post(URL+"/reapply").header("Authorization","Bearer "+c.token()).header("X-MPIN-Proof",proof).contentType("application/json").content("{\"note\":\"Corrected document attached\"}")).andExpect(status().isOk()).andExpect(jsonPath("$.kycStatus").value("PENDING")).andExpect(jsonPath("$.cycleNumber").value(2));
+        mvc.perform(post(URL+"/reapply").header("Authorization","Bearer "+c.token()).header("X-MPIN-Proof",proof).contentType("application/json").content("{\"note\":\"Corrected document attached\"}")).andExpect(status().isConflict());
+    }
     @Test void staffCanRejectOnlySubmittedKycAndCustomerCannotOverrideDecision() throws Exception {
         Customer c = customer(false); save(c, complete()); submit(c);
         String officer = bankOfficerToken();

@@ -11,7 +11,7 @@
   </section>
   <p *ngIf="detailLoading" role="status">{{'Loading…'|translate}}</p>
   <p class="glass-error" *ngIf="detailError" role="alert">{{detailError|translate}}</p>
-  <section class="review-detail" *ngIf="detail as d">
+  <section class="review-detail" *ngIf="detail as d"><p *ngIf="d.isResubmission" class="review-chip">{{'Resubmission'|translate}}</p><section *ngIf="d.previousDecisions?.length"><h2>{{'Previous decisions'|translate}}</h2><ol><li *ngFor="let old of d.previousDecisions"><strong>{{old.decision|translate}}</strong> · {{old.decidedAt|date:'medium'}}<p>{{old.reason}}</p></li></ol></section>
     <h2>{{'Account details'|translate}}</h2><dl><div *ngFor="let field of accountFields"><dt>{{field[1]|translate}}</dt><dd>{{d.account[field[0]]||'—'}}</dd></div></dl>
     <h2>{{'Personal details'|translate}}</h2><dl><div *ngFor="let field of personalFields"><dt>{{field[1]|translate}}</dt><dd>{{(d.personal[field[0]]||'—')|translate}}</dd></div></dl>
     <h2>{{'Identity proof'|translate}}</h2><dl><div><dt>{{'Proof of ID type'|translate}}</dt><dd>{{d.proof.type|translate}}</dd></div><div><dt>{{'ID number'|translate}}</dt><dd>{{d.proof.numberMasked}}</dd></div><div><dt>{{'ID issue date'|translate}}</dt><dd>{{d.proof.issueDate|date:'mediumDate'}}</dd></div></dl>

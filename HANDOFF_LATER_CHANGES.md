@@ -8,6 +8,48 @@
 > an identity-verification attestation; it does not accept or verify customer MPIN.
 > The earlier MPIN table/text below predates this correction and is superseded.
 
+## Follow-up I-K
+
+K history confirms no customer self-service cash-withdrawal endpoint, route, or
+MPIN purpose existed in repository history; online customers use transfers and FD
+settlement, while cash withdrawal is a branch/teller operation. Teller withdrawal
+uses officer authentication plus identity attestation and never customer MPIN.
+
+The staff review panel now refreshes queue/count/detail in place after decisions,
+guards stale responses, clamps emptied pages, and uses no-store queue/detail
+responses. Rejected customers can re-apply at `POST /api/v1/customers/me/kyc/reapply`
+after obtaining a single-use `KYC_REAPPLY` proof bound to `customerUserId|cycleNumber`.
+The operation is limited to three attempts per rolling 24 hours, records
+`KYC_REAPPLIED`, preserves the draft/document, resets confirmations, and always
+requires a subsequent submit and staff approval. Customer responses expose
+`canReapply` and `reapplyAttemptsRemaining`; staff detail exposes prior decisions,
+`attemptNumber`, and `isResubmission` without full ID or MPIN data.
+The FD service now has migration V17 for the customer withdrawal journal
+operation and `WITHDRAWAL_CLEARING` chart account. Its mirrored MPIN binding
+registry accepts the withdrawal vector for drift detection.
+
+## Follow-up L-O
+
+Customer Management KYC status is display-only. Customer creation initializes
+`PENDING`; review/re-KYC/re-apply workflows are the only status transitions.
+The admin PATCH rejects a differing status before applying any other fields and
+accepts an identical status as a no-op. The UI uses a status pill and keeps the
+review action in the actions area; risk/entity controls use shared glass selects.
+
+KYC queue/detail responses are `no-store` and sanitize legacy
+`reviewerUserId`/`reviewer_username` fragments at the response boundary without
+altering stored audit data. Resubmission attempts and previous decisions are
+shown compactly, and the queue count is refreshed after a decision.
+
+Customers can simulate a savings withdrawal at
+`POST /api/v1/savings-accounts/withdrawals`. It is CUSTOMER-only, requires a
+verified KYC session, actor-scoped Idempotency-Key, and one-time MPIN proof with
+purpose `WITHDRAWAL` bound to `accountId|amount`. Posting uses the shared
+transactional ledger path (`SAVINGS` debit to `WITHDRAWAL_CLEARING`), writes
+history and balance atomically, and replays an identical request. Staff teller
+withdrawal remains a separate attested endpoint. The Angular savings page
+provides the withdrawal form, MPIN input, validation, and refresh behavior.
+
 The active services now return safe `{message, code?}` error envelopes. MPIN
 verification errors are handled separately from the protected operation that
 follows, and identity/FD use one canonical binding rule for numeric strings,

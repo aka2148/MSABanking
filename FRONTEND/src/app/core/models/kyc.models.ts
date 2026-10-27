@@ -12,7 +12,8 @@ export interface KycProfile {
   editingAllowed: boolean;
   verifiedAt: string | null;
   reviewDecision?: {decision:'APPROVE'|'REJECT';reason:string|null;decidedAt:string}|null;
+  canReapply?: boolean; reapplyAttemptsRemaining?: number;
   fieldErrors: Partial<Record<KycField, string>>;
-  accountDetails: { fullName: string; username: string; customerNumber: string; email: string | null; mobile: string | null };
+  accountDetails: { fullName: string; username: string; userId?: number; customerNumber: string; email: string | null; mobile: string | null };
   document: { name: string; size: number; contentType: string } | null;
 }

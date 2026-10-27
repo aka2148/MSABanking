@@ -17,7 +17,7 @@ import { ringOffset } from '../../kyc-validation';
         <text x="60" y="65" text-anchor="middle">{{ percent }}%</text>
       </svg>
       <div><p>{{ (p.kycStatus === 'VERIFIED' ? 'KYC verified' : p.kycStatus === 'REJECTED' ? 'KYC rejected' : 'KYC in progress') | translate }}</p>
-        <p *ngIf="p.kycStatus === 'REJECTED'">{{ 'Please consult your bank officer about your rejected KYC.' | translate }}</p>
+        <p *ngIf="p.kycStatus === 'REJECTED'">{{ 'Your KYC was rejected. Re-apply from the KYC screen with your MPIN.' | translate }}</p>
         <a routerLink="/kyc" class="glass-link">{{ (p.kycStatus !== 'PENDING' ? 'View KYC' : percent === 0 ? 'Start KYC' : 'Continue KYC') | translate }}</a>
       </div>
     </section>`,

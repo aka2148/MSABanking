@@ -15,7 +15,8 @@ public class KycService {
     private static final List<String> COLUMNS = List.of("date_of_birth", "gender", "relationship", "father_or_spouse_name",
             "occupation", "country_of_origin", "proof_of_id_type", "proof_of_id_value", "id_issue_date");
     private final JdbcTemplate jdbc;
-    public KycService(JdbcTemplate jdbc) { this.jdbc = jdbc; }
+    private final MpinService mpin;
+    public KycService(JdbcTemplate jdbc, MpinService mpin) { this.jdbc = jdbc; this.mpin = mpin; }
 
     // Every operation locks the same customer first, including lazy creation and staff status races.
     private Map<String, Object> customer(String username) {
@@ -111,6 +112,24 @@ public class KycService {
     }
 
     @Transactional
+    public Map<String,Object> reapply(String username,String rawNote,String proofToken) {
+        Map<String,Object> c=customer(username);
+        if (!"REJECTED".equals(c.get("cus_kyc_status"))) throw conflict("KYC re-apply is available only after a rejected decision.");
+        String note=rawNote==null?null:rawNote.trim();
+        if (note!=null && !note.isBlank() && !KycValidation.safeText(note,10,500)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Enter a re-apply note of 10-500 characters without markup or control characters.");
+        if (note!=null && note.codePoints().anyMatch(Character::isISOControl)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Enter a re-apply note of 10-500 characters without markup or control characters.");
+        long customerId=id(c); Map<String,Object> p=profile(c); int cycle=((Number)p.get("cycle_number")).intValue();
+        int used=jdbc.queryForObject("SELECT COUNT(*) FROM customer_kyc_events WHERE customer_id=? AND event_type='KYC_REAPPLIED' AND created_at>=UTC_TIMESTAMP(6)-INTERVAL 24 HOUR",Integer.class,customerId);
+        if (used>=3) throw conflict("The re-apply limit has been reached. Please contact your branch.");
+        long userId=((Number)c.get("cus_user_id")).longValue();
+        mpin.consumeProof(proofToken,userId,username,"KYC_REAPPLY",Map.of("customerUserId",userId,"cycleNumber",cycle));
+        openCycle(customerId);
+        jdbc.update("UPDATE customers SET cus_kyc_status='PENDING' WHERE cus_customer_id=?",customerId); c.put("cus_kyc_status","PENDING");
+        Map<String,Object> next=profile(c); event(c,next,"KYC_REAPPLIED",note); UserSnapshots.writeUserSnapshot(jdbc,userId);
+        return response(c,next,username,Map.of());
+    }
+
+    @Transactional
     public void reviewByStaff(long customerId, String requestedDecision, String reviewerUsername) { reviewByStaff(customerId, requestedDecision, reviewerUsername, "Staff review"); }
     public void reviewByStaff(long customerId, String requestedDecision, String reviewerUsername, String reason) {
         String decision = requestedDecision == null ? "" : requestedDecision.trim().toUpperCase(Locale.ROOT);
@@ -202,6 +221,9 @@ public class KycService {
         result.put("completedFields", flags);
         saved.remove("proofOfIdValue"); result.put("values", saved); result.put("proofNumberMasked", p.get("proof_number_masked"));
         result.put("editingAllowed", "PENDING".equals(c.get("cus_kyc_status")) && "OPEN".equals(p.get("cycle_status")) && !submitted(p, id(c)));
+        int reapplyUsed=jdbc.queryForObject("SELECT COUNT(*) FROM customer_kyc_events WHERE customer_id=? AND event_type='KYC_REAPPLIED' AND created_at>=UTC_TIMESTAMP(6)-INTERVAL 24 HOUR",Integer.class,id(c));
+        result.put("canReapply", "REJECTED".equals(c.get("cus_kyc_status")) && reapplyUsed<3);
+        result.put("reapplyAttemptsRemaining", Math.max(0,3-reapplyUsed));
         result.put("fieldErrors", errors);
         result.put("reviewDecision", jdbc.query("SELECT event_type,remarks,created_at FROM customer_kyc_events WHERE customer_id=? AND event_type IN ('STAFF_VERIFIED','STAFF_REJECTED') ORDER BY cycle_number DESC,id DESC LIMIT 1", rs -> {
             if (!rs.next()) return null;
@@ -213,7 +235,7 @@ public class KycService {
         result.put("document", p.get("document_name") == null ? null : Map.of("name", p.get("document_name"), "size", p.get("document_size"), "contentType", p.get("document_content_type")));
         result.put("verifiedAt", jdbc.query("SELECT created_at FROM customer_kyc_events WHERE customer_id=? AND event_type IN ('AUTO_VERIFIED','STAFF_VERIFIED') ORDER BY id DESC LIMIT 1", rs -> rs.next() ? rs.getTimestamp(1).toInstant().toString() : null, id(c)));
         Map<String, Object> account = new LinkedHashMap<>();
-        account.put("username", username); account.put("customerNumber", c.get("cus_customer_number"));
+        account.put("username", username); account.put("userId", c.get("cus_user_id")); account.put("customerNumber", c.get("cus_customer_number"));
         account.put("fullName", jdbc.query("SELECT cud_full_name FROM customer_details WHERE cud_customer_id=? ORDER BY cud_detail_id LIMIT 1", rs -> rs.next() ? rs.getString(1) : null, id(c)));
         account.put("email", jdbc.query("SELECT cem_email_address FROM customer_emails WHERE cem_customer_id=? AND cem_is_primary=1 LIMIT 1", rs -> rs.next() ? rs.getString(1) : null, id(c)));
         account.put("mobile", jdbc.query("SELECT cph_phone_number FROM customer_phone_numbers WHERE cph_customer_id=? AND cph_is_primary=1 LIMIT 1", rs -> rs.next() ? rs.getString(1) : null, id(c)));

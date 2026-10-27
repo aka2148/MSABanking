@@ -2,6 +2,11 @@
 
 ## Readiness after client-testing fixes
 
+Follow-up I-K: customer cash withdrawal was not present in history and remains
+out of scope; teller withdrawal is attested officer-only. KYC review refreshes
+in place, and rejected customers may re-apply with a single-use KYC_REAPPLY MPIN
+proof, subject to the three-per-24-hour limit and mandatory staff approval.
+
 Baseline suites were identity 24, FD 55, product 34, and Angular production
 build passed. Current source compiles for identity and FD, and the Angular build
 passes. Current integration reruns are recorded in `identity-current.log` and
@@ -79,6 +84,16 @@ The gateway already routes `/api/v1/savings-accounts/` and `/api/v1/admin/ledger
 See [HANDOFF_LATER_CHANGES.md](HANDOFF_LATER_CHANGES.md) for the implemented staff-only demo opening, MPIN workflow, KYC validation updates, product template descriptions, default LOW risk category, environment settings, exact MPIN proof bindings, and residual risks. The transfer request hash continues to include only its explicit business fields; credentials are neither logged nor stored in idempotency records.
 
 ## Verified gaps and outstanding risks
+
+### L-O continuation
+
+Customer Management now treats KYC status as display-only and rejects a
+differing PATCH status before other writes. KYC review responses are no-store,
+sanitize legacy reviewer metadata, and expose compact resubmission history.
+Customer savings withdrawal is a CUSTOMER-only MPIN `WITHDRAWAL` operation on
+the shared ledger (`SAVINGS` to `WITHDRAWAL_CLEARING`, migration V17) with
+actor-scoped idempotency and replay. The backend ledger integration passes;
+Angular checks and gateway smoke remain unverified until Node is configured.
 
 - Before V13, demo opening and teller deposit/withdrawal changed savings balances and history without journals. Loan disbursement credited savings and changed loan status/history without a receivable journal. Those historical rows are not retroactively adjusted.
 - The migration cutover deliberately classifies all prior postings as historical, even if a preexisting journal is balanced. Current reconciliation flags are the gate for new paths.

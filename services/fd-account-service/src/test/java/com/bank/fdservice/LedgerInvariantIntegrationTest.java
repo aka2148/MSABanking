@@ -58,9 +58,9 @@ class LedgerInvariantIntegrationTest {
     @BeforeEach void seed() {
         IdentitySessionTestSupport.stub(identitySessionClient, SECRET);
         jdbc.update("DELETE FROM fd_operation_idempotency WHERE foi_actor_key IN (?,?,?,?)", "77101", "77102", "77103", "77104");
-        jdbc.update("DELETE FROM fd_journal_lines WHERE jl_journal_id IN (SELECT fj_id FROM fd_journals WHERE fj_key LIKE 'TELLER_%' OR fj_key LIKE 'TRANSFER:TRF-%')");
-        jdbc.update("DELETE FROM fd_journals WHERE fj_key LIKE 'TELLER_%' OR fj_key LIKE 'TRANSFER:TRF-%'");
-        jdbc.update("DELETE FROM savings_transactions WHERE st_reference_id LIKE 'STAFF-%' OR st_reference_id LIKE 'TRF-%'");
+        jdbc.update("DELETE FROM fd_journal_lines WHERE jl_journal_id IN (SELECT fj_id FROM fd_journals WHERE fj_key LIKE 'TELLER_%' OR fj_key LIKE 'TRANSFER:TRF-%' OR fj_key LIKE 'WITHDRAWAL:WDL-%')");
+        jdbc.update("DELETE FROM fd_journals WHERE fj_key LIKE 'TELLER_%' OR fj_key LIKE 'TRANSFER:TRF-%' OR fj_key LIKE 'WITHDRAWAL:WDL-%'");
+        jdbc.update("DELETE FROM savings_transactions WHERE st_reference_id LIKE 'STAFF-%' OR st_reference_id LIKE 'TRF-%' OR st_reference_id LIKE 'WDL-%'");
         jdbc.update("DELETE FROM savings_accounts WHERE sa_account_number LIKE 'LEDGER-%'");
         jdbc.update("DELETE FROM fd_user_ref WHERE fur_user_id IN (?,?,?)", customer, other, staff);
         jdbc.update("INSERT INTO fd_currency_ref(fcr_currency_id,fcr_iso_code,fcr_currency_name,fcr_decimal_places) VALUES(1,'USD','US Dollar',2),(2,'JPY','Yen',0) ON DUPLICATE KEY UPDATE fcr_iso_code=VALUES(fcr_iso_code)");
@@ -134,6 +134,15 @@ class LedgerInvariantIntegrationTest {
         assertEquals(2, jdbc.queryForObject("SELECT COUNT(*) FROM fd_journals WHERE fj_operation IN ('TELLER_DEPOSIT','TELLER_WITHDRAWAL')", Integer.class));
         assertEquals(2, jdbc.queryForObject("SELECT COUNT(*) FROM savings_transactions WHERE st_reference_id LIKE 'STAFF-%'", Integer.class));
         assertEquals(2, jdbc.queryForObject("SELECT COUNT(*) FROM fd_journals WHERE fj_created_by=?", Integer.class, Long.toString(staff)));
+    }
+    @Test void customerWithdrawalUsesMpinAndBalancedClearingJournal() throws Exception {
+        String canonical=MpinProofVerifier.canonical("WITHDRAWAL",source,new java.math.BigDecimal("10.00"));
+        mvc.perform(post("/api/v1/savings-accounts/withdrawals").header("Authorization",customerToken).header("Idempotency-Key","withdrawal-1").header("X-MPIN-Proof",proof(customer,Long.toString(customer),"WITHDRAWAL",canonical)).contentType(MediaType.APPLICATION_JSON).content("{\"fromAccountId\":"+source+",\"amount\":10.00,\"remark\":\"ATM simulation\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.balanceAfter").value(90));
+        mvc.perform(post("/api/v1/savings-accounts/withdrawals").header("Authorization",customerToken).header("Idempotency-Key","withdrawal-1").header("X-MPIN-Proof",proof(customer,Long.toString(customer),"WITHDRAWAL",canonical)).contentType(MediaType.APPLICATION_JSON).content("{\"fromAccountId\":"+source+",\"amount\":10.00,\"remark\":\"ATM simulation\"}"))
+                .andExpect(status().isOk());
+        assertMoney("90.00",source); assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM savings_transactions WHERE st_reference_id LIKE 'WDL-%'",Integer.class)); assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM fd_journals WHERE fj_operation='WITHDRAWAL'",Integer.class)); assertEquals(0,jdbc.queryForObject("SELECT fj_total_debit-fj_total_credit FROM fd_journals WHERE fj_operation='WITHDRAWAL'",java.math.BigDecimal.class).signum());
+        mvc.perform(post("/api/v1/savings-accounts/withdrawals").header("Authorization",staffToken).header("Idempotency-Key","staff-withdrawal").contentType(MediaType.APPLICATION_JSON).content("{\"fromAccountId\":"+source+",\"amount\":1}" )).andExpect(status().isForbidden());
     }
 
     @Test void twentyConcurrentTransfersCannotOverdraw() throws Exception {

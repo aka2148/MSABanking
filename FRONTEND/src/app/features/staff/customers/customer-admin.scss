@@ -13,6 +13,8 @@
 .customer-row__actions { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .customer-row__actions > .glass-btn { width: 100%; white-space: normal; overflow-wrap: anywhere; line-height: 1.25; }
 .customer-row__actions p { margin: 0; color: var(--ws-muted); font-size: var(--fs-xs); line-height: 1.4; }
+.status-pill { display:inline-flex; width:max-content; align-items:center; border:1px solid var(--ws-line); border-radius:999px; padding:4px 10px; font-size:var(--fs-xs); font-weight:700; }
+.status-pill--verified { color:#b6e2bf; border-color:#4f8f62; }.status-pill--pending { color:#f1d994; border-color:#9c7f2c; }.status-pill--rejected { color:#f0a7a7; border-color:#9a4b4b; }.status-pill--awaiting { color:#b8c8ff; border-color:#6074b7; }
 .customer-admin__empty { padding: 2rem; border: 1px dashed var(--ws-line); border-radius: 12px; }
 .customer-row__identity { display: grid; gap: 4px; min-width: 180px; }
 .customer-row__identity span { color: rgba(255,255,255,.64); font-size: var(--fs-xs); }

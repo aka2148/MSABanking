@@ -11,6 +11,7 @@ export class KycService {
   save(draft: KycDraft) { return this.http.put<KycProfile>(`${this.url}/draft`, draft); }
   submit() { return this.http.post<KycProfile>(`${this.url}/submit`, {}); }
   rekyc(remarks: string,mpin:string) { return this.http.post<KycProfile>(`${this.url}/rekyc`, { remarks,mpin }); }
+  reapply(note:string,proofToken:string) { return this.http.post<KycProfile>(`${this.url}/reapply`, { note }, { headers: { 'X-MPIN-Proof': proofToken } }); }
   upload(file: File) { const data = new FormData(); data.append('file', file); return this.http.post<KycProfile>(`${this.url}/document`, data); }
   removeDocument() { return this.http.delete<KycProfile>(`${this.url}/document`); }
 }

@@ -27,7 +27,8 @@ public class KycReviewService {
         }
         long count=jdbc.queryForObject("SELECT COUNT(*)"+FROM+where,Long.class,args.toArray());
         args.add(limit);args.add((long)number*limit);
-        List<Map<String,Object>> rows=jdbc.queryForList("SELECT c.cus_customer_id AS customerId,c.cus_customer_number AS customerNumber,n.cud_full_name AS fullName,s.created_at AS submittedAt,p.cycle_number AS cycleNumber,"+STATE+" AS state,p.proof_of_id_type AS proofType,CONCAT(CASE WHEN p.proof_of_id_type='AADHAAR' THEN 'XXXX XXXX ' ELSE '******' END,RIGHT(p.proof_of_id_value,4)) AS proofNumberMasked,(p.document_bytes IS NOT NULL) AS hasDocument,d.reviewer_username AS decidedBy,d.created_at AS decidedAt,d.remarks AS reason"+FROM+where+" ORDER BY CASE WHEN "+STATE+"='AWAITING_REVIEW' THEN 0 ELSE 1 END,s.created_at,c.cus_customer_id LIMIT ? OFFSET ?",args.toArray());
+        List<Map<String,Object>> rows=jdbc.queryForList("SELECT c.cus_customer_id AS customerId,c.cus_customer_number AS customerNumber,n.cud_full_name AS fullName,s.created_at AS submittedAt,p.cycle_number AS cycleNumber,(p.cycle_number-1) AS attemptNumber,(p.cycle_number>1) AS isResubmission,"+STATE+" AS state,p.proof_of_id_type AS proofType,CONCAT(CASE WHEN p.proof_of_id_type='AADHAAR' THEN 'XXXX XXXX ' ELSE '******' END,RIGHT(p.proof_of_id_value,4)) AS proofNumberMasked,(p.document_bytes IS NOT NULL) AS hasDocument,d.reviewer_username AS decidedBy,d.created_at AS decidedAt,d.remarks AS reason"+FROM+where+" ORDER BY CASE WHEN "+STATE+"='AWAITING_REVIEW' THEN 0 ELSE 1 END,s.created_at,c.cus_customer_id LIMIT ? OFFSET ?",args.toArray());
+        rows.forEach(row->row.computeIfPresent("reason",(k,v)->sanitize(Objects.toString(v,null))));
         return new Page(rows,count,number,limit);
     }
     @Transactional
@@ -46,7 +47,11 @@ public class KycReviewService {
         result.put("proof",proof);
         result.put("document",p.get("document_name")==null?null:Map.of("name",p.get("document_name"),"size",p.get("document_size"),"contentType",p.get("document_content_type")));
         List<Map<String,Object>> history=jdbc.queryForList("SELECT event_type AS eventType,remarks,reviewer_username AS reviewer,created_at AS createdAt FROM customer_kyc_events WHERE customer_id=? AND cycle_number=? ORDER BY id",id,p.get("cycle_number"));
+        history.forEach(row->row.computeIfPresent("remarks",(k,v)->sanitize(Objects.toString(v,null))));
         result.put("history",history);
+        List<Map<String,Object>> previous=jdbc.queryForList("SELECT cycle_number AS cycleNumber,CASE WHEN event_type='STAFF_VERIFIED' THEN 'APPROVE' ELSE 'REJECT' END AS decision,remarks AS reason,created_at AS decidedAt FROM customer_kyc_events WHERE customer_id=? AND event_type IN ('STAFF_VERIFIED','STAFF_REJECTED') AND cycle_number<? ORDER BY cycle_number",id,p.get("cycle_number"));
+        previous.forEach(row->row.computeIfPresent("reason",(k,v)->sanitize(Objects.toString(v,null)))); result.put("previousDecisions",previous);
+        result.put("attemptNumber",((Number)p.get("cycle_number")).intValue()-1); result.put("isResubmission",((Number)p.get("cycle_number")).intValue()>1);
         String state=jdbc.query("SELECT "+STATE+FROM+" WHERE c.cus_customer_id=?",rs->rs.next()?rs.getString(1):"UNAVAILABLE",id);
         result.put("state",state);
         // Free text (including filenames) must not accidentally disclose the stored full ID.
@@ -83,6 +88,7 @@ public class KycReviewService {
         if(node instanceof Map<?,?> map){Map<String,Object> values=(Map<String,Object>)map;values.replaceAll((k,v)->{if(v instanceof String s)return s.replace(full,masked);redact(v,full,masked);return v;});}
         else if(node instanceof List<?> list)list.forEach(v->redact(v,full,masked));
     }
+    private static String sanitize(String value){return value==null?null:value.replaceAll("(?i)\\breviewer(?:UserId|_username)\\s*=\\s*[^\\s,;]+"," ").replaceAll("\\s{2,}"," ").trim();}
     private ResponseStatusException bad(String message){return new ResponseStatusException(HttpStatus.BAD_REQUEST,message);}
     public record Page(List<Map<String,Object>> content,long totalElements,int number,int size){}
     public record Document(byte[] bytes,String contentType){}

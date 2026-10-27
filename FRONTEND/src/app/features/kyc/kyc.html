@@ -78,10 +78,17 @@
       </section>
 
       <!-- REJECTED NOTICE -->
-      <p *ngIf="p.kycStatus === 'REJECTED'" class="glass-error kyc-alert">
-        {{ 'Please consult your bank officer about your rejected KYC.' | translate }}
-        <span *ngIf="p.reviewDecision?.reason">{{p.reviewDecision?.reason | translate}}</span>
-      </p>
+      <section *ngIf="p.kycStatus === 'REJECTED'" class="glass-error kyc-alert">
+        <p>{{ 'Your KYC was rejected. Review the reason and re-apply with your MPIN.' | translate }}</p>
+        <p *ngIf="p.reviewDecision?.reason">{{p.reviewDecision?.reason}}</p>
+        <p *ngIf="!p.canReapply">{{ 'The re-apply limit has been reached. Please contact your branch.' | translate }}</p>
+        <form *ngIf="p.canReapply" (ngSubmit)="requestReapply()" class="kyc-reapply-form">
+          <label class="glass-field"><span class="glass-field__label">{{'Optional note'|translate}}</span><textarea name="reapplyNote" [(ngModel)]="reapplyNote" [placeholder]="reapplyNote ? '' : ('Optional note (10–500 characters)'|translate)"></textarea></label>
+          <label class="glass-field"><span class="glass-field__label">{{'MPIN'|translate}}</span><app-mpin-input [(ngModel)]="reapplyMpin" name="reapplyMpin"></app-mpin-input></label>
+          <p class="glass-field__error" *ngIf="reapplyError">{{reapplyError|translate}} <a *ngIf="mpinNotSet" routerLink="/mpin">{{'Set up your MPIN'|translate}}</a></p>
+          <button class="glass-btn" type="submit" [disabled]="reapplyBusy">{{reapplyConfirm ? ('Confirm re-apply'|translate) : ('Re-apply for KYC'|translate)}}</button>
+        </form>
+      </section>
 
       <!-- READ-ONLY STATUS -->
       <ng-container *ngIf="!p.editingAllowed">

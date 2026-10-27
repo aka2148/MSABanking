@@ -1,4 +1,6 @@
 export const STAFF_MESSAGES = `
+Resubmission|पुनः जमा|ಮರುಸಲ್ಲಿಕೆ|再提出|إعادة التقديم|Reenvío
+Previous decisions|पिछले निर्णय|ಹಿಂದಿನ ನಿರ್ಧಾರಗಳು|以前の決定|القرارات السابقة|Decisiones anteriores
 KYC review|केवाईसी समीक्षा|ಕೆವೈಸಿ ಪರಿಶೀಲನೆ|本人確認の審査|مراجعة التحقق من الهوية|Revisión KYC
 Review KYC|केवाईसी की समीक्षा करें|ಕೆವೈಸಿ ಪರಿಶೀಲಿಸಿ|本人確認を審査|مراجعة الهوية|Revisar KYC
 Awaiting review|समीक्षा की प्रतीक्षा|ಪರಿಶೀಲನೆಗಾಗಿ ಕಾಯುತ್ತಿದೆ|審査待ち|بانتظار المراجعة|Pendiente de revisión

@@ -1,6 +1,7 @@
 package com.bank.identitycustomer;
 
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
@@ -42,7 +43,9 @@ public class MpinService {
             "FD_CLOSE",List.of("fdId"),
             "FD_PREMATURE_REQUEST",List.of("fdId"),
             "LOAN_APPLICATION",List.of("productId","amount","currencyCode","tenureMonths","destinationSavingsAccountId"),
-            "FOREX_REQUEST",List.of("productId","amount","fundingCurrencyCode","destinationCurrencyCode"));
+            "FOREX_REQUEST",List.of("productId","amount","fundingCurrencyCode","destinationCurrencyCode"),
+            "KYC_REAPPLY",List.of("customerUserId","cycleNumber"),
+            "WITHDRAWAL",List.of("accountId","amount"));
     private final JdbcTemplate jdbc;
     private final PasswordEncoder bcrypt=new BCryptPasswordEncoder(12);
     private final byte[] pepper;
@@ -126,6 +129,17 @@ public class MpinService {
     public static String binding(String purpose,Map<String,Object> values) {
         List<String> fields=FIELDS.get(purpose); if(fields==null||!values.keySet().equals(Set.copyOf(fields)))throw new IllegalArgumentException("Invalid MPIN binding fields");
         return MpinBinding.canonical(purpose, fields.stream().map(values::get).toArray());
+    }
+    @Transactional
+    public void consumeProof(String token,long userId,String actor,String purpose,Map<String,Object> fields) {
+        if (token==null || token.isBlank()) throw new ResponseStatusException(HttpStatus.FORBIDDEN,"MPIN_REQUIRED");
+        try {
+            Claims c=Jwts.parserBuilder().setSigningKey(Keys.hmacShaKeyFor(proofKey)).setAllowedClockSkewSeconds(5).build().parseClaimsJws(token).getBody();
+            if (!"mpin-proof".equals(c.get("typ",String.class)) || !"identity".equals(c.getIssuer()) || !purpose.equals(c.get("purpose",String.class)) || !Long.toString(userId).equals(c.getSubject()) || actor==null || !actor.equals(c.get("act",String.class)) || !MessageDigest.isEqual(hashBinding(binding(purpose,fields)).getBytes(StandardCharsets.US_ASCII),String.valueOf(c.get("bind")).getBytes(StandardCharsets.US_ASCII))) throw new IllegalArgumentException();
+            String jti=c.get("jti",String.class); if(jti==null||jti.length()>36) throw new IllegalArgumentException();
+            jdbc.update("INSERT INTO customer_mpin_proof_use(jti,user_id,purpose) VALUES(?,?,?)",jti,userId,purpose);
+        } catch (DuplicateKeyException ex) { throw new ResponseStatusException(HttpStatus.CONFLICT,"MPIN_PROOF_INVALID"); }
+          catch (RuntimeException ex) { throw new ResponseStatusException(HttpStatus.FORBIDDEN,"MPIN_PROOF_INVALID"); }
     }
     public static String hashBinding(String value) { try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));}catch(Exception e){throw new IllegalStateException(e);} }
     public static byte[] deriveProofKey(String jwtSecretBase64) { return hmac(Decoders.BASE64.decode(jwtSecretBase64),"mpin-proof-v1"); }

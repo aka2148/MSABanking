@@ -21,7 +21,7 @@ export class CustomerProductWarning implements OnInit {
       next: profile => {
         this.highRisk = profile.riskCategory?.toUpperCase() === BLOCKED_RISK;
         this.status = profile.kycStatus?.toUpperCase() || 'UNKNOWN';
-        this.message = this.status !== 'VERIFIED' ? (this.status === 'REJECTED' ? "Your KYC verification was rejected. You can't book fixed deposits, apply for loans or request forex. Please consult your bank officer to resolve the rejection and complete the KYC process." : "Your KYC verification is still pending. You can't book fixed deposits, apply for loans or request forex until it is complete. Please consult your bank officer to complete the KYC process.")
+        this.message = this.status !== 'VERIFIED' ? (this.status === 'REJECTED' ? "Your KYC verification was rejected. You can't book fixed deposits, apply for loans or request forex. Re-apply from the KYC screen with your MPIN." : "Your KYC verification is still pending. You can't book fixed deposits, apply for loans or request forex until it is complete. Please consult your bank officer to complete the KYC process.")
           : profile.riskCategory?.toUpperCase() === BLOCKED_RISK ? "Your risk category needs bank officer review. You can't book fixed deposits, apply for loans or request forex. Please consult your bank officer." : '';
         this.blockedChange.emit(!!this.message);
       },

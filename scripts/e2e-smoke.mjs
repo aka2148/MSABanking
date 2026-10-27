@@ -13,5 +13,14 @@ if(login){const body=await login.json();const token=body.token;pass('authenticat
   const products=await request('eligible FD products','/api/v1/fd-products/eligible',{headers:auth});if(products)pass('eligible FD products readable');
   const negative=await fetch(`${base}/api/v1/fixed-deposits/estimate`,{method:'POST',headers:{...auth,'Content-Type':'application/json'},body:JSON.stringify({productId:0,currencyCode:'INR',principal:0,tenureMonths:0})});
   if(negative.status>=400&&negative.status<500)pass('estimate validation returns a client error');else fail('estimate validation',`unexpected status ${negative.status}`);
+  if(process.env.E2E_MPIN&&process.env.E2E_USER_ID&&process.env.E2E_KYC_CYCLE){
+    const proof=await request('KYC re-apply MPIN proof','/api/v1/auth/mpin/verify',{method:'POST',headers:auth,body:JSON.stringify({mpin:process.env.E2E_MPIN,purpose:'KYC_REAPPLY',fields:{customerUserId:Number(process.env.E2E_USER_ID),cycleNumber:Number(process.env.E2E_KYC_CYCLE)}})});
+    if(proof){const p=await proof.json();const reapplied=await request('KYC re-apply','/api/v1/customers/me/kyc/reapply',{method:'POST',headers:{...auth,'X-MPIN-Proof':p.proofToken},body:JSON.stringify({note:'E2E re-apply verification'})});if(reapplied)pass('KYC re-apply accepted');}
+  }
+  if(process.env.E2E_MPIN&&process.env.E2E_SAVINGS_ACCOUNT_ID&&process.env.E2E_WITHDRAWAL_AMOUNT){
+    const accountId=Number(process.env.E2E_SAVINGS_ACCOUNT_ID), amount=String(process.env.E2E_WITHDRAWAL_AMOUNT);
+    const proof=await request('withdrawal MPIN proof','/api/v1/auth/mpin/verify',{method:'POST',headers:auth,body:JSON.stringify({mpin:process.env.E2E_MPIN,purpose:'WITHDRAWAL',fields:{accountId,amount}})});
+    if(proof){const p=await proof.json();const key=`e2e-withdrawal-${Date.now()}`;const withdrawal=await request('customer savings withdrawal','/api/v1/savings-accounts/withdrawals',{method:'POST',headers:{...auth,'Idempotency-Key':key,'X-MPIN-Proof':p.proofToken},body:JSON.stringify({fromAccountId:accountId,amount:Number(amount),remark:'isolated e2e smoke'})});if(withdrawal)pass('customer savings withdrawal accepted');}
+  }
 }
 if(steps.some(([,ok])=>!ok))process.exitCode=1;

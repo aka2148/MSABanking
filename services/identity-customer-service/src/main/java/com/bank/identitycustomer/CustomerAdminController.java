@@ -80,9 +80,9 @@ public class CustomerAdminController {
     @PutMapping("/{customerId}")
     @Transactional public CustomerResponse update(@PathVariable long customerId,@RequestBody UpdateCustomer request, Authentication actor) {
         CustomerResponse existing=findCustomer(customerId);
-        if(request.legalEntityType!=null) jdbc.update("UPDATE customers SET cus_legal_entity_type=? WHERE cus_customer_id=?",request.legalEntityType,customerId);
         if(request.kycStatus!=null&&!request.kycStatus.trim().equalsIgnoreCase(existing.kycStatus()))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Use the KYC review screen.");
+        if(request.legalEntityType!=null) jdbc.update("UPDATE customers SET cus_legal_entity_type=? WHERE cus_customer_id=?",request.legalEntityType,customerId);
         if(request.riskCategory!=null) jdbc.update("UPDATE customers SET cus_risk_category=? WHERE cus_customer_id=?",validatedRisk(request.riskCategory),customerId);
         if(request.fullName!=null) {
             List<Long> detailIds=jdbc.queryForList("SELECT cud_detail_id FROM customer_details WHERE cud_customer_id=? ORDER BY cud_detail_id LIMIT 1",Long.class,customerId);

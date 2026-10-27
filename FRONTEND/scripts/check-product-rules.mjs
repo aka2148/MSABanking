@@ -76,7 +76,7 @@ try {
     warning.ngOnInit();
     assert.equal(emitted, blocked);
     assert.equal(!!warning.message, blocked);
-    if (kycStatus === 'REJECTED') assert.ok(warning.message.includes('resolve the rejection'));
+    if (kycStatus === 'REJECTED') assert.ok(warning.message.includes('Re-apply from the KYC screen with your MPIN.'));
     if (kycStatus === 'PENDING' || kycStatus == null) assert.ok(warning.message.includes('still pending'));
     assert.ok(!warning.message.includes('undefined') && !warning.message.includes('null'));
     injector.destroy();

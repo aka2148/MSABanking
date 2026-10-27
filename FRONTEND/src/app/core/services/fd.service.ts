@@ -80,6 +80,9 @@ export class FdService {
   transferSavings(request: { fromAccountId: number; toAccountNumber: string; amount: number; remark?: string }, idempotencyKey: string, proof: string): Observable<SavingsTransferResponse> {
     return this.http.post<SavingsTransferResponse>(this.path('/savings-accounts/transfers'), request, { headers: { 'Idempotency-Key': idempotencyKey, 'X-MPIN-Proof': proof } });
   }
+  withdrawSavings(request: { fromAccountId:number; amount:number; remark?:string }, idempotencyKey:string, proof:string): Observable<SavingsWithdrawalResponse> {
+    return this.http.post<SavingsWithdrawalResponse>(this.path('/savings-accounts/withdrawals'),request,{headers:{'Idempotency-Key':idempotencyKey,'X-MPIN-Proof':proof}});
+  }
 
   savingsTransactions(id: number): Observable<SavingsHistory[]> {
     return this.http.get<SavingsHistory[]>(this.path(`/savings-accounts/${id}/transactions`));
@@ -288,6 +291,7 @@ export interface SavingsTransferResponse {
   fromBalanceAfter: number;
   postedAt: string;
 }
+export interface SavingsWithdrawalResponse { reference:string; fromAccountId:number; amount:number; currency:string; balanceAfter:number; postedAt:string; }
 
 export interface SavingsHistory {
   st_id: number;

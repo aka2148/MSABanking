@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { API_BASE_URL, apiUrl } from './api-config';
 import { normalizeApiError } from './fd.service';
 
-export type MpinPurpose = 'TRANSFER'|'FD_FUNDING'|'FD_CLOSE'|'FD_PREMATURE_REQUEST'|'LOAN_APPLICATION'|'FOREX_REQUEST';
+export type MpinPurpose = 'TRANSFER'|'FD_FUNDING'|'FD_CLOSE'|'FD_PREMATURE_REQUEST'|'LOAN_APPLICATION'|'FOREX_REQUEST'|'KYC_REAPPLY'|'WITHDRAWAL';
 export interface MpinProof { proofToken: string; expiresAt: string; }
 export function weakMpin(pin:string):boolean {
   if(!/^\d{6}$/.test(pin))return true;

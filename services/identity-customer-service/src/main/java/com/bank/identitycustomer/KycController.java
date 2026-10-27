@@ -33,10 +33,17 @@ public class KycController {
         if(!check.ok()){Map<String,Object> body=new java.util.LinkedHashMap<>();body.put("code",check.code());if("MPIN_INVALID".equals(check.code()))body.put("attemptsRemaining",check.attemptsRemaining());if(check.lockedUntil()!=null)body.put("lockedUntil",check.lockedUntil());return org.springframework.http.ResponseEntity.status(switch(check.code()){case "MPIN_INVALID"->HttpStatus.FORBIDDEN;case "MPIN_LOCKED"->HttpStatus.LOCKED;default->HttpStatus.CONFLICT;}).body(body);}
         return org.springframework.http.ResponseEntity.ok(service.rekyc(auth.getName(),request.remarks()));
     }
+    @PostMapping("/reapply")
+    public Map<String,Object> reapply(Authentication auth,@RequestHeader(value="X-MPIN-Proof",required=false) String proof,@RequestBody ReapplyRequest request) {
+        return service.reapply(auth.getName(),request.note(),proof);
+    }
     public record RekycRequest(String remarks,String mpin) { @Override public String toString(){return "RekycRequest[remarks=[redacted], mpin=[redacted]]";} }
+    public record ReapplyRequest(String note) { @Override public String toString(){return "ReapplyRequest[note=[redacted]]";} }
     @ExceptionHandler(ResponseStatusException.class)
     public org.springframework.http.ResponseEntity<Map<String, String>> error(ResponseStatusException ex) {
-        return org.springframework.http.ResponseEntity.status(ex.getStatusCode()).body(Map.of("message", ex.getReason() == null ? "Unable to save KYC." : ex.getReason()));
+        String reason=ex.getReason()==null?"Unable to save KYC.":ex.getReason();
+        if(reason.startsWith("MPIN_")) return org.springframework.http.ResponseEntity.status(ex.getStatusCode()).body(Map.of("message",reason,"code",reason));
+        return org.springframework.http.ResponseEntity.status(ex.getStatusCode()).body(Map.of("message", reason));
     }
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     @ResponseStatus(HttpStatus.PAYLOAD_TOO_LARGE)

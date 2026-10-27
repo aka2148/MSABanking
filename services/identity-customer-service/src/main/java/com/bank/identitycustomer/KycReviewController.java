@@ -12,8 +12,8 @@ import java.util.Map;
 public class KycReviewController {
     private final KycReviewService service;
     public KycReviewController(KycReviewService service){this.service=service;}
-    @GetMapping public KycReviewService.Page queue(@RequestParam(defaultValue="AWAITING_REVIEW") String status,@RequestParam(defaultValue="") String search,@RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="20") int size){return service.queue(status,search,page,size);}
-    @GetMapping("/{customerId}") public Map<String,Object> detail(@PathVariable long customerId,Authentication actor){return service.detail(customerId,actor.getName());}
+    @GetMapping public ResponseEntity<KycReviewService.Page> queue(@RequestParam(defaultValue="AWAITING_REVIEW") String status,@RequestParam(defaultValue="") String search,@RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="20") int size){return ResponseEntity.ok().header("Cache-Control","no-store").body(service.queue(status,search,page,size));}
+    @GetMapping("/{customerId}") public ResponseEntity<Map<String,Object>> detail(@PathVariable long customerId,Authentication actor){return ResponseEntity.ok().header("Cache-Control","no-store").body(service.detail(customerId,actor.getName()));}
     @GetMapping("/{customerId}/document") public ResponseEntity<byte[]> document(@PathVariable long customerId,Authentication actor){
         var document=service.document(customerId,actor.getName());
         return ResponseEntity.ok().header("Content-Type",document.contentType()).header("Content-Disposition","inline; filename=kyc-document")

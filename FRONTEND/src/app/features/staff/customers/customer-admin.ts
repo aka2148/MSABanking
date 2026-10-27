@@ -7,11 +7,12 @@ import { RouterLink } from '@angular/router';
 import { CustomerAdminPage, CustomerAdminRecord, CustomerAdminService } from '../../../core/services/customer-admin.service';
 import { WorkspaceShell } from '../../../shared/components/workspace-shell/workspace-shell';
 import { MpinProofService } from '../../../core/services/mpin-proof.service';
+import { GlassSelect, GlassSelectOption } from '../../../shared/components/glass-select/glass-select';
 
 @Component({
   selector: 'app-customer-admin',
   standalone: true,
-  imports: [TranslatePipe, CommonModule, FormsModule, RouterLink, WorkspaceShell],
+  imports: [TranslatePipe, CommonModule, FormsModule, RouterLink, WorkspaceShell, GlassSelect],
   templateUrl: './customer-admin.html',
   styleUrl: './customer-admin.scss',
 })
@@ -23,8 +24,10 @@ export class CustomerAdmin implements OnInit {
   error = '';
   message = '';
   resetConfirmId:number|null=null;resettingId:number|null=null;
-  readonly kycStatuses = ['PENDING', 'VERIFIED', 'REJECTED'];
   readonly riskCategories = ['LOW', 'MEDIUM', 'HIGH'];
+  readonly riskOptions:GlassSelectOption[]=this.riskCategories.map(value=>({value,label:value}));
+  readonly entityOptions:GlassSelectOption[]=[{value:'INDIVIDUAL',label:'Individual'},{value:'COMPANY',label:'Company'}];
+  statusTone(status:string):string{return `status-pill status-pill--${(status||'PENDING').toLowerCase()}`;}
 
   constructor(private readonly customers: CustomerAdminService,private readonly mpin:MpinProofService) {}
 
