@@ -18,9 +18,11 @@ import java.util.UUID;
 @RestController
 public class ProductCatalogController {
     private final JdbcTemplate jdbc;
+    private final FdComplianceService compliance;
 
-    public ProductCatalogController(JdbcTemplate jdbc) {
+    public ProductCatalogController(JdbcTemplate jdbc, FdComplianceService compliance) {
         this.jdbc = jdbc;
+        this.compliance = compliance;
     }
 
     @GetMapping("/api/product")
@@ -106,8 +108,15 @@ public class ProductCatalogController {
         String status = body.get("status");
         if (status == null || !List.of("DRAFT", "ACTIVE", "INACTIVE").contains(status.toUpperCase(Locale.ROOT)))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Status must be DRAFT, ACTIVE, or INACTIVE");
-        if ("ACTIVE".equalsIgnoreCase(status))
+        if ("ACTIVE".equalsIgnoreCase(status)) {
             publishSnapshot(id);
+            Integer isFd = jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM product p JOIN product_category pc ON pc.pc_category_id=p.pro_category_id WHERE p.pro_product_id=? AND (pc.pc_category_name LIKE '%FIXED%DEPOSIT%' OR pc.pc_category_name LIKE '%FD%' OR EXISTS (SELECT 1 FROM product_rule pr WHERE pr.pr_product_id=p.pro_product_id AND pr.pr_rule_name='TENURE_RATE'))",
+                    Integer.class, id);
+            if (isFd != null && isFd > 0) {
+                compliance.validateProductScheduleForActivation(id);
+            }
+        }
         jdbc.update(
                 "UPDATE product SET pro_status=?,pro_event_version=pro_event_version+1,pro_updated_by='API',pro_updated_date=UTC_TIMESTAMP(6) WHERE pro_product_id=?",
                 status.toUpperCase(Locale.ROOT), id);
