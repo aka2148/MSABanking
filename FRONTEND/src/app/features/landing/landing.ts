@@ -31,11 +31,6 @@ export class Landing {
       icon: '⇄',
     },
     {
-      title: 'AI Chatbot',
-      description: 'Conversational assistant for account queries, FD guidance, and support.',
-      icon: '◐',
-    },
-    {
       title: 'Reports & Analytics',
       description: 'Transaction history, spend patterns, and account summaries at a glance.',
       icon: '▤',
