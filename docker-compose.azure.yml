@@ -70,6 +70,9 @@ services:
     mem_limit: 256m
 
   frontend:
+    depends_on: !override
+      api-gateway:
+        condition: service_started
     ports: !override
       - 127.0.0.1:4200:80
     mem_limit: 128m
