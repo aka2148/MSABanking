@@ -62,6 +62,25 @@ export interface LoginRequest {
   password: string;
   context: RequestContext;
 }
+
+export interface ForgotPasswordRequest {
+  identifier: string;
+}
+
+export interface VerifyPasswordResetRequest {
+  identifier: string;
+  code: string;
+}
+
+export interface VerifyPasswordResetResponse {
+  resetToken: string;
+  expiresInSeconds: number;
+}
+
+export interface ResetPasswordRequest {
+  resetToken: string;
+  newPassword: string;
+}
 // Matches the backend's actual JwtResponse shape — no `success` field exists,
 // so a 200 response IS the success signal. Failures come through as HTTP
 // error status codes (401/403), caught in the service's error callback, not

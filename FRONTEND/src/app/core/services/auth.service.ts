@@ -10,6 +10,10 @@ import {
   Channel,
   AuthSession,
   AuthMessageResponse,
+  ForgotPasswordRequest,
+  VerifyPasswordResetRequest,
+  VerifyPasswordResetResponse,
+  ResetPasswordRequest,
 } from '../models/auth.models';
 import { API_BASE_URL, apiUrl } from './api-config';
 
@@ -34,31 +38,30 @@ export class AuthService {
       context: this.buildContext(),
     };
     return this.http.post<LoginResponse>(apiUrl(this.apiBaseUrl, '/api/v1/auth/login'), payload).pipe(
-      tap((response) => {
-        if (response.token) {
-          const sessionRole = response.roles?.find((role) => role === 'ROLE_ADMIN')
-            ?? response.roles?.find((role) => role === 'ROLE_BANK_OFFICER')
-            ?? response.role
-            ?? response.roles?.[0]
-            ?? null;
-          this.setSession(response.token, sessionRole);
-        }
-      })
+      tap(response => this.storeResponseSession(response))
     );
   }
 
   verifyLoginOtp(challengeId: string, otp: string): Observable<LoginResponse> {
     return this.http.post<LoginResponse>(apiUrl(this.apiBaseUrl, '/api/v1/auth/login/mfa/verify'), { challengeToken: challengeId, code: otp }).pipe(
-      tap((response) => {
-        if (response.token) {
-          const sessionRole = response.roles?.find((role) => role === 'ROLE_ADMIN')
-            ?? response.roles?.find((role) => role === 'ROLE_BANK_OFFICER')
-            ?? response.role
-            ?? response.roles?.[0]
-            ?? null;
-          this.setSession(response.token, sessionRole);
-        }
-      })
+      tap(response => this.storeResponseSession(response))
+    );
+  }
+
+  forgotPassword(identifier: string): Observable<AuthMessageResponse> {
+    const payload: ForgotPasswordRequest = { identifier };
+    return this.http.post<AuthMessageResponse>(apiUrl(this.apiBaseUrl, '/api/v1/auth/password/forgot'), payload);
+  }
+
+  verifyPasswordResetCode(identifier: string, code: string): Observable<VerifyPasswordResetResponse> {
+    const payload: VerifyPasswordResetRequest = { identifier, code };
+    return this.http.post<VerifyPasswordResetResponse>(apiUrl(this.apiBaseUrl, '/api/v1/auth/password/verify'), payload);
+  }
+
+  resetPassword(resetToken: string, newPassword: string): Observable<LoginResponse | null> {
+    const payload: ResetPasswordRequest = { resetToken, newPassword };
+    return this.http.post<LoginResponse | null>(apiUrl(this.apiBaseUrl, '/api/v1/auth/password/reset'), payload).pipe(
+      tap(response => this.storeResponseSession(response ?? undefined))
     );
   }
 
@@ -122,6 +125,16 @@ export class AuthService {
       localStorage.removeItem(this.roleKey);
     }
     this.sessionSubject.next({ authenticated: true, token, role });
+  }
+
+  private storeResponseSession(response: LoginResponse | undefined): void {
+    if (!response?.token) return;
+    const sessionRole = response.roles?.find(role => role === 'ROLE_ADMIN')
+      ?? response.roles?.find(role => role === 'ROLE_BANK_OFFICER')
+      ?? response.role
+      ?? response.roles?.[0]
+      ?? null;
+    this.setSession(response.token, sessionRole);
   }
 
   private readSession(): AuthSession {

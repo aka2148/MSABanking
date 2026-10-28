@@ -215,9 +215,10 @@ public class AuthController {
 
     @PostMapping("/login")
     public JwtResponse login(@Valid @RequestBody LoginRequest request) {
-        List<Map<String,Object>> rows = jdbc.queryForList("SELECT u.usr_user_id,u.usr_status,c.ucr_password_hash,c.ucr_user_id,c.ucr_mfa_enabled,c.ucr_mfa_secret,c.ucr_token_version,(c.ucr_locked_until IS NOT NULL AND c.ucr_locked_until>UTC_TIMESTAMP(6)) AS is_locked FROM user_credentials c JOIN users u ON u.usr_user_id=c.ucr_user_id WHERE c.ucr_username=?", request.username);
+        List<Map<String,Object>> rows = LoginIdentifierResolver.resolve(jdbc, request.username, false);
         if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password");
         Map<String,Object> row=rows.get(0); Long userId=((Number)row.get("usr_user_id")).longValue();
+        String username = (String) row.get("ucr_username");
         if (!"ACTIVE".equals(row.get("usr_status"))) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is not active");
         if (truthy(row.get("is_locked")))
             throw new ResponseStatusException(HttpStatus.LOCKED, "Account is temporarily locked");
@@ -234,7 +235,7 @@ public class AuthController {
             if (lastSent != null && lastSent.plusSeconds(60).isAfter(Instant.now())) throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Wait before requesting another sign-in code.");
             if (lastSent != null) loginEmailLastSent.remove(challengeKey, lastSent);
             String challenge = UUID.randomUUID().toString(); String code = String.format("%06d", random.nextInt(1_000_000)); Instant now = Instant.now();
-            loginEmailChallenges.put(challenge, new LoginChallenge(request.username, email, code, now.plusSeconds(300), now, 0));
+            loginEmailChallenges.put(challenge, new LoginChallenge(username, email, code, now.plusSeconds(300), now, 0));
             try {
                 Sender sender = parseSender(mailFrom);
                 mailApi.post().uri(mailApiUrl).header("api-key", mailApiKey).contentType(MediaType.APPLICATION_JSON).accept(MediaType.APPLICATION_JSON)
@@ -242,11 +243,11 @@ public class AuthController {
                         .retrieve().onStatus(HttpStatusCode::isError, (req, res) -> { String body = new String(res.getBody().readAllBytes(), StandardCharsets.UTF_8); log.warn("Sign-in email provider returned HTTP {}: {}", res.getStatusCode().value(), safeProviderBody(body, code)); throw new IllegalStateException("Email provider rejected the request"); }).toBodilessEntity();
             } catch (RuntimeException ex) { loginEmailChallenges.remove(challenge); if (!(ex instanceof IllegalStateException && "Email provider rejected the request".equals(ex.getMessage()))) log.warn("Sign-in email delivery failed before receiving a provider response."); throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "The sign-in code could not be delivered."); }
             loginEmailLastSent.put(challengeKey, now);
-            return new JwtResponse(true, null, "Bearer", request.username, maskEmail(email), List.of(), true, challenge);
+            return new JwtResponse(true, null, "Bearer", username, maskEmail(email), List.of(), true, challenge);
         }
         jdbc.update("UPDATE user_credentials SET ucr_failed_attempt_count=0,ucr_locked_until=NULL,ucr_last_login_at=UTC_TIMESTAMP(6) WHERE ucr_user_id=?",userId);
         String email=jdbc.query("SELECT e.cem_email_address FROM customer_emails e JOIN customers c ON c.cus_customer_id=e.cem_customer_id WHERE c.cus_user_id=? AND e.cem_is_primary=1 LIMIT 1",rs->rs.next()?rs.getString(1):null,userId);
-        return response(request.username,email,roles);
+        return response(username,email,roles);
     }
 
     @PostMapping("/login/mfa/verify")
@@ -355,6 +356,27 @@ public class AuthController {
     private boolean truthy(Object value){return value instanceof Boolean flag?flag:value instanceof Number number&&number.intValue()!=0;}
     private String maskEmail(String email) { int at=email.indexOf('@'); if(at<2)return "***"+email.substring(Math.max(0,at)); return email.substring(0,2)+"***"+email.substring(at); }
 
+    JwtResponse passwordResetSession(long userId) {
+        Map<String, Object> account = jdbc.query("SELECT c.ucr_username,u.usr_status "
+                        + "FROM user_credentials c JOIN users u ON u.usr_user_id=c.ucr_user_id "
+                        + "WHERE c.ucr_user_id=?",
+                rs -> rs.next() ? Map.of("username", rs.getString(1), "status", rs.getString(2)) : null, userId);
+        if (account == null || !"ACTIVE".equals(account.get("status")))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, PasswordRecoveryService.INVALID_TOKEN_MESSAGE);
+        List<String> roles = jdbc.queryForList("SELECT r.rol_role_code FROM roles r "
+                + "JOIN user_roles ur ON ur.ur_role_id=r.rol_role_id WHERE ur.ur_user_id=?", String.class, userId);
+        if (!roles.contains("ROLE_CUSTOMER") || roles.contains("ROLE_ADMIN") || roles.contains("ROLE_BANK_OFFICER"))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, PasswordRecoveryService.INVALID_TOKEN_MESSAGE);
+        String email = jdbc.query("SELECT e.cem_email_address FROM customer_emails e "
+                        + "JOIN customers c ON c.cus_customer_id=e.cem_customer_id "
+                        + "WHERE c.cus_user_id=? AND e.cem_is_primary=1 AND e.cem_is_verified=1 "
+                        + "ORDER BY e.cem_email_id LIMIT 1",
+                rs -> rs.next() ? rs.getString(1) : null, userId);
+        if (email == null)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, PasswordRecoveryService.INVALID_TOKEN_MESSAGE);
+        return response((String) account.get("username"), email, roles);
+    }
+
     private JwtResponse response(String username,String email,List<String> roles) {
         Long userId=jdbc.query("SELECT ucr_user_id FROM user_credentials WHERE ucr_username=?",rs->rs.next()?rs.getLong(1):null,username);
         Integer tokenVersion=jdbc.query("SELECT ucr_token_version FROM user_credentials WHERE ucr_username=?",rs->rs.next()?rs.getInt(1):0,username);
@@ -367,22 +389,39 @@ public class AuthController {
         return new JwtResponse(true,token,username,email,roles);
     }
 
-    public record RegisterRequest(@NotBlank @Size(min=4,max=30) String username,@NotBlank @Size(min=12,max=100) String password,@NotBlank @Email String email,@NotBlank String fullName,String phone,@NotBlank String address,@NotBlank String city,@NotBlank String state,@NotBlank @jakarta.validation.constraints.Pattern(regexp="[0-9]{6}") String postalCode,String legalEntityType) {}
-    public record EmailOtpSendRequest(@NotBlank @Email String email) {}
-    public record EmailOtpVerifyRequest(@NotBlank @Email String email,@NotBlank @Size(min=6,max=6) String code) {}
+    public record RegisterRequest(@NotBlank @Size(min=4,max=30) String username,@NotBlank @Size(min=12,max=100) String password,@NotBlank @Email String email,@NotBlank String fullName,String phone,@NotBlank String address,@NotBlank String city,@NotBlank String state,@NotBlank @jakarta.validation.constraints.Pattern(regexp="[0-9]{6}") String postalCode,String legalEntityType) {
+        @Override public String toString() { return "RegisterRequest[redacted]"; }
+    }
+    public record EmailOtpSendRequest(@NotBlank @Email String email) {
+        @Override public String toString() { return "EmailOtpSendRequest[redacted]"; }
+    }
+    public record EmailOtpVerifyRequest(@NotBlank @Email String email,@NotBlank @Size(min=6,max=6) String code) {
+        @Override public String toString() { return "EmailOtpVerifyRequest[redacted]"; }
+    }
     public record Message(String message) {}
     private record EmailChallenge(String code,Instant expiresAt,Instant sentAt,int attempts) {}
     private record LoginChallenge(String username,String email,String code,Instant expiresAt,Instant sentAt,int attempts) {}
     private record Sender(String name, String email) {}
-    public record LoginRequest(@NotBlank @JsonAlias({"identifier","email"}) String username,@NotBlank String password) {}
-    public record ChangePasswordRequest(@NotBlank String currentPassword,@NotBlank @Size(min=12,max=100) String newPassword) {}
-    public record MfaCodeRequest(@NotBlank String code) {}
-    public record MfaLoginRequest(@NotBlank String challengeToken,@NotBlank String code) {}
-    public record MfaEnrollment(String secret,String provisioningUri) {}
+    public record LoginRequest(@NotBlank @JsonAlias({"identifier","email"}) String username,@NotBlank String password) {
+        @Override public String toString() { return "LoginRequest[redacted]"; }
+    }
+    public record ChangePasswordRequest(@NotBlank String currentPassword,@NotBlank @Size(min=12,max=100) String newPassword) {
+        @Override public String toString() { return "ChangePasswordRequest[redacted]"; }
+    }
+    public record MfaCodeRequest(@NotBlank String code) {
+        @Override public String toString() { return "MfaCodeRequest[redacted]"; }
+    }
+    public record MfaLoginRequest(@NotBlank String challengeToken,@NotBlank String code) {
+        @Override public String toString() { return "MfaLoginRequest[redacted]"; }
+    }
+    public record MfaEnrollment(String secret,String provisioningUri) {
+        @Override public String toString() { return "MfaEnrollment[redacted]"; }
+    }
     public record CustomerResponse(Long id,String customerNumber,String username,String fullName,String kycStatus,String riskCategory,String legalEntityType) {}
     public record SessionResponse(long userId,String username,List<String> roles,String kycStatus,String riskCategory) {}
     public record JwtResponse(boolean success,String token,String type,String username,String email,List<String> roles,boolean mfaRequired,String mfaToken) {
         public JwtResponse(boolean success,String token,String username,String email,List<String> roles){this(success,token,"Bearer",username,email,roles,false,null);}
         public JwtResponse(boolean success,String token,String type,String username,String email,List<String> roles){this(success,token,type,username,email,roles,false,null);}
+        @Override public String toString() { return "JwtResponse[success=" + success + ", token=redacted, type=" + type + ", roles=" + roles + ", mfaRequired=" + mfaRequired + ", mfaToken=redacted]"; }
     }
 }

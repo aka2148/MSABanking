@@ -109,8 +109,9 @@ services:
       CUSTOMER_DEFAULT_RISK_CATEGORY: ${CUSTOMER_DEFAULT_RISK_CATEGORY:-LOW}
       DEMO_ADMIN_USERNAME: ${DEMO_ADMIN_USERNAME:-}
       DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:-}
-      PASSWORD_RESET_ENABLED: ${PASSWORD_RESET_ENABLED:-false}
+      PASSWORD_RESET_ENABLED: ${PASSWORD_RESET_ENABLED:-true}
       PASSWORD_RESET_FROM: ${PASSWORD_RESET_FROM:-no-reply@localhost}
+      # Deprecated: link-based reset was removed; the identity service ignores this variable.
       PASSWORD_RESET_URL: ${PASSWORD_RESET_URL:-http://localhost:4200/reset-password?token=}
       PASSWORD_RESET_API_URL: ${PASSWORD_RESET_API_URL:-https://api.brevo.com/v3/smtp/email}
       PASSWORD_RESET_API_KEY: ${PASSWORD_RESET_API_KEY:-}

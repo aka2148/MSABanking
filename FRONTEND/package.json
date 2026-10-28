@@ -5,7 +5,8 @@
     "start": "ng serve",
     "build": "ng build",
     "check:i18n": "node scripts/check-i18n.mjs",
-    "check:mpin": "node scripts/check-mpin-flow.mjs"
+    "check:mpin": "node scripts/check-mpin-flow.mjs",
+    "check:password-reset": "node scripts/check-password-reset.mjs"
   },
   "dependencies": {
     "@angular/animations": "^18.2.0",

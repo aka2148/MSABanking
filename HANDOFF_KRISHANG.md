@@ -2,6 +2,16 @@
 
 ## Readiness after client-testing fixes
 
+Follow-up P-Q adds customer forgot-password recovery through a verified-primary-
+email OTP and one-time reset token. Details, API examples, configuration, and
+mock-mail test instructions are in `services/identity-customer-service/README.md`
+and `HANDOFF_LATER_CHANGES.md`. It adds customer migration V16 and does not
+modify existing migrations or MPIN data. The Angular route is `/forgot-password`.
+P-Q focused backend verification passed 11 tests; the full identity suite remains
+NO-GO with 16 legacy auth/KYC/golden-vector failures (baseline: 17 failures).
+The earlier Angular build/password-reset check and isolated nginx config test
+passed; a fresh Node run could not start because no nvm version is active.
+
 Follow-up I-K: customer cash withdrawal was not present in history and remains
 out of scope; teller withdrawal is attested officer-only. KYC review refreshes
 in place, and rejected customers may re-apply with a single-use KYC_REAPPLY MPIN

@@ -347,4 +347,39 @@ Statement|विवरण|ವಿವರ|明細|كشف الحساب|Estado
 Transfer or withdraw using the deposit tools|जमा सुविधा से स्थानांतरण या निकासी करें|ಠೇವಣಿ ಸಾಧನಗಳನ್ನು ಬಳಸಿ ವರ್ಗಾಯಿಸಿ ಅಥವಾ ಹಿಂಪಡೆಯಿರಿ|預金ツールで振込または出金|التحويل أو السحب باستخدام أدوات الإيداع|Transferir o retirar con las herramientas de depósito
 Currencies|मुद्राएँ|ಕರೆನ್ಸಿಗಳು|通貨|العملات|Monedas
 Deposit accounts|जमा खाते|ಠೇವಣಿ ಖಾತೆಗಳು|預金口座|حسابات الإيداع|Cuentas de depósito
+Forgot password?|पासवर्ड भूल गए?|ಪಾಸ್‌ವರ್ಡ್ ಮರೆತಿರಾ?|パスワードをお忘れですか？|هل نسيت كلمة المرور؟|¿Olvidaste tu contraseña?
+Forgot password|पासवर्ड भूल गए|ಪಾಸ್‌ವರ್ಡ್ ಮರೆತಿದ್ದೇನೆ|パスワードを忘れた|نسيت كلمة المرور|Olvidé mi contraseña
+Password recovery steps|पासवर्ड पुनर्प्राप्ति चरण|ಪಾಸ್‌ವರ್ಡ್ ಮರುಪಡೆಯುವ ಹಂತಗಳು|パスワード再設定の手順|خطوات استعادة كلمة المرور|Pasos para recuperar la contraseña
+Enter code|कोड दर्ज करें|ಕೋಡ್ ನಮೂದಿಸಿ|コードを入力|أدخل الرمز|Introduce el código
+Choose a new password|नया पासवर्ड चुनें|ಹೊಸ ಪಾಸ್‌ವರ್ಡ್ ಆಯ್ಕೆಮಾಡಿ|新しいパスワードを設定|اختر كلمة مرور جديدة|Elige una contraseña nueva
+If an account matches, we have sent a 6-digit code to its registered email.|यदि खाता मेल खाता है, तो हमने उसके पंजीकृत ईमेल पर 6 अंकों का कोड भेजा है।|ಖಾತೆ ಹೊಂದಾಣಿಕೆಯಾದರೆ, ಅದರ ನೋಂದಾಯಿತ ಇಮೇಲ್‌ಗೆ 6 ಅಂಕಿಯ ಕೋಡ್ ಕಳುಹಿಸಲಾಗಿದೆ.|アカウントが一致する場合、登録済みメールアドレスに6桁のコードを送信しました。|إذا كان هناك حساب مطابق، فقد أرسلنا رمزاً من 6 أرقام إلى بريده الإلكتروني المسجل.|Si hay una cuenta coincidente, enviamos un código de 6 dígitos a su correo registrado.
+If the account is eligible, a verification code has been sent to its registered email.|यदि खाता पात्र है, तो उसके पंजीकृत ईमेल पर सत्यापन कोड भेजा गया है।|ಖಾತೆ ಅರ್ಹವಾಗಿದ್ದರೆ, ಅದರ ನೋಂದಾಯಿತ ಇಮೇಲ್‌ಗೆ ಪರಿಶೀಲನಾ ಕೋಡ್ ಕಳುಹಿಸಲಾಗಿದೆ.|対象アカウントがある場合、登録済みメールアドレスに確認コードを送信しました。|إذا كان الحساب مؤهلاً، فقد أُرسل رمز تحقق إلى بريده الإلكتروني المسجل.|Si la cuenta cumple los requisitos, enviamos un código de verificación a su correo registrado.
+6-digit verification code|6 अंकों का सत्यापन कोड|6 ಅಂಕಿಯ ಪರಿಶೀಲನಾ ಕೋಡ್|6桁の確認コード|رمز تحقق من 6 أرقام|Código de verificación de 6 dígitos
+Send code|कोड भेजें|ಕೋಡ್ ಕಳುಹಿಸಿ|コードを送信|أرسل الرمز|Enviar código
+Sending…|भेजा जा रहा है…|ಕಳುಹಿಸಲಾಗುತ್ತಿದೆ…|送信中…|جارٍ الإرسال…|Enviando…
+Verify|सत्यापित करें|ಪರಿಶೀಲಿಸಿ|確認|تحقق|Verificar
+Verifying…|सत्यापन हो रहा है…|ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ…|確認中…|جارٍ التحقق…|Verificando…
+Send a new code|नया कोड भेजें|ಹೊಸ ಕೋಡ್ ಕಳುಹಿಸಿ|新しいコードを送信|أرسل رمزاً جديداً|Enviar un código nuevo
+Send a new code in {0} seconds.|{0} सेकंड में नया कोड भेजें।|{0} ಸೆಕೆಂಡುಗಳಲ್ಲಿ ಹೊಸ ಕೋಡ್ ಕಳುಹಿಸಿ.|{0}秒後に新しいコードを送信|أرسل رمزاً جديداً خلال {0} ثانية.|Envía un código nuevo en {0} segundos.
+Enter the 6-digit code from your email.|अपने ईमेल में मिला 6 अंकों का कोड दर्ज करें।|ನಿಮ್ಮ ಇಮೇಲ್‌ನಲ್ಲಿರುವ 6 ಅಂಕಿಯ ಕೋಡ್ ನಮೂದಿಸಿ.|メールに届いた6桁のコードを入力してください。|أدخل الرمز المكون من 6 أرقام الذي وصلك عبر البريد الإلكتروني.|Introduce el código de 6 dígitos que recibiste por correo.
+Enter a new password.|नया पासवर्ड दर्ज करें।|ಹೊಸ ಪಾಸ್‌ವರ್ಡ್ ನಮೂದಿಸಿ.|新しいパスワードを入力してください。|أدخل كلمة مرور جديدة.|Introduce una contraseña nueva.
+Password cannot exceed 100 characters.|पासवर्ड 100 वर्णों से अधिक नहीं हो सकता।|ಪಾಸ್‌ವರ್ಡ್ 100 ಅಕ್ಷರಗಳನ್ನು ಮೀರಬಾರದು.|パスワードは100文字以内で入力してください。|يجب ألا تتجاوز كلمة المرور 100 حرف.|La contraseña no puede superar los 100 caracteres.
+Confirm password|पासवर्ड की पुष्टि करें|ಪಾಸ್‌ವರ್ಡ್ ದೃಢೀಕರಿಸಿ|パスワードを確認|تأكيد كلمة المرور|Confirmar contraseña
+Confirm your password.|अपने पासवर्ड की पुष्टि करें।|ನಿಮ್ಮ ಪಾಸ್‌ವರ್ಡ್ ದೃಢೀಕರಿಸಿ.|パスワードを確認してください。|أكد كلمة المرور.|Confirma la contraseña.
+Resetting…|रीसेट हो रहा है…|ಮರುಹೊಂದಿಸಲಾಗುತ್ತಿದೆ…|再設定中…|جارٍ إعادة التعيين…|Restableciendo…
+Reset password and sign in|पासवर्ड रीसेट करें और साइन इन करें|ಪಾಸ್‌ವರ್ಡ್ ಮರುಹೊಂದಿಸಿ ಮತ್ತು ಸೈನ್ ಇನ್ ಮಾಡಿ|パスワードを再設定してサインイン|أعد تعيين كلمة المرور وسجّل الدخول|Restablecer contraseña e iniciar sesión
+Back to sign in|साइन इन पर वापस जाएँ|ಸೈನ್ ಇನ್‌ಗೆ ಹಿಂತಿರುಗಿ|サインインに戻る|العودة إلى تسجيل الدخول|Volver al inicio de sesión
+Could not send a code. Please try again later.|कोड नहीं भेजा जा सका। कृपया बाद में पुनः प्रयास करें।|ಕೋಡ್ ಕಳುಹಿಸಲಾಗಲಿಲ್ಲ. ದಯವಿಟ್ಟು ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.|コードを送信できませんでした。後でもう一度お試しください。|تعذر إرسال الرمز. يُرجى المحاولة لاحقاً.|No se pudo enviar el código. Inténtalo de nuevo más tarde.
+The code is incorrect or has expired.|कोड गलत है या समाप्त हो गया है।|ಕೋಡ್ ತಪ್ಪಾಗಿದೆ ಅಥವಾ ಅವಧಿ ಮುಗಿದಿದೆ.|コードが正しくないか、有効期限が切れています。|الرمز غير صحيح أو انتهت صلاحيته.|El código es incorrecto o ha caducado.
+Too many attempts. Please wait a few minutes.|बहुत अधिक प्रयास हुए। कृपया कुछ मिनट प्रतीक्षा करें।|ಹಲವು ಪ್ರಯತ್ನಗಳಾಗಿವೆ. ದಯವಿಟ್ಟು ಕೆಲವು ನಿಮಿಷ ಕಾಯಿರಿ.|試行回数が多すぎます。数分お待ちください。|محاولات كثيرة جداً. يُرجى الانتظار بضع دقائق.|Demasiados intentos. Espera unos minutos.
+Password reset is not available right now. Please try again later.|पासवर्ड रीसेट अभी उपलब्ध नहीं है। कृपया बाद में पुनः प्रयास करें।|ಪಾಸ್‌ವರ್ಡ್ ಮರುಹೊಂದಿಸುವಿಕೆ ಈಗ ಲಭ್ಯವಿಲ್ಲ. ದಯವಿಟ್ಟು ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.|現在パスワード再設定を利用できません。後でもう一度お試しください。|إعادة تعيين كلمة المرور غير متاحة الآن. يُرجى المحاولة لاحقاً.|El restablecimiento de contraseña no está disponible ahora. Inténtalo más tarde.
+The reset token is invalid or has expired.|रीसेट टोकन अमान्य है या समाप्त हो गया है।|ಮರುಹೊಂದಿಸುವ ಟೋಕನ್ ಅಮಾನ್ಯವಾಗಿದೆ ಅಥವಾ ಅವಧಿ ಮುಗಿದಿದೆ.|再設定トークンが無効か、有効期限が切れています。|رمز إعادة التعيين غير صالح أو انتهت صلاحيته.|El token de restablecimiento no es válido o ha caducado.
+Your reset session expired. Start again to request a new code.|आपका रीसेट सत्र समाप्त हो गया है। नया कोड माँगने के लिए फिर से शुरू करें।|ನಿಮ್ಮ ಮರುಹೊಂದಿಸುವ ಸೆಷನ್ ಅವಧಿ ಮುಗಿದಿದೆ. ಹೊಸ ಕೋಡ್ ಪಡೆಯಲು ಮತ್ತೆ ಪ್ರಾರಂಭಿಸಿ.|再設定セッションの有効期限が切れました。新しいコードを請求してください。|انتهت جلسة إعادة التعيين. ابدأ من جديد لطلب رمز آخر.|La sesión de restablecimiento caducó. Vuelve a empezar para solicitar otro código.
+Use a strong password that is different from your username.|ऐसा मज़बूत पासवर्ड चुनें जो आपके उपयोगकर्ता नाम से अलग हो।|ಬಳಕೆದಾರ ಹೆಸರಿಗಿಂತ ವಿಭಿನ್ನವಾದ ಬಲವಾದ ಪಾಸ್‌ವರ್ಡ್ ಬಳಸಿ.|ユーザー名とは異なる強力なパスワードを設定してください。|استخدم كلمة مرور قوية ومختلفة عن اسم المستخدم.|Usa una contraseña segura y distinta de tu nombre de usuario.
+Choose a password you have not used before|ऐसा पासवर्ड चुनें जिसका आपने पहले उपयोग न किया हो।|ಹಿಂದೆ ಬಳಸದ ಪಾಸ್‌ವರ್ಡ್ ಆಯ್ಕೆಮಾಡಿ.|以前に使用したことのないパスワードを選んでください。|اختر كلمة مرور لم تستخدمها من قبل.|Elige una contraseña que no hayas usado antes.
+Use at least 12 characters.|कम से कम 12 वर्णों का उपयोग करें।|ಕನಿಷ್ಠ 12 ಅಕ್ಷರಗಳನ್ನು ಬಳಸಿ.|12文字以上で入力してください。|استخدم 12 حرفاً على الأقل.|Usa al menos 12 caracteres.
+Include lowercase and uppercase letters, a number, and a symbol.|छोटे और बड़े अक्षर, एक संख्या और एक प्रतीक शामिल करें।|ಸಣ್ಣ ಮತ್ತು ದೊಡ್ಡ ಅಕ್ಷರಗಳು, ಒಂದು ಸಂಖ್ಯೆ ಮತ್ತು ಒಂದು ಚಿಹ್ನೆ ಸೇರಿಸಿ.|小文字、大文字、数字、記号を含めてください。|أضف أحرفاً صغيرة وكبيرة ورقماً ورمزاً.|Incluye minúsculas, mayúsculas, un número y un símbolo.
+The password cannot contain your username.|पासवर्ड में आपका उपयोगकर्ता नाम नहीं हो सकता।|ಪಾಸ್‌ವರ್ಡ್‌ನಲ್ಲಿ ನಿಮ್ಮ ಬಳಕೆದಾರ ಹೆಸರು ಇರಬಾರದು.|パスワードにユーザー名を含めることはできません。|لا يمكن أن تحتوي كلمة المرور على اسم المستخدم.|La contraseña no puede contener tu nombre de usuario.
+Choose a password that is not commonly used.|ऐसा पासवर्ड चुनें जो आमतौर पर उपयोग न किया जाता हो।|ಸಾಮಾನ್ಯವಾಗಿ ಬಳಸುವ ಪಾಸ್‌ವರ್ಡ್ ಅಲ್ಲದದ್ದನ್ನು ಆಯ್ಕೆಮಾಡಿ.|よく使われるものではないパスワードを選んでください。|اختر كلمة مرور غير شائعة الاستخدام.|Elige una contraseña poco común.
+Your password was reset. Sign in with your new password.|आपका पासवर्ड रीसेट हो गया है। नए पासवर्ड से साइन इन करें।|ನಿಮ್ಮ ಪಾಸ್‌ವರ್ಡ್ ಮರುಹೊಂದಿಸಲಾಗಿದೆ. ಹೊಸ ಪಾಸ್‌ವರ್ಡ್‌ನೊಂದಿಗೆ ಸೈನ್ ಇನ್ ಮಾಡಿ.|パスワードを再設定しました。新しいパスワードでサインインしてください。|تمت إعادة تعيين كلمة المرور. سجّل الدخول بكلمة المرور الجديدة.|Se restableció tu contraseña. Inicia sesión con la nueva contraseña.
 `;

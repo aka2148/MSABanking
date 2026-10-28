@@ -77,6 +77,12 @@
     }
   }
 }
+
+.login-links {
+  display: flex;
+  justify-content: flex-end;
+  margin: -10px 0 8px;
+}
 /* Full-width sign-in button */
 .glass-btn--full {
   margin-top: 8px;

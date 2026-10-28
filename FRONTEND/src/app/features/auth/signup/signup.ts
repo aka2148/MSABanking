@@ -28,6 +28,7 @@ import {
 } from '../../../shared/components/glass-select/glass-select';
 import { PreferredCurrency } from '../../../core/models/auth.models';
 import { INDIA_LOCATIONS, INDIA_STATES } from './india-location-data';
+import { passwordPolicyIssues } from '../../../shared/password-policy';
 
 const CURRENCY_FOCAL_POINTS: Record<
   PreferredCurrency,
@@ -303,16 +304,8 @@ export class Signup {
 
   get passwordIssues(): string[] {
     const password = String(this.accountGroup.get('password')?.value ?? '');
-    const username = String(this.accountGroup.get('username')?.value ?? '').trim().toLowerCase();
-    const issues: string[] = [];
-    if (password.length < 12) issues.push('Use at least 12 characters.');
-    if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password) || !/[^A-Za-z0-9]/.test(password))
-      issues.push('Include lowercase and uppercase letters, a number, and a symbol.');
-    if (username && password.toLowerCase().includes(username)) issues.push('The password cannot contain your username.');
-    if (['password', 'qwerty', 'letmein', 'welcome', 'admin', 'iloveyou', '12345678']
-      .some(common => password.toLowerCase().includes(common)))
-      issues.push('Choose a password that is not commonly used.');
-    return issues;
+    const username = String(this.accountGroup.get('username')?.value ?? '');
+    return passwordPolicyIssues(password, username);
   }
 
   sendEmailCode(): void {

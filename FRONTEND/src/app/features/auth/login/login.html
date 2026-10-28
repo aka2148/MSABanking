@@ -4,6 +4,7 @@
     <p class="glass-card__sub"> {{ 'Use your registered mobile number or username.' | translate }} </p>
 
     <p class="glass-error" *ngIf="errorMessage"> {{ (errorMessage) | translate }} </p>
+    <p class="glass-card__sub" *ngIf="passwordResetSuccess" role="status" aria-live="polite">{{ 'Your password was reset. Sign in with your new password.' | translate }}</p>
 
     <form *ngIf="!challengeId; else otpStep" [formGroup]="form" (ngSubmit)="submit()" novalidate>
       <label class="glass-field">
@@ -17,6 +18,7 @@
         <input type="password" formControlName="password" autocomplete="current-password" placeholder="••••••••" />
         <span class="glass-field__error" *ngIf="form.get('password')?.touched && form.get('password')?.hasError('required')"> {{ 'Enter your password.' | translate }} </span>
       </label>
+      <div class="login-links"><a routerLink="/forgot-password" class="glass-link">{{ 'Forgot password?' | translate }}</a></div>
 
       <button type="submit" class="glass-btn glass-btn--full" [disabled]="loading"> {{ (loading ? 'Signing in…' : 'Sign in') | translate }} </button>
     </form>

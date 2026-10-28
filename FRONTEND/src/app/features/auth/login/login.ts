@@ -17,6 +17,7 @@ import { GlassShell } from '../../../shared/components/glass-shell/glass-shell';
 export class Login {
   loading = false;
   errorMessage = '';
+  passwordResetSuccess = false;
   challengeId = '';
   emailHint = '';
   otp = '';
@@ -33,6 +34,8 @@ export class Login {
       // belongs on registration/change-password, not login-side validation.
       password: ['', Validators.required],
     });
+    this.passwordResetSuccess = this.router.getCurrentNavigation()?.extras.state?.['passwordResetSuccess'] === true
+      || (typeof history !== 'undefined' && history.state?.passwordResetSuccess === true);
   }
 
 submit(): void {

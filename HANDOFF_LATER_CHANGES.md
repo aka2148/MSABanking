@@ -55,6 +55,48 @@ verification errors are handled separately from the protected operation that
 follows, and identity/FD use one canonical binding rule for numeric strings,
 account numbers, IDs, and currency codes.
 
+## Follow-up P-Q: customer password recovery
+
+The identity service and Angular now use a username-or-primary-phone recovery
+flow: request a six-digit code, verify it, then submit a new password with a
+short-lived single-use reset token. Requests return a uniform accepted response
+for existing and non-existing/ineligible accounts. Only active customers with a
+verified primary email are eligible. OTPs are stored as a domain-separated HMAC,
+reset tokens as SHA-256 hashes, and verification allows five attempts. Request
+resend is limited per account; nginx also applies an IP request limit. Password
+reset enforces the current password policy and history, clears login lock state,
+increments token version, and returns a session through the existing auth path.
+No MPIN fields or events are changed.
+
+The mail sender uses the configured Brevo API asynchronously after commit,
+redacts request bodies in Spring client logs, never logs provider response
+bodies, and burns an OTP on delivery failure. `PASSWORD_RESET_URL` is deprecated
+and ignored; configure `PASSWORD_RESET_ENABLED`, `PASSWORD_RESET_API_KEY`,
+`PASSWORD_RESET_API_URL`, and `PASSWORD_RESET_FROM` in the ignored local `.env`.
+The checked-in API key is blank. `services/identity-customer-service/README.md`
+documents the endpoints and the loopback mock-mail test command.
+
+Migration V16 adds the OTP table in the identity customer's migration resource
+set. The old link-based reset routes are removed; authenticated password change
+remains at `/auth/password/change`. Login now resolves a unique primary phone
+number consistently with the login UI. The Angular `/forgot-password` page keeps
+the code and reset token in component memory only and uses the existing session
+flow after success.
+
+### P-Q verification
+
+The focused final run passed all 11 tests: seven identity migration/recovery
+tests, three Brevo sender tests, and one auth DTO redaction test. This includes
+the in-app password change and old-route regression checks plus phone login. The
+full identity suite ran 39 tests and had 16 failures, all in existing auth/KYC
+expectations or the withdrawal golden vector; the earlier baseline had 28 tests
+and 17 failures. The migration-count expectation and all P-Q-specific tests now
+pass. The earlier Angular production build and password-reset check passed;
+translation and KYC checks retain their pre-existing failures. A fresh Node run
+was unavailable in this shell because nvm has no active version configured.
+The nginx configuration test passed in a disposable nginx container. No shared
+Compose database or volume was used.
+
 Teller withdrawals use the officer's authentication plus an identity-verification
 attestation (`ID_DOCUMENT_CHECKED`, `SIGNATURE_VERIFIED`, `BIOMETRIC_VERIFIED`,
 or `OTHER`), an optional reference, and a required remark. Customer MPIN is no
