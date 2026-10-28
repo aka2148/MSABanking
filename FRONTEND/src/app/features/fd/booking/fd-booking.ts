@@ -234,7 +234,7 @@ export class FdBooking implements OnInit, OnDestroy {
 
   private configureSelectedOption(currency: CurrencyOffer, tier: RateTier): void {
     this.savingsLoading = true;
-    this.fdService.listSavings().subscribe({
+    this.fdService.listDepositAccounts().subscribe({
       next: (accounts: SavingsAccount[]) => {
         this.savingsAccounts = accounts;
         this.updateSavingsOptions();

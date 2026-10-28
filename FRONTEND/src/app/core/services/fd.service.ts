@@ -5,6 +5,8 @@ import { API_BASE_URL, apiUrl } from './api-config';
 import {
   AccountResponse,
   SavingsAccount,
+  CurrentAccount,
+  DepositProductOffer,
   Journal,
   AccrualResponse,
   ApiErrorEnvelope,
@@ -37,6 +39,11 @@ export interface FdEstimate {
   productId:number;currencyCode:string;currencyScale:number;principal:number;annualRate:number;
   compoundingBasis:string;payoutFrequency:string;openDate:string;maturityDate:string;
   estimatedInterest:number;estimatedMaturityAmount:number;
+}
+
+export interface DepositStatementPage {
+  content: Array<{id:number;reference:string;entryType:string;amount:number;balanceAfter:number;remarks:string|null;postedAt:string}>;
+  page:number;size:number;totalElements:number;totalPages:number;openingBalance:number;closingBalance:number;
 }
 
 export function normalizeApiError(error: HttpErrorResponse): ApiErrorResponse {
@@ -88,16 +95,26 @@ export class FdService {
     return this.http.get<SavingsHistory[]>(this.path(`/savings-accounts/${id}/transactions`));
   }
 
-  listSavings(): Observable<SavingsAccount[]> {
-    return this.http.get<SavingsAccount[]>(this.path('/savings-accounts'));
+  listSavings(type?: 'SAVINGS' | 'CURRENT'): Observable<SavingsAccount[]> {
+    const url=type?this.path(`/savings-accounts?type=${type}`):this.path('/savings-accounts?type=SAVINGS');
+    return this.http.get<SavingsAccount[]>(url);
   }
+
+  listCurrentAccounts(): Observable<CurrentAccount[]> { return this.http.get<CurrentAccount[]>(this.path('/current-accounts')); }
+  listDepositAccounts(): Observable<SavingsAccount[]> { return this.listSavings().pipe(switchMap(savings=>this.listCurrentAccounts().pipe(map(current=>[...savings,...current])))); }
+  listCasaOffers(family:'SAVINGS'|'CURRENT'):Observable<DepositProductOffer[]>{return this.http.get<DepositProductOffer[]>(this.path(`/customer-products/${family}`));}
+  getCasaOffer(family:'SAVINGS'|'CURRENT',id:number):Observable<DepositProductOffer>{return this.http.get<DepositProductOffer>(this.path(`/customer-products/${family}/${id}`));}
+  createCurrentAccount(body:{productId:number;currencyCode:string;displayName:string},key:string):Observable<CurrentAccount>{return this.http.post<CurrentAccount>(this.path('/current-accounts'),body,{headers:{'Idempotency-Key':key}});}
+  getCurrentStatement(id:number,from?:string,to?:string,page=0,size=25):Observable<DepositStatementPage>{const q=new URLSearchParams();if(from)q.set('from',from);if(to)q.set('to',to);q.set('page',String(page));q.set('size',String(size));return this.http.get<DepositStatementPage>(this.path(`/savings-accounts/${id}/statement?${q.toString()}`));}
+  currentTransactions(id:number):Observable<SavingsHistory[]>{return this.http.get<SavingsHistory[]>(this.path(`/current-accounts/${id}/transactions`));}
+  downloadCurrentStatement(id:number,from?:string,to?:string):Observable<Blob>{const q=new URLSearchParams();if(from)q.set('from',from);if(to)q.set('to',to);return this.http.get(this.path(`/savings-accounts/${id}/statement.csv?${q.toString()}`),{responseType:'blob'});}
 
   getSavings(id: number): Observable<SavingsAccount> {
     return this.http.get<SavingsAccount>(this.path('/savings-accounts/' + id));
   }
 
-  createSavings(request: { display_name: string; currency_code: string }, key: string): Observable<SavingsAccount> {
-    return this.http.post<SavingsAccount>(this.path('/savings-accounts'), { displayName: request.display_name, currencyCode: request.currency_code },
+  createSavings(request: { display_name: string; currency_code: string; product_id?: number }, key: string): Observable<SavingsAccount> {
+    return this.http.post<SavingsAccount>(this.path('/savings-accounts'), { displayName: request.display_name, currencyCode: request.currency_code, ...(request.product_id?{productId:request.product_id}:{}) },
       { headers: { 'Idempotency-Key': key } }).pipe(retry({
         count: 3,
         delay: (error: unknown, retryCount: number) => {

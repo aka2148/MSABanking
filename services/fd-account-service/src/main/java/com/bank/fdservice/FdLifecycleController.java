@@ -178,11 +178,11 @@ public class FdLifecycleController {
 
     private FdCloseResponse settle(long id,long user,long idempotencyActor,String key,String scope,Map<String,Object> fd,BigDecimal amount,String nextStatus,String operation){
         if(amount==null)throw conflict("FD has no settlement amount");long savings=((Number)fd.get("savings")).longValue(),currency=((Number)fd.get("currency")).longValue();
-        Integer eligible=jdbc.queryForObject("SELECT COUNT(*) FROM savings_accounts WHERE sa_account_id=? AND sa_holder_id=? AND sa_currency_id=? AND sa_status='ACTIVE'",Integer.class,savings,user,currency);
+        Integer eligible=jdbc.queryForObject("SELECT COUNT(*) FROM savings_accounts WHERE sa_account_id=? AND sa_holder_id=? AND sa_currency_id=? AND sa_status IN ('ACTIVE','INACTIVE')",Integer.class,savings,user,currency);
         if(eligible==null||eligible!=1)throw conflict("Settlement savings account is unavailable");
         int scale=currencyScale(currency);amount=amount.setScale(scale,RoundingMode.HALF_UP);
         Timestamp businessTimestamp=Timestamp.from(clock.status().effectiveTime());
-        PostingService.MovementResult movement=postings.postSavingsMovement(id,savings,currency,amount,"CREDIT","FD-SETTLEMENT:"+id,
+        PostingService.MovementResult movement=postings.postSystemCredit(id,savings,currency,amount,"FD-SETTLEMENT:"+id,
                 "FD settlement #"+id,Long.toString(idempotencyActor),"SETTLEMENT:"+id,
                 "SETTLEMENT","FIXED_DEPOSIT","SAVINGS");
         BigDecimal after=movement.balanceAfter();

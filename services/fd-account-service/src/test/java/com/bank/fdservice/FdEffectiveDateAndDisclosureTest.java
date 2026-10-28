@@ -36,6 +36,7 @@ class FdEffectiveDateAndDisclosureTest {
     @Mock private JdbcTemplate jdbc;
     @Mock private Authentication actor;
     @Mock private MpinProofVerifier mpin;
+    @Mock private PostingService postings;
 
     private ObjectMapper json;
     private DemoClockService clock;
@@ -49,7 +50,7 @@ class FdEffectiveDateAndDisclosureTest {
     void setUp() {
         json = new ObjectMapper();
         clock = new DemoClockService(jdbc, "Asia/Kolkata");
-        depositController = new FixedDepositController(jdbc, json, clock, mpin);
+        depositController = new FixedDepositController(jdbc, json, clock, mpin, postings);
         calculatorController = new FdCalculatorController(jdbc);
 
         when(actor.getName()).thenReturn("test-user");

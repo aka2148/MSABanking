@@ -57,6 +57,10 @@
 
         <div class="savings-page__fields">
           <label class="glass-field">
+            <span class="glass-field__label">{{ 'Account product' | translate }}</span>
+            <app-glass-select formControlName="productId" [options]="savingsProductOptions"></app-glass-select>
+          </label>
+          <label class="glass-field">
             <span class="glass-field__label">{{ 'Account name' | translate }}</span>
             <input
               formControlName="displayName"
@@ -81,6 +85,11 @@
             </span>
           </label>
         </div>
+
+        <aside *ngIf="selectedSavingsOffer" class="savings-page__message">
+          <p>{{ selectedSavingsOffer.productName }} · {{ 'Minimum balance' | translate }}: {{ selectedSavingsOffer.minimumBalance | number:'1.2-4' }}</p>
+          <p *ngFor="let band of selectedSavingsOffer.interestBands">{{ band.currencyCode }} {{ band.valueFrom }}–{{ band.valueTo }} · {{ band.rate | percent:'1.2-4' }}</p>
+        </aside>
 
         <div class="savings-page__form-footer">
           <p>
@@ -224,7 +233,17 @@
             <small>{{ account.currency_code }}</small>
           </strong>
         </div>
+        <p>{{ account.productName || 'Standard savings (no product)' | translate }} · {{ 'Minimum balance' | translate }}: {{ (account.minimumBalance || 0) | number:'1.2-4' }} · {{ 'Available balance' | translate }}: {{ account.availableBalance ?? account.balance | number:'1.2-4' }}</p>
+        <p class="glass-error" *ngIf="account.status === 'INACTIVE'">{{ 'This account is frozen. Customer deposits and withdrawals are disabled.' | translate }}</p>
+        <div class="savings-page__history-heading"><button class="glass-btn glass-btn--ghost" type="button" (click)="showHistory(account)">{{ 'Transaction history' | translate }}</button><button class="glass-btn glass-btn--ghost" type="button" (click)="loadStatement(account,0)">{{ 'Statement' | translate }}</button></div>
       </article>
+
+      <section class="savings-page__history" *ngIf="statementAccountId !== null && statement" aria-label="Statement">
+        <div class="savings-page__fields"><label class="glass-field"><span class="glass-field__label">{{ 'From date' | translate }}</span><input type="date" [(ngModel)]="statementFrom" name="statementFrom"></label><label class="glass-field"><span class="glass-field__label">{{ 'To date' | translate }}</span><input type="date" [(ngModel)]="statementTo" name="statementTo"></label><button class="glass-btn glass-btn--ghost" type="button" (click)="loadStatement(statementAccount!,0)">{{ 'View statement' | translate }}</button><button class="glass-btn glass-btn--ghost" type="button" (click)="downloadStatement(statementAccount!)">{{ 'Download CSV statement' | translate }}</button></div>
+        <p>{{ 'Opening balance' | translate }}: {{ statement.openingBalance | number:'1.2-4' }} · {{ 'Closing balance' | translate }}: {{ statement.closingBalance | number:'1.2-4' }}</p>
+        <article class="savings-page__entry" *ngFor="let row of statement.content"><strong>{{ row.entryType | translate }} · {{ row.amount | number:'1.2-4' }}</strong><span>{{ row.postedAt | date:'medium' }} · {{ row.reference }}</span></article>
+        <nav class="statement-pages"><button class="glass-btn glass-btn--ghost" type="button" (click)="loadStatement(statementAccount!,statement.page-1)" [disabled]="statement.page===0">{{ 'Previous' | translate }}</button><span>{{ 'Page {0} of {1}' | translate:[statement.page+1,statement.totalPages] }}</span><button class="glass-btn glass-btn--ghost" type="button" (click)="loadStatement(statementAccount!,statement.page+1)" [disabled]="statement.page+1>=statement.totalPages">{{ 'Next' | translate }}</button></nav>
+      </section>
 
       <!-- RECENT HISTORY -->
       <section

@@ -36,6 +36,11 @@ app:
         interest-cron: ${FD_BATCH_INTEREST_CRON:0 0 0 * * *}
         maturity-cron: ${FD_BATCH_MATURITY_CRON:0 0 1 * * *}
         zone: ${FD_BATCH_ZONE:UTC}
+  savings:
+    interest:
+      credit-frequency: ${SAVINGS_INTEREST_CREDIT_FREQUENCY:MONTHLY}
+      schedule:
+        cron: ${SAVINGS_INTEREST_CRON:0 10 0 * * *}
   demo:
     opening-balance:
       enabled: ${APP_DEMO_OPENING_BALANCE_ENABLED:false}

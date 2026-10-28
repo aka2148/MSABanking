@@ -110,6 +110,20 @@ class LedgerInvariantIntegrationTest {
         assertMoney("100.00", source);
     }
 
+    @Test void currentAccountTransferUsesCurrentLiabilityAndEnforcesDebitFloorAtomically() throws Exception {
+        jdbc.update("UPDATE savings_accounts SET sa_account_type='CURRENT' WHERE sa_account_id=?",source);
+        mvc.perform(transfer("current-transfer",source,accountNumber(destination),"10.00",null)).andExpect(status().isOk());
+        assertMoney("90.00",source);assertMoney("35.00",destination);
+        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM fd_journal_lines WHERE jl_account_code='CURRENT_ACCOUNT' AND jl_savings_account_id=?",Integer.class,source));
+        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM fd_journal_lines WHERE jl_account_code='SAVINGS' AND jl_savings_account_id=?",Integer.class,destination));
+        jdbc.update("UPDATE savings_accounts SET sa_minimum_balance=85.00 WHERE sa_account_id=?",source);
+        mvc.perform(transfer("current-floor",source,accountNumber(destination),"10.00",null)).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("BELOW_MINIMUM_BALANCE"))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("85.00 USD")));
+        assertMoney("90.00",source);assertMoney("35.00",destination);
+        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM fd_journals WHERE fj_operation='TRANSFER'",Integer.class));
+    }
+
     @Test void tellerOperationsAreJournaledAndOpeningDefaultsOff() throws Exception {
         mvc.perform(get("/api/v1/savings-accounts/demo-options").header("Authorization", customerToken)).andExpect(status().isForbidden());
         mvc.perform(post("/api/v1/savings-accounts/{id}/demo-opening", source).header("Authorization", customerToken).header("Idempotency-Key","demo-off").contentType(MediaType.APPLICATION_JSON).content("{\"amount\":10.00}"))

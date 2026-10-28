@@ -28,8 +28,8 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/fixed-deposits")
 public class FixedDepositController {
-    private final JdbcTemplate jdbc; private final ObjectMapper json; private final DemoClockService clock; private final MpinProofVerifier mpin;
-    public FixedDepositController(JdbcTemplate jdbc,ObjectMapper json,DemoClockService clock,MpinProofVerifier mpin){this.jdbc=jdbc;this.json=json;this.clock=clock;this.mpin=mpin;}
+    private final JdbcTemplate jdbc; private final ObjectMapper json; private final DemoClockService clock; private final MpinProofVerifier mpin; private final PostingService postings;
+    public FixedDepositController(JdbcTemplate jdbc,ObjectMapper json,DemoClockService clock,MpinProofVerifier mpin,PostingService postings){this.jdbc=jdbc;this.json=json;this.clock=clock;this.mpin=mpin;this.postings=postings;}
 
     @GetMapping
     public List<FdView> mine(Authentication actor){return jdbc.query("SELECT a.fa_account_id,a.fa_account_number,a.fa_principal_amount,a.fa_currency_id,c.fcr_iso_code,a.fa_tenure_months,a.fa_interest_rate,a.fa_open_date,a.fa_maturity_date,a.fa_maturity_amount,a.fa_status,a.fa_funding_savings_account_id,a.fa_product_id,p.fpr_product_code,p.fpr_product_name,a.fa_compounding_frequency,a.fa_payout_frequency,a.fa_policy_version FROM fd_accounts a JOIN fd_currency_ref c ON c.fcr_currency_id=a.fa_currency_id JOIN fd_product_ref p ON p.fpr_product_id=a.fa_product_id WHERE a.fa_primary_holder_id=? ORDER BY a.fa_account_id",(r,n)->view(r),userId(actor));}
@@ -78,18 +78,16 @@ public class FixedDepositController {
         long savingsId=((Number)fd.get("savings")).longValue(),currency=((Number)fd.get("currency")).longValue();BigDecimal principal=(BigDecimal)fd.get("principal");
         if(choice!=null && choice.savingsAccountId()!=null && choice.savingsAccountId()!=savingsId)throw new ResponseStatusException(HttpStatus.CONFLICT,"Funding account differs from the account selected at booking");
         String jti=mpin.verify(actor,proof,"FD_FUNDING",userId,MpinProofVerifier.canonical("FD_FUNDING",id,principal));
-        Map<String,Object> savings=jdbc.query("SELECT sa_balance,sa_status FROM savings_accounts WHERE sa_account_id=? AND sa_holder_id=? AND sa_currency_id=? FOR UPDATE",r->r.next()?Map.of("balance",r.getBigDecimal(1),"status",r.getString(2)):null,savingsId,userId,currency);
+        Map<String,Object> savings=jdbc.query("SELECT sa_balance,sa_status,sa_minimum_balance FROM savings_accounts WHERE sa_account_id=? AND sa_holder_id=? AND sa_currency_id=? FOR UPDATE",r->r.next()?Map.of("balance",r.getBigDecimal(1),"status",r.getString(2),"minimum",r.getBigDecimal(3)):null,savingsId,userId,currency);
         if(savings==null||!"ACTIVE".equals(savings.get("status")))throw new ResponseStatusException(HttpStatus.CONFLICT,"Funding savings account is unavailable or mismatched");
         mpin.consume(jti,userId,"FD_FUNDING");
         BigDecimal balance=(BigDecimal)savings.get("balance");if(balance.compareTo(principal)<0)throw new ResponseStatusException(HttpStatus.CONFLICT,"Insufficient savings balance");
-        int scale=currencyScale(currency);BigDecimal after=balance.subtract(principal).setScale(scale,RoundingMode.HALF_UP);String ref=UUID.randomUUID().toString();
-        jdbc.update("UPDATE savings_accounts SET sa_balance=?,sa_row_version=sa_row_version+1 WHERE sa_account_id=?",after,savingsId);
-        jdbc.update("INSERT INTO savings_transactions(st_reference_id,st_account_id,st_entry_type,st_amount,st_currency_id,st_balance_after,st_remarks,st_posted_at) VALUES(?,?,'DEBIT',?,?,?,?,UTC_TIMESTAMP(6))",ref,savingsId,principal,currency,after,"FD funding #"+id);
+        BigDecimal afterPreview=balance.subtract(principal);if(afterPreview.compareTo((BigDecimal)savings.get("minimum"))<0)throw new BelowMinimumBalanceException(((BigDecimal)savings.get("minimum")).toPlainString()+" "+jdbc.queryForObject("SELECT fcr_iso_code FROM fd_currency_ref WHERE fcr_currency_id=?",String.class,currency));
+        int scale=currencyScale(currency);String ref=UUID.randomUUID().toString();
+        PostingService.MovementResult movement=postings.postSavingsMovement(id,savingsId,currency,principal,"DEBIT",ref,"FD funding #"+id,actor.getName(),"FUNDING:"+id,"FUNDING","SAVINGS","FIXED_DEPOSIT");
+        BigDecimal after=movement.balanceAfter();
         long txnType=jdbc.queryForObject("SELECT tt_txn_type_id FROM transaction_types WHERE tt_txn_type_code='FD_FUNDING'",Long.class);
         jdbc.update("INSERT INTO fd_transactions(ft_account_id,ft_txn_type_id,ft_amount,ft_balance_after,ft_currency_id,ft_remarks,ft_created_by,ft_source_savings_account_id) VALUES(?,?,?,?,?,?,?,?)",id,txnType,principal,null,currency,"Funded from selected savings account",actor.getName(),savingsId);
-        jdbc.update("INSERT INTO fd_journals(fj_key,fj_fd_account_id,fj_savings_account_id,fj_currency_id,fj_operation,fj_posted_at,fj_total_debit,fj_total_credit,fj_savings_balance_after) VALUES(?,?,?,?,'FUNDING',UTC_TIMESTAMP(6),?,?,?)","FUNDING:"+id,id,savingsId,currency,principal,principal,after);
-        long journalId=jdbc.queryForObject("SELECT LAST_INSERT_ID()",Long.class);
-        jdbc.update("INSERT INTO fd_journal_lines(jl_journal_id,jl_sequence,jl_account_code,jl_debit,jl_credit) VALUES(?,1,'SAVINGS',?,0),(?,2,'FIXED_DEPOSIT',0,?)",journalId,principal,journalId,principal);
         jdbc.update("UPDATE fd_accounts SET fa_status='ACTIVE',fa_updated_by=?,fa_updated_date=UTC_TIMESTAMP(6),fa_row_version=fa_row_version+1 WHERE fa_account_id=? AND fa_status='PENDING'",actor.getName(),id);
         jdbc.update("INSERT INTO fd_account_events(fae_account_id,fae_event_type,fae_payload,fae_aggregate_version) VALUES(?,'FUNDED',CAST(? AS JSON),2)",id,"{\"status\":\"ACTIVE\"}");
         complete("FD_FUNDING",userId,key,id);return find(id,userId);

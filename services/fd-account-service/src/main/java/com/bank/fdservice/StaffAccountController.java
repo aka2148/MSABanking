@@ -51,15 +51,18 @@ public class StaffAccountController {
     @GetMapping("/savings-accounts")
     public Page<SavingsRow> savings(@RequestParam(defaultValue = "0") int page,
                                     @RequestParam(defaultValue = "20") int pageSize,
-                                    @RequestParam(required = false) String status) {
+                                    @RequestParam(required = false) String status,
+                                    @RequestParam(required = false) String type) {
         int safePage = Math.max(0, page), size = Math.min(100, Math.max(1, pageSize));
         String filter = status == null || status.isBlank() ? null : status.trim().toUpperCase();
-        if (filter != null && !List.of("ACTIVE", "INACTIVE").contains(filter)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown savings status");
-        String where = filter == null ? "" : " WHERE s.sa_status=?";
-        Object[] args = filter == null ? new Object[]{} : new Object[]{filter};
+        String typeFilter=type==null||type.isBlank()?null:type.trim().toUpperCase(java.util.Locale.ROOT);
+        if (filter != null && !List.of("ACTIVE", "INACTIVE", "CLOSED").contains(filter)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown deposit account status");
+        if (typeFilter != null && !List.of("SAVINGS","CURRENT").contains(typeFilter)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Unknown deposit account type");
+        java.util.ArrayList<String> terms=new java.util.ArrayList<>();java.util.ArrayList<Object> values=new java.util.ArrayList<>();if(filter!=null){terms.add("s.sa_status=?");values.add(filter);}if(typeFilter!=null){terms.add("s.sa_account_type=?");values.add(typeFilter);}
+        String where=terms.isEmpty()?"":" WHERE "+String.join(" AND ",terms);Object[] args=values.toArray();
         long total = jdbc.queryForObject("SELECT COUNT(*) FROM savings_accounts s" + where, Long.class, args);
-        List<SavingsRow> rows = jdbc.query("SELECT s.sa_account_id,s.sa_account_number,s.sa_display_name,s.sa_balance,c.fcr_iso_code,c.fcr_decimal_places,s.sa_status,s.sa_created_date,u.fur_full_name,s.sa_holder_id,(SELECT COUNT(*) FROM savings_transactions t WHERE t.st_account_id=s.sa_account_id) FROM savings_accounts s JOIN fd_currency_ref c ON c.fcr_currency_id=s.sa_currency_id LEFT JOIN fd_user_ref u ON u.fur_user_id=s.sa_holder_id" + where + " ORDER BY s.sa_account_id DESC LIMIT ? OFFSET ?",
-                (rs, n) -> new SavingsRow(rs.getLong(1), mask(rs.getString(2)), rs.getString(3), rs.getBigDecimal(4), rs.getString(5), rs.getInt(6), rs.getString(7), str(rs.getTimestamp(8)), rs.getString(9),rs.getLong(10), rs.getLong(11)), append(args, size, (long) safePage * size));
+        List<SavingsRow> rows = jdbc.query("SELECT s.sa_account_id,s.sa_account_number,s.sa_display_name,s.sa_balance,c.fcr_iso_code,c.fcr_decimal_places,s.sa_status,s.sa_created_date,u.fur_full_name,s.sa_holder_id,(SELECT COUNT(*) FROM savings_transactions t WHERE t.st_account_id=s.sa_account_id),s.sa_account_type,s.sa_product_id,s.sa_product_name,s.sa_minimum_balance,(s.sa_balance-s.sa_minimum_balance) FROM savings_accounts s JOIN fd_currency_ref c ON c.fcr_currency_id=s.sa_currency_id LEFT JOIN fd_user_ref u ON u.fur_user_id=s.sa_holder_id" + where + " ORDER BY s.sa_account_id DESC LIMIT ? OFFSET ?",
+                (rs, n) -> new SavingsRow(rs.getLong(1), mask(rs.getString(2)), rs.getString(3), rs.getBigDecimal(4), rs.getString(5), rs.getInt(6), rs.getString(7), str(rs.getTimestamp(8)), rs.getString(9),rs.getLong(10), rs.getLong(11),rs.getString(12),(Long)rs.getObject(13),rs.getString(14),rs.getBigDecimal(15),rs.getBigDecimal(16).max(java.math.BigDecimal.ZERO)), append(args, size, (long) safePage * size));
         return new Page<>(rows, safePage, size, total);
     }
 
@@ -90,7 +93,7 @@ public class StaffAccountController {
 
     public record Page<T>(List<T> content, int number, int size, long totalElements) {}
     public record FdRow(long id, String accountNumber, String status, BigDecimal principal, String currency, BigDecimal rate, int tenureMonths, String openedAt, String maturityAt, String customerName, String productName) {}
-    public record SavingsRow(long id, String accountNumber, String displayName, BigDecimal balance, String currency, int decimalPlaces, String status, String createdAt, String customerName,long customerUserId,long transactionCount) {}
+    public record SavingsRow(long id, String accountNumber, String displayName, BigDecimal balance, String currency, int decimalPlaces, String status, String createdAt, String customerName,long customerUserId,long transactionCount,String accountType,Long productId,String productName,BigDecimal minimumBalance,BigDecimal availableBalance) {}
     public enum VerificationMethod { ID_DOCUMENT_CHECKED, SIGNATURE_VERIFIED, BIOMETRIC_VERIFIED, OTHER }
     public record MoneyRequest(@NotNull @DecimalMin("0.01") @Digits(integer = 16, fraction = 8) BigDecimal amount, @Size(max = 500) String remarks, VerificationMethod verificationMethod, String verificationReference) {}
 }

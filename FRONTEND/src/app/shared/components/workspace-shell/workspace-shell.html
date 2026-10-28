@@ -9,6 +9,7 @@
       <nav class="workspace__nav" [attr.aria-label]="'Main navigation' | translate" *ngIf="!guest; else guestNav">
         <a routerLink="/dashboard" routerLinkActive="is-active"> {{ 'Overview' | translate }} </a>
         <a *ngIf="!staff" routerLink="/savings" routerLinkActive="is-active"> {{ 'Savings' | translate }} </a>
+        <a *ngIf="!staff" routerLink="/current-accounts" routerLinkActive="is-active"> {{ 'Current accounts' | translate }} </a>
         <a *ngIf="!staff" routerLink="/fd" [routerLinkActiveOptions]="{exact: true}" routerLinkActive="is-active"> {{ 'Fixed deposits' | translate }} </a>
         <a *ngIf="!staff" routerLink="/loans" routerLinkActive="is-active"> {{ 'Loans' | translate }} </a>
         <a *ngIf="!staff" routerLink="/forex" routerLinkActive="is-active"> {{ 'Forex' | translate }} </a>

@@ -83,12 +83,25 @@ public class CustomerOfferController {
                 bands.add(new Band(band.path("currencyCode").asText(), band.path("valueFrom").decimalValue(),
                         band.path("valueTo").decimalValue(), band.path("rate").decimalValue()));
             }
+            BigDecimal minimumBalance = BigDecimal.ZERO;
+            if ("SAVINGS".equals(required) || "CURRENT".equals(required)) {
+                for (JsonNode attribute : config.path("attributes")) {
+                    if (!attribute.hasNonNull("definitionId")) continue;
+                    String key = jdbc.query("SELECT ad_attribute_key FROM attribute_definitions WHERE ad_attribute_def_id=?",
+                            rs -> rs.next() ? rs.getString(1) : null, attribute.path("definitionId").asInt());
+                    if ("MINIMUM_BALANCE".equals(key) && attribute.hasNonNull("value")) {
+                        minimumBalance = new BigDecimal(attribute.path("value").asText());
+                    }
+                }
+            }
             if (bands.isEmpty() || currencies.stream().anyMatch(c ->
                     !("FOREX".equals(required) && c.code().equals(base))
                             && bands.stream().noneMatch(b -> b.currencyCode().equals(c.code())))) return null;
             return new Offer(((Number) row.get("pro_product_id")).longValue(), (String) row.get("pro_product_code"),
                     (String) row.get("pro_product_name"), (String) row.get("pro_description"), required, base,
-                    currencies, bands, "FOREX".equals(required) ? "Own-account conversion using a static demo reference rate" : "Admin review required");
+                    currencies, bands, minimumBalance,
+                    ("SAVINGS".equals(required) || "CURRENT".equals(required)) ? bands : List.of(),
+                    "FOREX".equals(required) ? "Own-account conversion using a static demo reference rate" : "Admin review required");
         } catch (Exception ex) {
             return null;
         }
@@ -99,7 +112,7 @@ public class CustomerOfferController {
             List<Map<String, Object>> rows = jdbc.queryForList("SELECT pc_category_code,pc_parent_category_id FROM product_category WHERE pc_category_id=?", id);
             if (rows.isEmpty()) return "";
             String code = (String) rows.get(0).get("pc_category_code");
-            if (List.of("LOAN", "FOREX").contains(code)) return code;
+            if (List.of("LOAN", "FOREX", "SAVINGS", "CURRENT").contains(code)) return code;
             Object parent = rows.get(0).get("pc_parent_category_id");
             id = parent == null ? 0 : ((Number) parent).longValue();
         }
@@ -108,12 +121,13 @@ public class CustomerOfferController {
 
     private String family(String value) {
         String family = value.toUpperCase(java.util.Locale.ROOT);
-        if (!List.of("LOAN", "FOREX").contains(family)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        if (!List.of("LOAN", "FOREX", "SAVINGS", "CURRENT").contains(family)) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         return family;
     }
 
     public record Currency(String code, BigDecimal minimumAmount, BigDecimal maximumAmount, int decimalPlaces) {}
     public record Band(String currencyCode, BigDecimal valueFrom, BigDecimal valueTo, BigDecimal rate) {}
     public record Offer(long productId, String productCode, String productName, String description, String family,
-                        String baseCurrencyCode, List<Currency> currencies, List<Band> pricingBands, String notice) {}
+                        String baseCurrencyCode, List<Currency> currencies, List<Band> pricingBands,
+                        BigDecimal minimumBalance, List<Band> interestBands, String notice) {}
 }

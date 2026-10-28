@@ -25,6 +25,18 @@ export const routes: Routes = [
       import('./features/dashboard/dashboard-stub').then((m) => m.DashboardStub),
   },
   {
+    path: 'current-accounts', pathMatch: 'full', canActivate: [authGuard, customerGuard],
+    loadComponent: () => import('./features/current-accounts/current-accounts').then(m => m.CurrentAccountsPage),
+  },
+  {
+    path: 'current-accounts/open/:productId', canActivate: [authGuard, customerGuard],
+    loadComponent: () => import('./features/current-accounts/current-accounts').then(m => m.CurrentAccountsPage),
+  },
+  {
+    path: 'current-accounts/accounts', canActivate: [authGuard, customerGuard],
+    loadComponent: () => import('./features/current-accounts/current-accounts').then(m => m.CurrentAccountsPage),
+  },
+  {
     path: 'reports',
     canActivate: [authGuard, customerGuard],
     loadComponent: () => import('./features/reports/reports').then((m) => m.Reports),

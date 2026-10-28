@@ -27,7 +27,22 @@ public class PostingService {
             String entryType, String reference, String remarks, String actorUsername,
             String journalKey, String operation, String debitCode, String creditCode) {
         return postSavingsMovementInternal(null, accountId, currencyId, amount, entryType, reference, remarks,
-                actorUsername, journalKey, operation, debitCode, creditCode);
+                actorUsername, journalKey, operation, debitCode, creditCode, false);
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public MovementResult postSystemCredit(long fdAccountId, long accountId, long currencyId, BigDecimal amount,
+            String reference, String remarks, String actorUsername, String journalKey, String operation,
+            String debitCode, String creditCode) {
+        return postSavingsMovementInternal(fdAccountId, accountId, currencyId, amount, "CREDIT", reference, remarks,
+                actorUsername, journalKey, operation, debitCode, creditCode, true);
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public MovementResult postSystemCredit(long accountId,long currencyId,BigDecimal amount,String reference,String remarks,
+            String actorUsername,String journalKey,String operation,String debitCode,String creditCode) {
+        return postSavingsMovementInternal(null,accountId,currencyId,amount,"CREDIT",reference,remarks,actorUsername,
+                journalKey,operation,debitCode,creditCode,true);
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -35,28 +50,31 @@ public class PostingService {
             String entryType, String reference, String remarks, String actorUsername,
             String journalKey, String operation, String debitCode, String creditCode) {
         return postSavingsMovementInternal(fdAccountId, accountId, currencyId, amount, entryType, reference, remarks,
-                actorUsername, journalKey, operation, debitCode, creditCode);
+                actorUsername, journalKey, operation, debitCode, creditCode, false);
     }
 
     private MovementResult postSavingsMovementInternal(Long fdAccountId, long accountId, long currencyId, BigDecimal amount,
             String entryType, String reference, String remarks, String actorUsername,
-            String journalKey, String operation, String debitCode, String creditCode) {
+            String journalKey, String operation, String debitCode, String creditCode, boolean allowFrozenCredit) {
         Map<String, Object> account = lockAccount(accountId);
         if (((Number) account.get("currency")).longValue() != currencyId)
             throw bad("Savings account currency changed");
         int scale = currencyScale(currencyId);
         BigDecimal money = scaled(amount, scale);
-        if (!"ACTIVE".equals(account.get("status"))) throw conflict("Savings account is not active");
+        String status = (String) account.get("status");
+        if ("CLOSED".equals(status) || (!"ACTIVE".equals(status) && !(allowFrozenCredit && "CREDIT".equals(entryType) && "INACTIVE".equals(status))))
+            throw conflict("Deposit account is not active");
         BigDecimal prior = (BigDecimal) account.get("balance");
         BigDecimal after = "CREDIT".equals(entryType) ? prior.add(money) : prior.subtract(money);
         if (after.signum() < 0) throw conflict("Insufficient funds");
+        if ("DEBIT".equals(entryType)) enforceDebitFloor(account, after, currencyId);
         after = after.setScale(scale, RoundingMode.UNNECESSARY);
         jdbc.update("UPDATE savings_accounts SET sa_balance=?,sa_row_version=sa_row_version+1 WHERE sa_account_id=?", after, accountId);
         jdbc.update("INSERT INTO savings_transactions(st_reference_id,st_account_id,st_entry_type,st_amount,st_currency_id,st_balance_after,st_remarks,st_posted_at) VALUES(?,?,?,?,?,?,?,UTC_TIMESTAMP(6))",
                 reference, accountId, entryType, money, currencyId, after, remarks);
         List<LedgerLine> lines = List.of(
-                new LedgerLine(debitCode, "SAVINGS".equals(debitCode) ? accountId : null, money, BigDecimal.ZERO.setScale(scale)),
-                new LedgerLine(creditCode, "SAVINGS".equals(creditCode) ? accountId : null, BigDecimal.ZERO.setScale(scale), money));
+                new LedgerLine(isDepositCode(debitCode) ? debitCode(accountId) : debitCode, isDepositCode(debitCode) ? accountId : null, money, BigDecimal.ZERO.setScale(scale)),
+                new LedgerLine(isDepositCode(creditCode) ? debitCode(accountId) : creditCode, isDepositCode(creditCode) ? accountId : null, BigDecimal.ZERO.setScale(scale), money));
         postJournal(journalKey, fdAccountId, accountId, currencyId, operation, actorUsername, after, lines);
         return new MovementResult(reference, after, money);
     }
@@ -66,8 +84,8 @@ public class PostingService {
             String reference, String remarks, String actorUsername) {
         if (fromId == toId) throw bad("Source and destination savings accounts must differ");
         List<Map<String, Object>> accounts = jdbc.query(
-                "SELECT sa_account_id,sa_currency_id,sa_balance,sa_status FROM savings_accounts WHERE sa_account_id IN (?,?) ORDER BY sa_account_id FOR UPDATE",
-                (rs, n) -> Map.of("id", rs.getLong(1), "currency", rs.getLong(2), "balance", rs.getBigDecimal(3), "status", rs.getString(4)), fromId, toId);
+                "SELECT sa_account_id,sa_currency_id,sa_balance,sa_status,sa_minimum_balance FROM savings_accounts WHERE sa_account_id IN (?,?) ORDER BY sa_account_id FOR UPDATE",
+                (rs, n) -> Map.of("id", rs.getLong(1), "currency", rs.getLong(2), "balance", rs.getBigDecimal(3), "status", rs.getString(4), "minimum",rs.getBigDecimal(5)), fromId, toId);
         if (accounts.size() != 2) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Savings account not found");
         Map<Long, Map<String, Object>> byId = new HashMap<>();
         for (Map<String, Object> row : accounts) byId.put(((Number) row.get("id")).longValue(), row);
@@ -81,13 +99,14 @@ public class PostingService {
         BigDecimal fromAfter = ((BigDecimal) source.get("balance")).subtract(money).setScale(scale, RoundingMode.UNNECESSARY);
         BigDecimal toAfter = ((BigDecimal) destination.get("balance")).add(money).setScale(scale, RoundingMode.UNNECESSARY);
         if (fromAfter.signum() < 0) throw conflict("Insufficient funds");
+        enforceDebitFloor(source, fromAfter, currencyId);
         jdbc.update("UPDATE savings_accounts SET sa_balance=?,sa_row_version=sa_row_version+1 WHERE sa_account_id=?", fromAfter, fromId);
         jdbc.update("UPDATE savings_accounts SET sa_balance=?,sa_row_version=sa_row_version+1 WHERE sa_account_id=?", toAfter, toId);
         jdbc.update("INSERT INTO savings_transactions(st_reference_id,st_account_id,st_entry_type,st_amount,st_currency_id,st_balance_after,st_remarks,st_posted_at) VALUES(?,?,'DEBIT',?,?,?,?,UTC_TIMESTAMP(6)),(?,?,'CREDIT',?,?,?,?,UTC_TIMESTAMP(6))",
                 reference, fromId, money, currencyId, fromAfter, remarks, reference, toId, money, currencyId, toAfter, remarks);
         List<LedgerLine> lines = List.of(
-                new LedgerLine("SAVINGS", fromId, money, BigDecimal.ZERO.setScale(scale)),
-                new LedgerLine("SAVINGS", toId, BigDecimal.ZERO.setScale(scale), money));
+                new LedgerLine(depositLedgerCode(fromId), fromId, money, BigDecimal.ZERO.setScale(scale)),
+                new LedgerLine(depositLedgerCode(toId), toId, BigDecimal.ZERO.setScale(scale), money));
         postJournal("TRANSFER:" + reference, null, fromId, currencyId, "TRANSFER", actorUsername, fromAfter, lines);
         return new TransferResult(fromAfter, toAfter, money);
     }
@@ -98,9 +117,9 @@ public class PostingService {
             BigDecimal destinationAmount, String reference, String actorUsername) {
         if (fromId == toId) throw bad("Source and destination savings accounts must differ");
         List<ForexAccount> accounts = jdbc.query(
-                "SELECT sa_account_id,sa_currency_id,sa_balance,sa_status FROM savings_accounts " +
+                "SELECT sa_account_id,sa_currency_id,sa_balance,sa_status,sa_minimum_balance FROM savings_accounts " +
                         "WHERE sa_account_id IN (?,?) AND sa_holder_id=? ORDER BY sa_account_id FOR UPDATE",
-                (rs, n) -> new ForexAccount(rs.getLong(1), rs.getLong(2), rs.getBigDecimal(3), rs.getString(4)),
+                (rs, n) -> new ForexAccount(rs.getLong(1), rs.getLong(2), rs.getBigDecimal(3), rs.getString(4),rs.getBigDecimal(5)),
                 fromId, toId, customerId);
         if (accounts.size() != 2) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Savings account not found");
         Map<Long, ForexAccount> byId = new HashMap<>();
@@ -121,6 +140,7 @@ public class PostingService {
         BigDecimal sourceAfter = source.balance().subtract(totalDebit).setScale(fundingScale, RoundingMode.UNNECESSARY);
         BigDecimal destinationAfter = destination.balance().add(destinationCredit).setScale(destinationScale, RoundingMode.UNNECESSARY);
         if (sourceAfter.signum() < 0) throw conflict("Insufficient funds for the conversion and fee");
+        enforceDebitFloor(source.minimumBalance(), sourceAfter, fundingCurrencyId);
 
         jdbc.update("UPDATE savings_accounts SET sa_balance=?,sa_row_version=sa_row_version+1 WHERE sa_account_id=?", sourceAfter, fromId);
         jdbc.update("UPDATE savings_accounts SET sa_balance=?,sa_row_version=sa_row_version+1 WHERE sa_account_id=?", destinationAfter, toId);
@@ -133,7 +153,7 @@ public class PostingService {
 
         BigDecimal zeroFunding = BigDecimal.ZERO.setScale(fundingScale);
         List<LedgerLine> sourceLines = new ArrayList<>(List.of(
-                new LedgerLine("SAVINGS", fromId, totalDebit, zeroFunding),
+                new LedgerLine(depositLedgerCode(fromId), fromId, totalDebit, zeroFunding),
                 new LedgerLine("FOREX_CLEARING", null, zeroFunding, fundingPrincipal)));
         if (fundingFee.signum() > 0)
             sourceLines.add(new LedgerLine("FOREX_FEE_INCOME", null, zeroFunding, fundingFee));
@@ -141,7 +161,7 @@ public class PostingService {
         BigDecimal zeroDestination = BigDecimal.ZERO.setScale(destinationScale);
         postJournal(reference + ":DESTINATION", null, toId, destinationCurrencyId, "FOREX", actorUsername, destinationAfter,
                 List.of(new LedgerLine("FOREX_CLEARING", null, destinationCredit, zeroDestination),
-                        new LedgerLine("SAVINGS", toId, zeroDestination, destinationCredit)));
+                        new LedgerLine(depositLedgerCode(toId), toId, zeroDestination, destinationCredit)));
         return new ForexPostingResult(totalDebit, sourceAfter, destinationAfter, destinationCredit);
     }
 
@@ -153,7 +173,9 @@ public class PostingService {
         List<LedgerLine> normalizedLines = lines.stream().map(line -> new LedgerLine(line.accountCode(),line.savingsAccountId(),exactScale(line.debit(),scale),exactScale(line.credit(),scale))).toList();
         for (LedgerLine line : normalizedLines) {
             if (line.savingsAccountId() != null) {
-                if (!"SAVINGS".equals(line.accountCode())) throw bad("Only SAVINGS journal lines may reference a savings account");
+                if (!isDepositCode(line.accountCode())) throw bad("Only deposit-account journal lines may reference a deposit account");
+                String actualCode = depositLedgerCode(line.savingsAccountId());
+                if (!actualCode.equals(line.accountCode())) throw bad("Deposit account ledger code does not match its account type");
                 Long lineCurrency = jdbc.query("SELECT sa_currency_id FROM savings_accounts WHERE sa_account_id=?",rs->rs.next()?rs.getLong(1):null,line.savingsAccountId());
                 if (lineCurrency == null || lineCurrency.longValue() != currencyId) throw bad("Journal savings line currency does not match the journal currency");
             }
@@ -180,6 +202,21 @@ public class PostingService {
         return journalId;
     }
 
+    public String depositLedgerCode(long accountId) {
+        String type=jdbc.query("SELECT sa_account_type FROM savings_accounts WHERE sa_account_id=?",rs->rs.next()?rs.getString(1):null,accountId);
+        if(type==null)throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Deposit account not found");
+        return "CURRENT".equals(type)?"CURRENT_ACCOUNT":"SAVINGS";
+    }
+
+    private String debitCode(long accountId) { return depositLedgerCode(accountId); }
+    private boolean isDepositCode(String code) { return "SAVINGS".equals(code)||"CURRENT_ACCOUNT".equals(code); }
+    private void enforceDebitFloor(Map<String,Object> account, BigDecimal after,long currencyId) {
+        enforceDebitFloor((BigDecimal)account.get("minimum"),after,currencyId);
+    }
+    private void enforceDebitFloor(BigDecimal minimum,BigDecimal after,long currencyId) {
+        if(after.compareTo(minimum)<0){Integer scale=jdbc.query("SELECT fcr_decimal_places FROM fd_currency_ref WHERE fcr_currency_id=?",rs->rs.next()?rs.getInt(1):null,currencyId);String currency=jdbc.query("SELECT fcr_iso_code FROM fd_currency_ref WHERE fcr_currency_id=?",rs->rs.next()?rs.getString(1):"",currencyId);throw new BelowMinimumBalanceException(minimum.setScale(scale==null?2:scale,RoundingMode.HALF_UP).toPlainString()+" "+currency);}
+    }
+
     public static void validateLines(List<LedgerLine> lines, int scale) {
         if (lines == null || lines.size() < 2) throw bad("A journal must have at least two lines");
         BigDecimal debits = BigDecimal.ZERO.setScale(scale), credits = BigDecimal.ZERO.setScale(scale);
@@ -195,8 +232,8 @@ public class PostingService {
     }
 
     private Map<String, Object> lockAccount(long id) {
-        return jdbc.query("SELECT sa_currency_id,sa_balance,sa_status FROM savings_accounts WHERE sa_account_id=? FOR UPDATE",
-                rs -> rs.next() ? Map.of("currency", rs.getLong(1), "balance", rs.getBigDecimal(2), "status", rs.getString(3)) : null, id);
+        return jdbc.query("SELECT sa_currency_id,sa_balance,sa_status,sa_minimum_balance FROM savings_accounts WHERE sa_account_id=? FOR UPDATE",
+                rs -> rs.next() ? Map.of("currency", rs.getLong(1), "balance", rs.getBigDecimal(2), "status", rs.getString(3),"minimum",rs.getBigDecimal(4)) : null, id);
     }
     private int currencyScale(long id) {
         Integer scale = jdbc.query("SELECT fcr_decimal_places FROM fd_currency_ref WHERE fcr_currency_id=?", rs -> rs.next() ? rs.getInt(1) : null, id);
@@ -220,5 +257,5 @@ public class PostingService {
     public record TransferResult(BigDecimal fromBalanceAfter, BigDecimal toBalanceAfter, BigDecimal amount) {}
     public record ForexPostingResult(BigDecimal totalDebit, BigDecimal sourceBalanceAfter,
                                      BigDecimal destinationBalanceAfter, BigDecimal destinationAmount) {}
-    private record ForexAccount(long id, long currencyId, BigDecimal balance, String status) {}
+    private record ForexAccount(long id, long currencyId, BigDecimal balance, String status,BigDecimal minimumBalance) {}
 }

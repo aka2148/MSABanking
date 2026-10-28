@@ -26,6 +26,12 @@ public class ApiErrorHandler {
                 .body(Map.of("message", ex.getReason() == null ? "The request could not be completed." : ex.getReason()));
     }
 
+    @ExceptionHandler(BelowMinimumBalanceException.class)
+    public ResponseEntity<Map<String,String>> belowMinimum(BelowMinimumBalanceException ex) {
+        return ResponseEntity.status(409).body(Map.of("code","BELOW_MINIMUM_BALANCE",
+                "message","This debit would take the account below its minimum balance of " + ex.amount() + "."));
+    }
+
     @ExceptionHandler({MethodArgumentNotValidException.class, ConstraintViolationException.class})
     public ResponseEntity<Map<String, String>> validation(Exception ex) {
         // Binding/constraint messages can contain submitted credentials or identity values.

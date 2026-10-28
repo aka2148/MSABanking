@@ -53,7 +53,7 @@ class FdBookingAndCalculatorFinancialTest {
         json = new ObjectMapper();
         clock = new DemoClockService(jdbc, "Asia/Kolkata");
         calculatorController = new FdCalculatorController(jdbc);
-        depositController = new FixedDepositController(jdbc, json, clock, mpin);
+        depositController = new FixedDepositController(jdbc, json, clock, mpin, postings);
         lifecycleController = new FdLifecycleController(jdbc, null, json, clock, mpin, postings, lifecycleRecords);
 
         when(actor.getName()).thenReturn("test-user");

@@ -44,7 +44,7 @@ export class ForexPage implements OnInit {
       next: offer => {
         this.offer = offer;
         this.form.controls.destinationCurrencyCode.setValue(offer.currencies.find(c => c.code !== offer.baseCurrencyCode)?.code ?? '');
-        this.fd.listSavings().subscribe({
+        this.fd.listDepositAccounts().subscribe({
           next: accounts => { this.savingsAccounts = accounts; this.loading = false; this.setAccountDefaults(); },
           error: e => this.fail(e),
         });

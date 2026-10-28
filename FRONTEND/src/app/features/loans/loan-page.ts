@@ -52,7 +52,7 @@ export class LoanPage implements OnInit {
         next: offer => { this.offer = offer; this.form.controls.currencyCode.setValue(offer.baseCurrencyCode); this.loading = false; },
         error: e => this.fail(e),
       });
-      this.fd.listSavings().subscribe({ next: rows => this.savings = rows, error: e => this.fail(e) });
+      this.fd.listDepositAccounts().subscribe({ next: rows => this.savings = rows, error: e => this.fail(e) });
     } else this.api.loan(id).subscribe({
       next: row => { this.application = row; this.loading = false; this.api.loanHistory(id).subscribe({ next: events => this.history = events, error: e => this.fail(e) }); },
       error: e => this.fail(e),

@@ -42,7 +42,24 @@ export interface SavingsAccount {
   balance: number;
   status: string;
   created_date: string;
+  accountType?: 'SAVINGS' | 'CURRENT';
+  productId?: number | null;
+  productCode?: string | null;
+  productName?: string | null;
+  minimumBalance?: number;
+  availableBalance?: number;
 }
+
+export interface DepositProductOffer {
+  productId: number; productCode: string; productName: string; description: string;
+  family: 'SAVINGS' | 'CURRENT'; baseCurrencyCode: string;
+  currencies: Array<{ code: string; minimumAmount: number; maximumAmount: number; decimalPlaces: number }>;
+  pricingBands: Array<{ currencyCode: string; valueFrom: number; valueTo: number; rate: number }>;
+  minimumBalance: number;
+  interestBands: Array<{ currencyCode: string; valueFrom: number; valueTo: number; rate: number }>;
+}
+
+export interface CurrentAccount extends SavingsAccount {}
 
 export interface BookingRequest {
   funding_savings_account_id?: number;

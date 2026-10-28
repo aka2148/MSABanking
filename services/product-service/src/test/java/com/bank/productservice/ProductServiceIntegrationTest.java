@@ -83,6 +83,21 @@ class ProductServiceIntegrationTest {
         mvc.perform(get("/api/v1/customer-products/LOAN/"+id).header("Authorization",customer)).andExpect(status().isNotFound());
     }
 
+    @Test void customerCasaCatalogPublishesMinimumBalanceAndCurrencyInterestBands()throws Exception{
+        long category=jdbc.queryForObject("SELECT pc_category_id FROM product_category WHERE pc_category_code='SAVINGS'",Long.class);
+        long currency=jdbc.queryForObject("SELECT cur_currency_id FROM currency WHERE cur_iso_code='INR'",Long.class);
+        long minimum=jdbc.queryForObject("SELECT ad_attribute_def_id FROM attribute_definitions WHERE ad_attribute_key='MINIMUM_BALANCE' AND ad_category_id=(SELECT pc_category_id FROM product_category WHERE pc_category_code='CASA')",Long.class);
+        String code="CASA-TEST-"+java.util.UUID.randomUUID().toString().substring(0,8);
+        jdbc.update("INSERT INTO product(pro_product_code,pro_product_name,pro_category_id,pro_base_currency_code,pro_status) VALUES(?,?,?,'INR','ACTIVE')",code,"Test Savings",category);
+        long id=jdbc.queryForObject("SELECT pro_product_id FROM product WHERE pro_product_code=?",Long.class,code);
+        jdbc.update("INSERT INTO product_currency_config(pcc_product_id,pcc_currency_id,pcc_is_base_currency,pcc_minimum_amount,pcc_maximum_amount) VALUES(?,?,1,0,1000000)",id,currency);
+        String snapshot="{\"baseCurrencyCode\":\"INR\",\"currencies\":[{\"currencyCode\":\"INR\",\"minimumAmount\":0,\"maximumAmount\":1000000}],\"attributes\":[{\"definitionId\":"+minimum+",\"value\":\"2500\"}],\"pricingBands\":[{\"currencyCode\":\"INR\",\"fact\":\"BALANCE_AMOUNT\",\"valueFrom\":0,\"valueTo\":1000000,\"rate\":0.04,\"outcomeType\":\"CREDIT_INTEREST_RATE\"}],\"eligibilityRules\":[],\"charges\":[]}";
+        jdbc.update("INSERT INTO product_configuration_revision(pcr_product_id,pcr_revision_no,pcr_status,pcr_snapshot_json,pcr_created_by) VALUES(?,1,'ACTIVE',?,'TEST')",id,snapshot);
+        mvc.perform(get("/api/v1/customer-products/SAVINGS/"+id).header("Authorization","Bearer "+token("ROLE_CUSTOMER")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.minimumBalance").value(2500))
+                .andExpect(jsonPath("$.interestBands[0].rate").value(0.04));
+    }
+
     @Test void adminCanValidateAndCreateBuilderDraftUsingMetadataIds()throws Exception{
         String staff=token("ROLE_BANK_OFFICER");
         var mapper=com.fasterxml.jackson.databind.json.JsonMapper.builder().build();

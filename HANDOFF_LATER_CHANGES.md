@@ -122,3 +122,7 @@ See [HANDOFF_KRISHANG_TEST_REPORT.md](HANDOFF_KRISHANG_TEST_REPORT.md) for basel
 - Existing database replicas or downstream consumers that treat risk category as non-null must be checked before deploying V8.
 - An abandoned FD booking can remain unfunded; booking is intentionally not MPIN protected, while funding is.
 - Demo suspense/teller cash remain illustrative ledger accounts, and demo opening is a local demonstration feature.
+
+## Current account and CASA ledger update
+
+Deposit posting now supports both `SAVINGS` and `CURRENT_ACCOUNT` liability lines selected by account type. Existing savings accounts retain the `SAVINGS` code. Product-linked accounts freeze minimum balance and interest bands; all debit paths enforce the floor under account locks. FD funding/settlement use shared posting methods without changing existing keys. See `HANDOFF_CURRENT_ACCOUNT.md` for current behavior and known UI/smoke limitations.

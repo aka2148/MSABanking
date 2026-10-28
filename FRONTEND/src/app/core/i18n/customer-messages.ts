@@ -1,5 +1,19 @@
 // English | Hindi | Kannada | Japanese | Arabic | Spanish
 export const CUSTOMER_MESSAGES = `
+Account product|खाता उत्पाद|ಖಾತೆ ಉತ್ಪನ್ನ|口座商品|منتج الحساب|Producto de cuenta
+Standard savings (no product)|मानक बचत (कोई उत्पाद नहीं)|ಸಾಮಾನ್ಯ ಉಳಿತಾಯ (ಉತ್ಪನ್ನವಿಲ್ಲ)|標準普通預金（商品なし）|توفير قياسي (بدون منتج)|Ahorro estándar (sin producto)
+Current accounts|चालू खाते|ಚಾಲ್ತಿ ಖಾತೆಗಳು|当座預金口座|الحسابات الجارية|Cuentas corrientes
+Choose a published current account product and review its minimum balance and interest bands.|प्रकाशित चालू खाता उत्पाद चुनें और न्यूनतम शेष तथा ब्याज दरें देखें।|ಪ್ರಕಟಿತ ಚಾಲ್ತಿ ಖಾತೆ ಉತ್ಪನ್ನ ಆಯ್ಕೆಮಾಡಿ, ಕನಿಷ್ಠ ಬಾಕಿ ಮತ್ತು ಬಡ್ಡಿ ಹಂತಗಳನ್ನು ಪರಿಶೀಲಿಸಿ.|公開中の当座預金商品を選び、最低残高と金利帯を確認してください。|اختر منتج حساب جارٍ منشوراً وراجع الحد الأدنى للرصيد وشرائح الفائدة.|Elige un producto de cuenta corriente publicado y revisa el saldo mínimo y los tramos de interés.
+Minimum balance|न्यूनतम शेष|ಕನಿಷ್ಠ ಬಾಕಿ|最低残高|الحد الأدنى للرصيد|Saldo mínimo
+Open account|खाता खोलें|ಖಾತೆ ತೆರೆಯಿರಿ|口座を開設|افتح الحساب|Abrir cuenta
+Confirm and open|पुष्टि करें और खोलें|ದೃಢೀಕರಿಸಿ ತೆರೆಯಿರಿ|確認して開設|تأكيد وفتح|Confirmar y abrir
+My current accounts|मेरे चालू खाते|ನನ್ನ ಚಾಲ್ತಿ ಖಾತೆಗಳು|自分の当座預金口座|حساباتي الجارية|Mis cuentas corrientes
+No current account products are available right now.|अभी कोई चालू खाता उत्पाद उपलब्ध नहीं है।|ಈಗ ಯಾವುದೇ ಚಾಲ್ತಿ ಖಾತೆ ಉತ್ಪನ್ನ ಲಭ್ಯವಿಲ್ಲ.|現在利用できる当座預金商品はありません。|لا تتوفر منتجات حسابات جارية حالياً.|No hay productos de cuenta corriente disponibles ahora.
+No current accounts yet.|अभी कोई चालू खाता नहीं है।|ಇನ್ನೂ ಚಾಲ್ತಿ ಖಾತೆಗಳಿಲ್ಲ.|当座預金口座はまだありません。|لا توجد حسابات جارية بعد.|Aún no tienes cuentas corrientes.
+Available balance|उपलब्ध शेष|ಲಭ್ಯವಿರುವ ಬಾಕಿ|利用可能残高|الرصيد المتاح|Saldo disponible
+Download CSV statement|CSV विवरण डाउनलोड करें|CSV ಹೇಳಿಕೆ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ|CSV明細をダウンロード|تنزيل كشف CSV|Descargar estado CSV
+Back to current account products|चालू खाता उत्पादों पर वापस जाएँ|ಚಾಲ್ತಿ ಖಾತೆ ಉತ್ಪನ್ನಗಳಿಗೆ ಹಿಂತಿರುಗಿ|当座預金商品に戻る|العودة إلى منتجات الحساب الجاري|Volver a productos de cuentas corrientes
+Browse and open a current account.|चालू खाता देखें और खोलें।|ಚಾಲ್ತಿ ಖಾತೆ ವೀಕ್ಷಿಸಿ ಮತ್ತು ತೆರೆಯಿರಿ.|当座預金口座を確認して開設します。|تصفح وافتح حساباً جارياً.|Explora y abre una cuenta corriente.
 Withdrawal|निकासी|ಹಿಂಪಡೆಯುವಿಕೆ|引き出し|سحب|Retiro
 Withdraw money|पैसे निकालें|ಹಣ ಹಿಂಪಡೆಯಿರಿ|お金を引き出す|سحب الأموال|Retirar dinero
 Withdrawal completed. Reference: {0}|निकासी पूरी हुई। संदर्भ: {0}|ಹಿಂಪಡೆಯುವಿಕೆ ಪೂರ್ಣಗೊಂಡಿದೆ. ಉಲ್ಲೇಖ: {0}|引き出し完了。参照: {0}|اكتمل السحب. المرجع: {0}|Retiro completado. Referencia: {0}
@@ -322,4 +336,15 @@ Conversion principal|रूपांतरण मूल राशि|ಪರಿ�
 Source account|स्रोत खाता|ಮೂಲ ಖಾತೆ|引落元口座|الحساب المصدر|Cuenta de origen
 Recorded|दर्ज किया गया|ದಾಖಲಾಗಿದೆ|記録済み|تم التسجيل|Registrado
 Funds were moved between the selected savings accounts using the static demo rate.|स्थिर डेमो दर पर चुने गए बचत खातों के बीच धन स्थानांतरित हुआ।|ಸ್ಥಿರ ಡೆಮೊ ದರದಲ್ಲಿ ಆಯ್ದ ಉಳಿತಾಯ ಖಾತೆಗಳ ನಡುವೆ ಹಣ ವರ್ಗಾಯಿಸಲಾಗಿದೆ.|固定デモレートで選択した普通預金口座間の資金移動が行われました。|تم نقل الأموال بين حسابي التوفير المحددين باستخدام سعر تجريبي ثابت.|Los fondos se movieron entre las cuentas de ahorro seleccionadas con el tipo de demostración fijo.
-This older request was recorded without a conversion.|यह पुराना अनुरोध रूपांतरण किए बिना दर्ज हुआ था।|ಈ ಹಳೆಯ ವಿನಂತಿಯನ್ನು ಪರಿವರ್ತನೆ ಮಾಡದೆ ದಾಖಲಿಸಲಾಗಿದೆ.|以前の申請は両替せずに記録されました。|تم تسجيل هذا الطلب السابق دون إجراء تحويل.|Esta solicitud anterior se registró sin conversión.`;
+This older request was recorded without a conversion.|यह पुराना अनुरोध रूपांतरण किए बिना दर्ज हुआ था।|ಈ ಹಳೆಯ ವಿನಂತಿಯನ್ನು ಪರಿವರ್ತನೆ ಮಾಡದೆ ದಾಖಲಿಸಲಾಗಿದೆ.|以前の申請は両替せずに記録されました。|تم تسجيل هذا الطلب السابق دون إجراء تحويل.|Esta solicitud anterior se registró sin conversión.
+From date|प्रारंभ तिथि|ಪ್ರಾರಂಭ ದಿನಾಂಕ|開始日|من تاريخ|Desde
+To date|अंतिम तिथि|ಅಂತಿಮ ದಿನಾಂಕ|終了日|إلى تاريخ|Hasta
+View statement|विवरण देखें|ವಿವರವನ್ನು ವೀಕ್ಷಿಸಿ|明細を表示|عرض الكشف|Ver estado
+Opening balance|प्रारंभिक शेष|ಆರಂಭಿಕ ಬಾಕಿ|開始残高|الرصيد الافتتاحي|Saldo inicial
+Closing balance|अंतिम शेष|ಅಂತಿಮ ಬಾಕಿ|終了残高|الرصيد الختامي|Saldo final
+This account is frozen. Customer deposits and withdrawals are disabled.|यह खाता फ्रीज़ है। ग्राहक जमा और निकासी बंद हैं।|ಈ ಖಾತೆ ಸ್ಥಗಿತಗೊಂಡಿದೆ. ಗ್ರಾಹಕರ ಠೇವಣಿ ಮತ್ತು ಹಿಂಪಡೆಯುವಿಕೆ ನಿಷ್ಕ್ರಿಯವಾಗಿವೆ.|この口座は凍結されています。顧客の入金と出金は無効です。|هذا الحساب مجمّد. الإيداع والسحب من العميل غير متاحين.|Esta cuenta está congelada. Los depósitos y retiros del cliente están deshabilitados.
+Statement|विवरण|ವಿವರ|明細|كشف الحساب|Estado
+Transfer or withdraw using the deposit tools|जमा सुविधा से स्थानांतरण या निकासी करें|ಠೇವಣಿ ಸಾಧನಗಳನ್ನು ಬಳಸಿ ವರ್ಗಾಯಿಸಿ ಅಥವಾ ಹಿಂಪಡೆಯಿರಿ|預金ツールで振込または出金|التحويل أو السحب باستخدام أدوات الإيداع|Transferir o retirar con las herramientas de depósito
+Currencies|मुद्राएँ|ಕರೆನ್ಸಿಗಳು|通貨|العملات|Monedas
+Deposit accounts|जमा खाते|ಠೇವಣಿ ಖಾತೆಗಳು|預金口座|حسابات الإيداع|Cuentas de depósito
+`;

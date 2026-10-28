@@ -423,6 +423,13 @@ interface MarketRate {
               </span>
             </a>
 
+            <a *ngIf="!canManageProducts" class="workspace-home__card" routerLink="/current-accounts" style="--card-index: 1">
+              <span class="workspace-home__card-top"><span class="workspace-home__card-icon" aria-hidden="true">CA</span><span class="workspace-home__arrow" aria-hidden="true">↗</span></span>
+              <span class="workspace-home__card-title">{{ 'Current accounts' | translate }}</span>
+              <span class="workspace-home__card-description">{{ 'Browse and open a current account.' | translate }}</span>
+              <span class="workspace-home__card-footer"><span>{{ 'Explore accounts' | translate }}</span><span class="workspace-home__card-line"></span></span>
+            </a>
+
             <a
               *ngIf="!canManageProducts"
               class="workspace-home__card"

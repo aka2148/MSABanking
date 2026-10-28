@@ -216,4 +216,24 @@ Demo account opening|डेमो खाते की शुरुआत|ಡೆ�
 Ledger account|लेजर खाता|ಲೆಡ್ಜರ್ ಖಾತೆ|台帳科目|حساب دفتر الأستاذ|Cuenta del libro mayor
 Not linked to a fixed deposit|किसी सावधि जमा से जुड़ा नहीं|ಯಾವುದೇ ನಿಶ್ಚಿತ ಠೇವಣಿಗೆ ಲಿಂಕ್ ಆಗಿಲ್ಲ|定期預金に関連付けられていません|غير مرتبط بوديعة لأجل|No vinculado a un depósito a plazo
 Page {0} of {1}|पृष्ठ {0} / {1}|ಪುಟ {0} / {1}|{0} / {1} ページ|الصفحة {0} من {1}|Página {0} de {1}
-`;
+Run savings interest|बचत ब्याज चलाएँ|ಉಳಿತಾಯ ಬಡ್ಡಿ ಲೆಕ್ಕಿಸಿ|普通預金の利息を計算|احتساب فائدة التوفير|Calcular intereses del ahorro
+Running interest…|ब्याज चल रहा है…|ಬಡ್ಡಿ ಲೆಕ್ಕಿಸಲಾಗುತ್ತಿದೆ…|利息を計算中…|جارٍ احتساب الفائدة…|Calculando intereses…
+Reason for status change (5-140 characters)|स्थिति बदलने का कारण (5-140 अक्षर)|ಸ್ಥಿತಿ ಬದಲಾವಣೆಯ ಕಾರಣ (5-140 ಅಕ್ಷರಗಳು)|状態変更の理由（5～140文字）|سبب تغيير الحالة (5-140 حرفاً)|Motivo del cambio de estado (5-140 caracteres)
+Freeze account|खाता फ्रीज़ करें|ಖಾತೆಯನ್ನು ಸ್ಥಗಿತಗೊಳಿಸಿ|口座を凍結|تجميد الحساب|Congelar cuenta
+Unfreeze account|खाता अनफ़्रीज़ करें|ಖಾತೆ ಸ್ಥಗಿತ ತೆರವುಗೊಳಿಸಿ|口座の凍結を解除|إلغاء تجميد الحساب|Descongelar cuenta
+Close account|खाता बंद करें|ಖಾತೆ ಮುಚ್ಚಿ|口座を閉鎖|إغلاق الحساب|Cerrar cuenta
+Change status|स्थिति बदलें|ಸ್ಥಿತಿ ಬದಲಿಸಿ|状態を変更|تغيير الحالة|Cambiar estado
+Choose a status action.|स्थिति बदलने की कार्रवाई चुनें।|ಸ್ಥಿತಿ ಬದಲಾವಣೆಯ ಕ್ರಿಯೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ.|状態変更の操作を選択してください。|اختر إجراءً لتغيير الحالة.|Elige una acción de estado.
+Enter a reason of 5-140 characters.|5-140 अक्षरों का कारण दर्ज करें।|5-140 ಅಕ್ಷರಗಳ ಕಾರಣವನ್ನು ನಮೂದಿಸಿ.|5～140文字の理由を入力してください。|أدخل سبباً من 5 إلى 140 حرفاً.|Introduce un motivo de 5 a 140 caracteres.
+Deposit account status updated.|जमा खाते की स्थिति अपडेट हुई।|ಠೇವಣಿ ಖಾತೆಯ ಸ್ಥಿತಿ ನವೀಕರಿಸಲಾಗಿದೆ.|預金口座の状態を更新しました。|تم تحديث حالة حساب الإيداع.|Se actualizó el estado de la cuenta de depósito.
+Open account for customer|ग्राहक के लिए खाता खोलें|ಗ್ರಾಹಕರಿಗಾಗಿ ಖಾತೆ ತೆರೆಯಿರಿ|顧客の口座を開設|فتح حساب للعميل|Abrir cuenta para cliente
+Customer user ID|ग्राहक यूज़र आईडी|ಗ್ರಾಹಕರ ಬಳಕೆದಾರ ಐಡಿ|顧客ユーザーID|معرّف مستخدم العميل|ID de usuario del cliente
+Product|उत्पाद|ಉತ್ಪನ್ನ|商品|المنتج|Producto
+Standard savings (no product)|मानक बचत (कोई उत्पाद नहीं)|ಸಾಮಾನ್ಯ ಉಳಿತಾಯ (ಉತ್ಪನ್ನವಿಲ್ಲ)|標準普通預金（商品なし）|توفير قياسي (بدون منتج)|Ahorro estándar (sin producto)
+Savings|बचत|ಉಳಿತಾಯ|普通預金|التوفير|Ahorro
+Enter a customer, product, currency and account name.|ग्राहक, उत्पाद, मुद्रा और खाते का नाम दर्ज करें।|ಗ್ರಾಹಕ, ಉತ್ಪನ್ನ, ಕರೆನ್ಸಿ ಮತ್ತು ಖಾತೆಯ ಹೆಸರನ್ನು ನಮೂದಿಸಿ.|顧客、商品、通貨、口座名を入力してください。|أدخل العميل والمنتج والعملة واسم الحساب.|Introduce cliente, producto, moneda y nombre de cuenta.
+Deposit account opened for customer.|ग्राहक के लिए जमा खाता खोला गया।|ಗ್ರಾಹಕರಿಗಾಗಿ ಠೇವಣಿ ಖಾತೆ ತೆರೆಯಲಾಗಿದೆ.|顧客の預金口座を開設しました。|تم فتح حساب إيداع للعميل.|Se abrió una cuenta de depósito para el cliente.
+Open {0} account for customer {1}?|ग्राहक {1} के लिए {0} खाता खोलें?|ಗ್ರಾಹಕ {1} ಗಾಗಿ {0} ಖಾತೆ ತೆರೆಯಬೇಕೆ?|顧客{1}の{0}口座を開設しますか？|هل تريد فتح حساب {0} للعميل {1}؟|¿Abrir una cuenta {0} para el cliente {1}?
+Confirm {0} for account {1}?|खाते {1} के लिए {0} की पुष्टि करें?|ಖಾತೆ {1} ಗಾಗಿ {0} ದೃಢೀಕರಿಸಿ?|口座{1}の{0}を確認しますか？|تأكيد {0} للحساب {1}؟|¿Confirmar {0} para la cuenta {1}?
+Run savings interest for the current business date?|आज की व्यावसायिक तारीख के लिए बचत ब्याज चलाएँ?|ಇಂದಿನ ವ್ಯವಹಾರ ದಿನಾಂಕಕ್ಕೆ ಉಳಿತಾಯ ಬಡ್ಡಿ ಲೆಕ್ಕಿಸಬೇಕೆ?|本営業日の普通預金利息を計算しますか？|هل تريد احتساب فائدة التوفير لتاريخ العمل الحالي؟|¿Calcular los intereses del ahorro para la fecha comercial actual?
+Interest run complete: {0} accounts, {1} accrual rows, {2} credits, {3} failures.|ब्याज प्रक्रिया पूरी: {0} खाते, {1} उपार्जन पंक्तियाँ, {2} क्रेडिट, {3} विफलताएँ।|ಬಡ್ಡಿ ಪ್ರಕ್ರಿಯೆ ಪೂರ್ಣ: {0} ಖಾತೆಗಳು, {1} ಸಂಚಯ ಸಾಲುಗಳು, {2} ಕ್ರೆಡಿಟ್‌ಗಳು, {3} ವಿಫಲತೆಗಳು.|利息処理完了：口座{0}件、計上行{1}件、入金{2}件、失敗{3}件。|اكتمل احتساب الفائدة: {0} حسابات، {1} قيود استحقاق، {2} إيداعات، {3} إخفاقات.|Intereses calculados: {0} cuentas, {1} filas acumuladas, {2} abonos, {3} fallos.`;

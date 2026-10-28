@@ -65,7 +65,7 @@ The first savings account in each journal header is the account debited or credi
 
 Maturity interest recognition is a journal-only movement: while the batch's existing transaction is active, call `postJournal("INTEREST:" + fdId + ":MATURITY", fdId, savingsId, currencyId, "INTEREST", actorUsername, null, List.of(new LedgerLine("INTEREST_EXPENSE", null, interest, zero), new LedgerLine("FIXED_DEPOSIT", null, zero, interest)))`. Keep the current accrual rows, FD transaction, and maturity status writes in that same transaction.
 
-For an FD payout, call `postSavingsMovement(savingsId, currencyId, payout, "CREDIT", historyReference, settlementRemark, actorUsername, "SETTLEMENT:" + fdId, "SETTLEMENT", "FIXED_DEPOSIT", "SAVINGS")`. That call writes the savings credit, history, and settlement journal atomically; the caller continues to write the FD closure history/status/event and complete its idempotency operation in the same transaction. Do not change the four established keys listed above. The current FD code has not yet been migrated to this shared API.
+For an FD payout, the lifecycle now calls the shared `PostingService` credit path, which writes the deposit credit, history, and settlement journal atomically; the caller continues to write FD closure history/status/event and complete its idempotency operation in the same transaction. Deposit ledger code is selected from the account type. Do not change the established FD keys listed above.
 
 ## V13 and reconciliation
 
@@ -101,3 +101,7 @@ Angular checks and gateway smoke remain unverified until Node is configured.
 - Settlement and maturity remain internal ledger records, not external payments. The lab's teller cash and demo suspense accounts are illustrative accounting codes, not a reconciled physical cash process.
 - The frontend has no configured `test` target. A Jasmine-style transfer spec was added, but only the Angular build and translation checker can currently run from the package scripts.
 - Audit files named OpenCode and Claude were absent from the checkout; findings were checked against current code and the available handoff/regression reports instead.
+
+## Deposit account type extension
+
+Current product-backed deposits add `CURRENT_ACCOUNT` as a second liability line for current accounts. PostingService selects the code from the account type; savings journals remain `SAVINGS`. Transfers can journal both deposit codes. Debit postings enforce the frozen minimum-balance floor. FD funding and settlement now use the shared posting service while retaining their established idempotency and journal keys. See `HANDOFF_CURRENT_ACCOUNT.md` for the endpoints, migrations, interest processing and lifecycle.

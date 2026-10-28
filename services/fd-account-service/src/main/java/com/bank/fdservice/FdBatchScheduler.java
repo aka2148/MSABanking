@@ -14,10 +14,12 @@ public class FdBatchScheduler {
     private static final Logger log = LoggerFactory.getLogger(FdBatchScheduler.class);
     private final DemoClockService clock;
     private final FdBatchService batches;
+    private final SavingsInterestService savingsInterest;
 
-    public FdBatchScheduler(DemoClockService clock, FdBatchService batches) {
+    public FdBatchScheduler(DemoClockService clock, FdBatchService batches,SavingsInterestService savingsInterest) {
         this.clock = clock;
         this.batches = batches;
+        this.savingsInterest=savingsInterest;
     }
 
     @Scheduled(cron = "${app.fd.batch.schedule.interest-cron:0 0 0 * * *}",
@@ -45,4 +47,7 @@ public class FdBatchScheduler {
                     result.businessDate(), result.accountsExamined(), result.maturitiesProcessed());
         }
     }
+
+    @Scheduled(cron="${app.savings.interest.schedule.cron:0 10 0 * * *}",zone="${app.fd.batch.schedule.zone:UTC}")
+    public void runSavingsInterest(){SavingsInterestService.BatchResult result=savingsInterest.run(clock.businessDate());if(result.accountsFailed()>0)log.error("Scheduled savings interest batch completed with {} failed accounts for {}",result.accountsFailed(),result.businessDate());else log.info("Scheduled savings interest batch completed for {}: {} accounts, {} accrual rows, {} credits",result.businessDate(),result.accountsProcessed(),result.accrualRowsCreated(),result.creditsPosted());}
 }

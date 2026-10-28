@@ -19,15 +19,19 @@ public class FdBatchService {
     private final JdbcTemplate jdbc;
     private final DemoClockService clock;
     private final FdBatchAccountProcessor accountProcessor;
+    private final SavingsInterestService savingsInterest;
 
-    public FdBatchService(JdbcTemplate jdbc, DemoClockService clock, FdBatchAccountProcessor accountProcessor) {
+    public FdBatchService(JdbcTemplate jdbc, DemoClockService clock, FdBatchAccountProcessor accountProcessor,SavingsInterestService savingsInterest) {
         this.jdbc = jdbc;
         this.clock = clock;
         this.accountProcessor = accountProcessor;
+        this.savingsInterest=savingsInterest;
     }
 
     public DailyBatchResult runDaily(LocalDate requestedDate) {
         LocalDate date = businessDate(requestedDate);
+        SavingsInterestService.BatchResult savingsResult=savingsInterest.run(date);
+        if(savingsResult.accountsFailed()>0)log.error("Savings interest batch failed for {} accounts on {}",savingsResult.accountsFailed(),date);
         List<Long> ids = jdbc.queryForList("SELECT fa_account_id FROM fd_accounts " +
                 "WHERE fa_status IN ('ACTIVE','MATURED','CLOSED','PREMATURELY_CLOSED') ORDER BY fa_account_id", Long.class);
         List<Long> failed = new ArrayList<>();

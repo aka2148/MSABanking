@@ -69,13 +69,19 @@ class FdAccountMigrationTest {
 
     @Test
     void appliesAllFdMigrationsAndCreatesWorkflowSchema() {
-        assertEquals(18, jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1", Integer.class));
-        assertEquals(18, jdbc.queryForObject("SELECT MAX(CAST(version AS UNSIGNED)) FROM flyway_schema_history WHERE success=1", Integer.class));
+        assertEquals(24, jdbc.queryForObject("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1", Integer.class));
+        assertEquals(24, jdbc.queryForObject("SELECT MAX(CAST(version AS UNSIGNED)) FROM flyway_schema_history WHERE success=1", Integer.class));
         assertTrue(jdbc.queryForObject("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='fd_product_rate_ref' AND column_name='effective_from'", Integer.class) == 1);
         assertTrue(jdbc.queryForObject("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='fd_product_rate_ref' AND column_name='effective_to'", Integer.class) == 1);
 
         assertTrue(table("fd_accounts"));
         assertTrue(table("savings_accounts"));
+        assertTrue(table("savings_interest_accrual"));
+        assertTrue(table("savings_account_status_audit"));
+        assertEquals(8,decimalScale("savings_interest_accrual","sia_balance_basis"));
+        assertEquals(8,decimalScale("savings_interest_accrual","sia_interest"));
+        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM chart_of_accounts WHERE coa_code='CURRENT_ACCOUNT'",Integer.class));
+        assertTrue(jdbc.queryForObject("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='savings_accounts' AND column_name='sa_account_type'",Integer.class)==1);
         assertTrue(table("fd_user_ref"));
         assertTrue(table("fd_product_ref"));
         assertTrue(table("fd_currency_ref"));
