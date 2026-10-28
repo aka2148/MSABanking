@@ -55,7 +55,9 @@ public class KycService {
     @Transactional
     public Map<String, Object> get(String username) {
         Map<String, Object> c = customer(username);
-        return response(c, profile(c), username, Map.of());
+        Map<String, Object> p = profile(c);
+        ensureJointAccountForMinor(c, values(p));
+        return response(c, p, username, Map.of());
     }
 
     @Transactional
@@ -87,6 +89,7 @@ public class KycService {
         for (String field : KycValidation.FIELDS) {
             if (values.get(field) == null || KycValidation.error(field, values.get(field), values) != null) confirmed.remove(field);
         }
+        ensureJointAccountForMinor(c, values);
         String proof = values.get("proofOfIdValue");
         String masked = proof == null ? null : "****" + proof.substring(proof.length() - 4);
         List<Object> args = new ArrayList<>();
@@ -104,6 +107,7 @@ public class KycService {
         if (confirmed(p).size() != KycValidation.FIELDS.size())
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Complete all 9 KYC fields before submitting.");
         Map<String, String> values = values(p);
+        ensureJointAccountForMinor(c, values);
         jdbc.update("UPDATE customer_details SET cud_date_of_birth=?,cud_father_or_spouse_name=?,cud_occupation=?,cud_updated_date=UTC_TIMESTAMP(6) WHERE cud_customer_id=?",
                 values.get("dateOfBirth"), values.get("fatherOrSpouseName"), values.get("occupation"), id(c));
         event(c, p, "KYC_SUBMITTED", null);
@@ -205,6 +209,12 @@ public class KycService {
         Map<String, String> values = new LinkedHashMap<>();
         for (int i = 0; i < COLUMNS.size(); i++) values.put(KycValidation.FIELDS.get(i), Objects.toString(p.get(COLUMNS.get(i)), null));
         return values;
+    }
+    private void ensureJointAccountForMinor(Map<String, Object> customer, Map<String, String> values) {
+        if (!KycValidation.isMinor(values.get("dateOfBirth"))
+                || "JOINT".equals(customer.get("cus_legal_entity_type"))) return;
+        jdbc.update("UPDATE customers SET cus_legal_entity_type='JOINT' WHERE cus_customer_id=?", id(customer));
+        customer.put("cus_legal_entity_type", "JOINT");
     }
     private Set<String> confirmed(Map<String, Object> p) {
         Set<String> fields = new LinkedHashSet<>(Arrays.asList(((String)p.get("confirmed_fields")).split(",")));

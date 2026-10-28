@@ -14,13 +14,157 @@ import { GlassSelect } from '../../shared/components/glass-select/glass-select';
   selector: 'app-current-accounts', standalone: true,
   imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink, TranslatePipe, WorkspaceShell, GlassSelect],
   template: `
-    <app-workspace-shell><main class="workflow-page current-account-page">
-      <header class="workflow-page__header"><div><p class="workflow-page__eyebrow">{{ 'Deposit accounts' | translate }}</p><h1>{{ 'Current accounts' | translate }}</h1><p>{{ 'Choose a published current account product and review its minimum balance and interest bands.' | translate }}</p></div><a class="glass-btn glass-btn--ghost" routerLink="/current-accounts/accounts">{{ 'My current accounts' | translate }}</a></header>
-      <p class="glass-error" *ngIf="error" role="alert">{{ error | translate }}</p>
-      <section *ngIf="mode==='catalog'" class="workflow-page__grid"><article class="glass-card" *ngFor="let item of offers"><p class="workflow-page__eyebrow">{{ item.productCode }}</p><h2>{{ item.productName }}</h2><p>{{ item.description }}</p><p>{{ 'Currencies' | translate }}: <span *ngFor="let c of item.currencies">{{c.code}} </span></p><p>{{ 'Minimum balance' | translate }}: {{ item.minimumBalance | number:'1.2-4' }}</p><p *ngFor="let band of item.interestBands">{{ band.currencyCode }} {{ band.valueFrom }}–{{ band.valueTo }} · {{ band.rate | percent:'1.2-4' }}</p><a class="glass-btn" [routerLink]="['/current-accounts/open',item.productId]">{{ 'Open account' | translate }}</a></article><p *ngIf="!loading&&!offers.length">{{ 'No current account products are available right now.' | translate }}</p></section>
-      <section *ngIf="mode==='open'&&offer" class="glass-card"><a routerLink="/current-accounts">{{ 'Back to current account products' | translate }}</a><h2>{{ offer.productName }}</h2><p>{{ offer.description }}</p><p>{{ 'Currencies' | translate }}: <span *ngFor="let c of offer.currencies">{{c.code}} </span></p><p>{{ 'Minimum balance' | translate }}: {{ offer.minimumBalance | number:'1.2-4' }}</p><p *ngFor="let band of offer.interestBands">{{ band.currencyCode }} {{ band.valueFrom }}–{{ band.valueTo }} · {{ band.rate | percent:'1.2-4' }}</p><form [formGroup]="form" (ngSubmit)="open()"><label class="glass-field"><span class="glass-field__label">{{ 'Currency' | translate }}</span><app-glass-select formControlName="currencyCode" [options]="currencyOptions" /></label><label class="glass-field"><span class="glass-field__label">{{ 'Account name' | translate }}</span><input formControlName="displayName" maxlength="80"><span class="glass-field__error" *ngIf="form.controls.displayName.touched&&form.controls.displayName.invalid">{{ 'Enter a name of up to 80 characters.' | translate }}</span></label><button class="glass-btn" [disabled]="busy||form.invalid">{{ (busy?'Creating…':'Confirm and open') | translate }}</button></form><p class="glass-error" *ngIf="error.includes('KYC')">{{ error | translate }} <a routerLink="/kyc">{{ 'Go to KYC' | translate }}</a></p></section>
-      <section *ngIf="mode==='accounts'"><h2>{{ 'My current accounts' | translate }}</h2><p *ngIf="!accounts.length&&!loading">{{ 'No current accounts yet.' | translate }}</p><article class="glass-card" *ngFor="let account of accounts"><h3>{{ account.display_name }}</h3><p>{{ account.productName }} · {{ account.currency_code }} · {{ account.status | translate }}</p><p *ngIf="account.status==='INACTIVE'">{{ 'This account is frozen. Customer deposits and withdrawals are disabled.' | translate }}</p><p>{{ 'Balance' | translate }}: {{ account.balance | number:'1.2-4' }} · {{ 'Available balance' | translate }}: {{ account.availableBalance ?? account.balance | number:'1.2-4' }}</p><p>{{ 'Minimum balance' | translate }}: {{ account.minimumBalance | number:'1.2-4' }}</p><a routerLink="/savings">{{ 'Transfer or withdraw using the deposit tools' | translate }}</a><div class="statement-filters"><label class="glass-field"><span class="glass-field__label">{{ 'From date' | translate }}</span><input type="date" [(ngModel)]="fromDate"></label><label class="glass-field"><span class="glass-field__label">{{ 'To date' | translate }}</span><input type="date" [(ngModel)]="toDate"></label><button class="glass-btn glass-btn--ghost" (click)="loadStatement(account,0)">{{ 'View statement' | translate }}</button><button class="glass-btn glass-btn--ghost" (click)="download(account)">{{ 'Download CSV statement' | translate }}</button><button class="glass-btn glass-btn--ghost" (click)="loadHistory(account)">{{ 'Transaction history' | translate }}</button></div><section class="statement" *ngIf="statementAccountId===account.account_id&&statement"><p>{{ 'Opening balance' | translate }}: {{ statement.openingBalance | number:'1.2-4' }} · {{ 'Closing balance' | translate }}: {{ statement.closingBalance | number:'1.2-4' }}</p><div class="statement-row" *ngFor="let row of statement.content"><span>{{ row.postedAt | date:'medium' }} · {{ row.reference }}</span><strong>{{ row.entryType==='CREDIT'?'+':'−' }}{{ row.amount | number:'1.2-4' }} {{ account.currency_code }}</strong></div><nav class="statement-pages"><button class="glass-btn glass-btn--ghost" (click)="loadStatement(account,statement.page-1)" [disabled]="statement.page===0">{{ 'Previous' | translate }}</button><span>{{ 'Page {0} of {1}' | translate:[statement.page+1,statement.totalPages] }}</span><button class="glass-btn glass-btn--ghost" (click)="loadStatement(account,statement.page+1)" [disabled]="statement.page+1>=statement.totalPages">{{ 'Next' | translate }}</button></nav></section><section class="statement" *ngIf="historyAccountId===account.account_id"><div class="statement-row" *ngFor="let tx of history"><span>{{ tx.st_posted_at | date:'medium' }} · {{ tx.st_reference_id }}</span><strong>{{ tx.st_entry_type==='CREDIT'?'+':'−' }}{{ tx.st_amount | number:'1.2-4' }} {{ account.currency_code }}</strong></div></section></article></section>
-    </main></app-workspace-shell>`,
+    <app-workspace-shell>
+      <main class="current-account-page">
+        <header class="current-account-page__hero">
+          <div class="current-account-page__hero-copy">
+            <p class="current-account-page__eyebrow"><span class="current-account-page__eyebrow-dot" aria-hidden="true"></span>{{ 'Deposit accounts' | translate }}</p>
+            <h1>{{ 'Current accounts' | translate }}<span class="current-account-page__gold">.</span></h1>
+            <p class="current-account-page__intro">{{ 'Choose a published current account product and review its minimum balance and interest bands.' | translate }}</p>
+            <a class="glass-btn glass-btn--ghost current-account-page__browse" routerLink="/current-accounts/accounts">
+              {{ 'My current accounts' | translate }} <span aria-hidden="true">↗</span>
+            </a>
+          </div>
+          <div class="current-account-page__hero-art" aria-hidden="true">
+            <div class="current-account-page__hero-orbit"></div>
+            <div class="current-account-page__hero-orbit current-account-page__hero-orbit--inner"></div>
+            <div class="current-account-page__hero-symbol">↔</div>
+            <span class="current-account-page__hero-spark current-account-page__hero-spark--one"></span>
+            <span class="current-account-page__hero-spark current-account-page__hero-spark--two"></span>
+          </div>
+        </header>
+
+        <div class="current-account-page__notices" aria-live="polite">
+          <p class="glass-error" *ngIf="error" role="alert">{{ error | translate }}</p>
+        </div>
+
+        <section *ngIf="mode==='catalog'" class="current-account-page__catalog" aria-label="Current account products">
+          <div class="current-account-page__product-grid">
+            <article class="current-account-page__product" *ngFor="let item of offers; let i = index" [style.--account-index]="i">
+              <div class="current-account-page__product-heading">
+                <div>
+                  <p class="current-account-page__eyebrow">{{ item.productCode }}</p>
+                  <h2>{{ item.productName }}</h2>
+                </div>
+                <span class="current-account-page__product-mark" aria-hidden="true">↔</span>
+              </div>
+              <p class="current-account-page__description">{{ item.description }}</p>
+              <div class="current-account-page__product-facts">
+                <div><span>{{ 'Currencies' | translate }}</span><strong><span *ngFor="let c of item.currencies">{{ c.code }} </span></strong></div>
+                <div><span>{{ 'Minimum balance' | translate }}</span><strong>{{ item.minimumBalance | number:'1.2-4' }}</strong></div>
+              </div>
+              <div class="current-account-page__rates" *ngIf="item.interestBands.length">
+                <p class="current-account-page__eyebrow">{{ 'Interest rates' | translate }}</p>
+                <div class="current-account-page__rate" *ngFor="let band of item.interestBands">
+                  <span>{{ band.currencyCode }} · {{ band.valueFrom }}–{{ band.valueTo }}</span>
+                  <strong>{{ band.rate | percent:'1.2-4' }}</strong>
+                </div>
+              </div>
+              <a class="glass-btn current-account-page__open" [routerLink]="['/current-accounts/open',item.productId]">{{ 'Open account' | translate }}<span aria-hidden="true">→</span></a>
+            </article>
+          </div>
+          <div class="current-account-page__empty" *ngIf="!loading&&!offers.length">
+            <div class="current-account-page__empty-icon" aria-hidden="true">↔</div>
+            <h2>{{ 'No current account products are available right now.' | translate }}</h2>
+          </div>
+        </section>
+
+        <section *ngIf="mode==='open'&&offer" class="current-account-page__panel" aria-labelledby="open-current-account-heading">
+          <a class="current-account-page__back" routerLink="/current-accounts">{{ 'Back to current account products' | translate }}<span aria-hidden="true">←</span></a>
+          <div class="current-account-page__section-heading">
+            <div class="current-account-page__section-icon" aria-hidden="true">＋</div>
+            <div>
+              <p class="current-account-page__eyebrow">{{ offer.productCode }}</p>
+              <h2 id="open-current-account-heading">{{ offer.productName }}</h2>
+            </div>
+          </div>
+          <p class="current-account-page__description">{{ offer.description }}</p>
+          <div class="current-account-page__product-facts current-account-page__product-facts--open">
+            <div><span>{{ 'Currencies' | translate }}</span><strong><span *ngFor="let c of offer.currencies">{{ c.code }} </span></strong></div>
+            <div><span>{{ 'Minimum balance' | translate }}</span><strong>{{ offer.minimumBalance | number:'1.2-4' }}</strong></div>
+          </div>
+          <div class="current-account-page__rates" *ngIf="offer.interestBands.length">
+            <p class="current-account-page__eyebrow">{{ 'Interest rates' | translate }}</p>
+            <div class="current-account-page__rate" *ngFor="let band of offer.interestBands">
+              <span>{{ band.currencyCode }} · {{ band.valueFrom }}–{{ band.valueTo }}</span>
+              <strong>{{ band.rate | percent:'1.2-4' }}</strong>
+            </div>
+          </div>
+          <form [formGroup]="form" (ngSubmit)="open()" class="current-account-page__form">
+            <label class="glass-field">
+              <span class="glass-field__label">{{ 'Currency' | translate }}</span>
+              <app-glass-select formControlName="currencyCode" [options]="currencyOptions" />
+            </label>
+            <label class="glass-field">
+              <span class="glass-field__label">{{ 'Account name' | translate }}</span>
+              <input formControlName="displayName" maxlength="80">
+              <span class="glass-field__error" *ngIf="form.controls.displayName.touched&&form.controls.displayName.invalid">{{ 'Enter a name of up to 80 characters.' | translate }}</span>
+            </label>
+            <button class="glass-btn current-account-page__submit" [disabled]="busy||form.invalid">{{ (busy?'Creating…':'Confirm and open') | translate }}<span *ngIf="!busy" aria-hidden="true">→</span></button>
+          </form>
+          <p class="glass-error" *ngIf="error.includes('KYC')">{{ error | translate }} <a routerLink="/kyc">{{ 'Go to KYC' | translate }}</a></p>
+        </section>
+
+        <section *ngIf="mode==='accounts'" class="current-account-page__accounts" aria-labelledby="current-accounts-heading">
+          <div class="current-account-page__accounts-heading">
+            <div>
+              <p class="current-account-page__eyebrow">{{ 'Accounts' | translate }}</p>
+              <h2 id="current-accounts-heading">{{ 'My current accounts' | translate }}</h2>
+            </div>
+            <span class="current-account-page__count" *ngIf="!loading">{{ '{0} shown' | translate: [(accounts.length)] }}</span>
+          </div>
+          <div class="current-account-page__loading" *ngIf="loading" role="status">
+            <span class="current-account-page__loader"></span>{{ 'Loading accounts…' | translate }}
+          </div>
+          <div class="current-account-page__empty" *ngIf="!loading&&!error&&accounts.length===0">
+            <div class="current-account-page__empty-icon" aria-hidden="true">↔</div>
+            <h2>{{ 'No current accounts yet.' | translate }}</h2>
+          </div>
+          <article class="current-account-page__account" *ngFor="let account of accounts; let i = index" [style.--account-index]="i">
+            <div class="current-account-page__account-top">
+              <div class="current-account-page__account-icon" aria-hidden="true">↔</div>
+              <div class="current-account-page__account-identity">
+                <h3>{{ account.display_name }}</h3>
+                <p>{{ account.productName }} · {{ account.currency_code }}</p>
+              </div>
+              <span class="current-account-page__status">{{ account.status | translate }}</span>
+            </div>
+            <div class="current-account-page__balance">
+              <span>{{ 'Balance' | translate }}</span>
+              <strong>{{ account.balance | number:'1.2-4' }} <small>{{ account.currency_code }}</small></strong>
+            </div>
+            <div class="current-account-page__account-facts">
+              <div><span>{{ 'Available balance' | translate }}</span><strong>{{ account.availableBalance ?? account.balance | number:'1.2-4' }}</strong></div>
+              <div><span>{{ 'Minimum balance' | translate }}</span><strong>{{ account.minimumBalance | number:'1.2-4' }}</strong></div>
+            </div>
+            <p class="current-account-page__inactive" *ngIf="account.status==='INACTIVE'">{{ 'This account is frozen. Customer deposits and withdrawals are disabled.' | translate }}</p>
+            <a class="current-account-page__deposit-link" routerLink="/savings">{{ 'Transfer or withdraw using the deposit tools' | translate }}<span aria-hidden="true">↗</span></a>
+            <div class="statement-filters">
+              <label class="glass-field"><span class="glass-field__label">{{ 'From date' | translate }}</span><input type="date" [(ngModel)]="fromDate"></label>
+              <label class="glass-field"><span class="glass-field__label">{{ 'To date' | translate }}</span><input type="date" [(ngModel)]="toDate"></label>
+              <button class="glass-btn glass-btn--ghost" (click)="loadStatement(account,0)">{{ 'View statement' | translate }}</button>
+              <button class="glass-btn glass-btn--ghost" (click)="download(account)">{{ 'Download CSV statement' | translate }}</button>
+              <button class="glass-btn glass-btn--ghost" (click)="loadHistory(account)">{{ 'Transaction history' | translate }}</button>
+            </div>
+            <section class="statement" *ngIf="statementAccountId===account.account_id&&statement" aria-label="Current account statement">
+              <div class="current-account-page__statement-summary">
+                <p>{{ 'Opening balance' | translate }}<strong>{{ statement.openingBalance | number:'1.2-4' }} {{ account.currency_code }}</strong></p>
+                <p>{{ 'Closing balance' | translate }}<strong>{{ statement.closingBalance | number:'1.2-4' }} {{ account.currency_code }}</strong></p>
+              </div>
+              <div class="statement-row" *ngFor="let row of statement.content"><span>{{ row.postedAt | date:'medium' }} · {{ row.reference }}</span><strong>{{ row.entryType==='CREDIT'?'+':'−' }}{{ row.amount | number:'1.2-4' }} {{ account.currency_code }}</strong></div>
+              <nav class="statement-pages" aria-label="Statement pages">
+                <button class="glass-btn glass-btn--ghost" (click)="loadStatement(account,statement.page-1)" [disabled]="statement.page===0">{{ 'Previous' | translate }}</button>
+                <span>{{ 'Page {0} of {1}' | translate:[statement.page+1,statement.totalPages] }}</span>
+                <button class="glass-btn glass-btn--ghost" (click)="loadStatement(account,statement.page+1)" [disabled]="statement.page+1>=statement.totalPages">{{ 'Next' | translate }}</button>
+              </nav>
+            </section>
+            <section class="statement" *ngIf="historyAccountId===account.account_id" aria-label="Current account transaction history">
+              <div class="statement-row" *ngFor="let tx of history"><span>{{ tx.st_posted_at | date:'medium' }} · {{ tx.st_reference_id }}</span><strong>{{ tx.st_entry_type==='CREDIT'?'+':'−' }}{{ tx.st_amount | number:'1.2-4' }} {{ account.currency_code }}</strong></div>
+            </section>
+          </article>
+        </section>
+      </main>
+    </app-workspace-shell>`,
   styleUrl: './current-accounts.scss',
 })
 export class CurrentAccountsPage implements OnInit {

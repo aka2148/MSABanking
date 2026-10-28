@@ -683,6 +683,18 @@
   overflow-wrap: anywhere;
 }
 
+.kyc-minor-note {
+  margin: 0 0 20px;
+  padding: 14px 16px;
+  border: 1px solid rgba(241, 152, 17, .28);
+  border-left: 3px solid #f19811;
+  border-radius: 12px;
+  background: rgba(241, 152, 17, .07);
+  color: #f3e7cb;
+  font-size: .88rem;
+  line-height: 1.6;
+}
+
 .kyc-card .glass-error {
   border-color: rgba(255, 110, 110, 0.3);
   background: rgba(119, 35, 43, 0.17);

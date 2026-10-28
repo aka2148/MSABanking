@@ -32,7 +32,7 @@ Do not use a demo opening credit unless the local staff-only demo option is expl
 
 ## 5. Inspect interest and maturity
 
-Customers can inspect account accrual and transaction history in the FD page or via `/api/v1/fixed-deposits/{id}/accruals` and `/transactions`. Staff can use the **Operations** clock dashboard to advance the simulated business date, which runs the daily batch for that date, or use the explicit staff batch endpoints. Read the batch counts and account status afterward. The scheduled job is disabled by default in Compose; the configured scheduler cron is 00:00 UTC when enabled.
+Customers can inspect account accrual and transaction history in the FD page or via `/api/v1/fixed-deposits/{id}/accruals` and `/transactions`. Staff can use the **Operations** clock dashboard to advance the simulated business date, which runs the daily batch for that date, or use the explicit staff batch endpoints. Read the batch counts and account status afterward. Compose enables scheduled interest accrual at 00:00 and the maturity/statement catch-up batch at 01:00 Asia/Kolkata; set `FD_BATCH_SCHEDULE_ENABLED=false` to disable them. Advancing the demo clock remains an immediate full batch run.
 
 After maturity processing changes an account to `MATURED`, close it through the supported close action and inspect the recorded internal settlement and transaction history. The demo does not send funds through an external payment rail.
 

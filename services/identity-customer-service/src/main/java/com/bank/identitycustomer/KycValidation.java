@@ -30,8 +30,8 @@ final class KycValidation {
             case "dateOfBirth" -> {
                 LocalDate date = date(value);
                 yield date != null && date.isAfter(today) ? "Date of birth can't be in the future."
-                        : date != null && !date.isBefore(LocalDate.of(1900, 1, 1)) && !date.isAfter(today.minusYears(18))
-                        ? null : "You must be at least 18.";
+                        : date != null && !date.isBefore(LocalDate.of(1900, 1, 1))
+                        ? null : "Enter a valid date of birth.";
             }
             case "gender" -> Set.of("MALE", "FEMALE", "OTHER").contains(value) ? null : "Select a valid option.";
             case "relationship" -> Set.of("FATHER", "SPOUSE", "MOTHER").contains(value) ? null : "Select a valid option.";
@@ -49,6 +49,12 @@ final class KycValidation {
             }
             default -> throw new IllegalArgumentException("Unknown KYC field");
         };
+    }
+
+    static boolean isMinor(String value) {
+        LocalDate birth = date(value), today = LocalDate.now(ZoneOffset.UTC);
+        return birth != null && !birth.isBefore(LocalDate.of(1900, 1, 1))
+                && !birth.isAfter(today) && birth.isAfter(today.minusYears(18));
     }
 
     private static LocalDate date(String value) {

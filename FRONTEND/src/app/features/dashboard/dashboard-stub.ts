@@ -170,7 +170,7 @@ interface MarketRate {
         </section>
 
         <!-- KYC LEFT + FINANCIAL NEWS RIGHT -->
-        <section class="workspace-home__overview">
+        <section class="workspace-home__overview" *ngIf="!canManageProducts">
 
           <!-- EXISTING KYC COMPONENT -->
           <section

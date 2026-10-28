@@ -59,6 +59,10 @@
         {{ 'KYC verified successfully.' | translate }}
       </p>
 
+      <p *ngIf="isMinor" class="kyc-minor-note" role="note">
+        {{ 'A joint account is mandatory for customers under 18. Your account type will be set to Joint automatically.' | translate }}
+      </p>
+
       <!-- ACCOUNT DETAILS -->
       <section class="kyc-panel">
         <div class="kyc-section-heading">

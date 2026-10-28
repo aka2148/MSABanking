@@ -38,7 +38,6 @@ public class FixedDepositController {
     public FdView getMine(Authentication actor,@PathVariable long id){return find(id,userId(actor));}
 
     @PostMapping("/estimate")
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('CUSTOMER')")
     public Estimate estimate(@Valid @RequestBody EstimateRequest request){
         var q=new FdQuoteService(jdbc,clock).resolve(new BookingRequest(request.productId(),null,request.principal(),request.currencyCode(),request.tenureMonths()),null);
         return new Estimate(request.productId(),request.currencyCode().toUpperCase(java.util.Locale.ROOT),q.scale(),q.principal(),q.rate(),q.compounding(),q.payout(),q.open(),q.maturity(),q.estimate().subtract(q.principal()),q.estimate());

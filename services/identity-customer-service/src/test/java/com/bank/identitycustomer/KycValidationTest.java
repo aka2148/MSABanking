@@ -7,8 +7,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class KycValidationTest {
     @Test void validatesDatesAndEveryEnum() {
-        for (String value : new String[]{"1899-12-31", LocalDate.now().minusYears(17).toString(), "2999-01-01", "2000-02-30", "bad"})
+        for (String value : new String[]{"1899-12-31", "2999-01-01", "2000-02-30", "bad"})
             assertNotNull(KycValidation.error("dateOfBirth", value, Map.of()));
+        assertNull(KycValidation.error("dateOfBirth", LocalDate.now(java.time.ZoneOffset.UTC).minusYears(17).toString(), Map.of()));
         assertNull(KycValidation.error("dateOfBirth", LocalDate.now(java.time.ZoneOffset.UTC).minusYears(18).toString(), Map.of()));
         for (String field : new String[]{"gender", "relationship", "occupation", "countryOfOrigin", "proofOfIdType"})
             assertNotNull(KycValidation.error(field, "INVALID", Map.of()));

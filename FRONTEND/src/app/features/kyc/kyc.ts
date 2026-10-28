@@ -66,6 +66,12 @@ export class Kyc implements OnInit, OnDestroy {
   };
   private choices(...pairs: string[][]) { return pairs.map(([value, label]) => ({ value, label })); }
   get utcToday(): string { return new Date().toISOString().slice(0, 10); }
+  get isMinor(): boolean {
+    const birth = this.form.dateOfBirth;
+    if (!birth || birth < '1900-01-01' || birth > this.utcToday) return false;
+    const cutoff = `${Number(this.utcToday.slice(0, 4)) - 18}${this.utcToday.slice(4)}`;
+    return birth > cutoff;
+  }
   proofLabel(): string { return this.options.proofOfIdType?.find(o => o.value === this.profile?.values.proofOfIdType)?.label ?? '—'; }
 
   ngOnInit(): void {

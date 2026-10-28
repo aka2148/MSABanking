@@ -59,7 +59,9 @@ Invoke-RestMethod http://localhost:8080/gateway/health
 
 The Compose environment is configured with persistent named local volumes. `docker compose down` stops the stack but retains data. `docker compose down -v` deletes those volumes; only use it when intentionally discarding local demo data. The isolated audit stack is separate and uses its own Compose project name/volumes.
 
-FD batch scheduling is disabled by default in Compose (`FD_BATCH_SCHEDULE_ENABLED` defaults to false). The default scheduler code uses a 00:00 UTC cron when enabled. In the lab demo, staff can advance the simulated business clock or run explicit batch endpoints. The staff clock uses the configured FD business timezone; the current service default is UTC.
+Compose enables the FD scheduler for its single FD service instance. Daily interest accrual runs at 00:00 and the maturity/statement catch-up batch runs at 01:00 in `Asia/Kolkata` by default. Set `FD_BATCH_SCHEDULE_ENABLED=false` to disable the cron jobs; `FD_BATCH_INTEREST_CRON`, `FD_BATCH_MATURITY_CRON`, `FD_BATCH_ZONE`, and `FD_BUSINESS_ZONE` configure the schedules and business date zone.
+
+The staff demo clock remains available with scheduled processing enabled. Advancing the clock still runs the existing full daily batch immediately, and `/api/admin/clock/run-daily` runs it for the current business date. Resetting the clock resets only its offset; it does not roll back account history. Keep the FD service to one replica while its scheduler is enabled so the full batch scan is started by only one instance.
 
 ## Deployment evidence and limits
 
