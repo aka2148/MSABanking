@@ -56,7 +56,7 @@ public class ReferenceSnapshotConsumer {
                 JsonNode c = currencies.next();
                 long currencyId=c.path("cur_currency_id").asLong();
                 jdbc.update("INSERT INTO fd_currency_ref(fcr_currency_id,fcr_iso_code,fcr_currency_name,fcr_decimal_places) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE fcr_iso_code=VALUES(fcr_iso_code),fcr_currency_name=VALUES(fcr_currency_name),fcr_decimal_places=VALUES(fcr_decimal_places)", currencyId, c.path("cur_iso_code").asText(), c.path("cur_currency_name").asText(null), c.path("cur_decimal_places").asInt());
-                String penalty=c.path("premature_penalty_points").isMissingNode()||c.path("premature_penalty_points").isNull()?null:c.path("premature_penalty_points").asText();
+                String penalty=c.path("premature_penalty_points").isMissingNode()||c.path("premature_penalty_points").isNull()?"1.0000":c.path("premature_penalty_points").asText();
                 jdbc.update("INSERT INTO fd_product_currency_ref(product_id,currency_id,minimum_amount,maximum_amount,is_base_currency,source_version,premature_penalty_points) VALUES(?,?,?,?,?,?,?)",id,currencyId,new BigDecimal(c.path("pcc_minimum_amount").asText()),new BigDecimal(c.path("pcc_maximum_amount").asText()),c.path("pcc_is_base_currency").asBoolean(),version,penalty);
             }
             Iterator<JsonNode> bands=root.path("rateBands").elements();

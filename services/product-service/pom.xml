@@ -26,7 +26,7 @@
   <build>
     <resources>
       <resource><directory>src/main/resources</directory></resource>
-      <resource><directory>${project.basedir}/../../BACKEND/src/main/resources/db/service-migration/product</directory><targetPath>db/service-migration/product</targetPath><includes><include>V1__initial_schema.sql</include><include>V2__product_localization_and_fd_rule.sql</include><include>V3__product_builder_reference_data.sql</include><include>V4__template_currencies.sql</include><include>V5__restore_audit_metadata.sql</include><include>V6__jpy_currency.sql</include><include>V7__fd_compounding_options.sql</include><include>V8__remove_redundant_audit_columns.sql</include><include>V9__drop_empty_generic_version_columns.sql</include></includes></resource>
+      <resource><directory>${project.basedir}/../../BACKEND/src/main/resources/db/service-migration/product</directory><targetPath>db/service-migration/product</targetPath><includes><include>V1__initial_schema.sql</include><include>V2__product_localization_and_fd_rule.sql</include><include>V3__product_builder_reference_data.sql</include><include>V4__template_currencies.sql</include><include>V5__restore_audit_metadata.sql</include><include>V6__jpy_currency.sql</include><include>V7__fd_compounding_options.sql</include><include>V8__remove_redundant_audit_columns.sql</include><include>V9__drop_empty_generic_version_columns.sql</include><include>V10__fd_default_premature_penalty.sql</include></includes></resource>
     </resources>
     <plugins><plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin></plugins>
   </build>

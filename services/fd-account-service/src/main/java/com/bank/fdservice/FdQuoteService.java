@@ -29,7 +29,7 @@ final class FdQuoteService {
         Map<String,Object> ownerAccount=jdbc.query("SELECT sa_account_id FROM savings_accounts WHERE sa_account_id=? AND sa_holder_id=? AND sa_currency_id=? AND sa_status='ACTIVE'",r->r.next()?Map.of("id",r.getLong(1)):null,request.savingsAccountId(),userId,currencyId);
         if(ownerAccount==null)throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Eligible owned savings account not found");
         }
-        Map<String,Object> pcc=jdbc.query("SELECT minimum_amount,maximum_amount,premature_penalty_points FROM fd_product_currency_ref WHERE product_id=? AND currency_id=?",r->r.next()?Map.of("min",r.getBigDecimal(1),"max",r.getBigDecimal(2),"penalty",r.getBigDecimal(3)==null?"":r.getBigDecimal(3).toPlainString()):null,request.productId(),currencyId);
+        Map<String,Object> pcc=jdbc.query("SELECT minimum_amount,maximum_amount,COALESCE(premature_penalty_points,1.0000) FROM fd_product_currency_ref WHERE product_id=? AND currency_id=?",r->r.next()?Map.of("min",r.getBigDecimal(1),"max",r.getBigDecimal(2),"penalty",r.getBigDecimal(3)==null?"":r.getBigDecimal(3).toPlainString()):null,request.productId(),currencyId);
         if(pcc==null)throw bad("Currency "+request.currencyCode()+" is not supported for this product");
         BigDecimal minAmount=(BigDecimal)pcc.get("min");BigDecimal maxAmount=(BigDecimal)pcc.get("max");
         if(principal.compareTo(minAmount)<0||principal.compareTo(maxAmount)>0)throw bad("Principal amount "+principal+" is outside permitted bounds ["+minAmount+", "+maxAmount+"]");

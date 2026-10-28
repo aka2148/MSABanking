@@ -200,6 +200,7 @@ public class ProductCatalogController {
     }
 
     private void writeOutbox(long id) {
+        FdPrematurePenaltyDefaults.ensureForProduct(jdbc, new FixedDepositCategories(jdbc), id);
         Map<String, Object> product = jdbc.queryForMap(
                 "SELECT pro_product_code,pro_product_name,pro_description,pro_base_currency_code,pro_status,pro_event_version FROM product WHERE pro_product_id=?",
                 id);
