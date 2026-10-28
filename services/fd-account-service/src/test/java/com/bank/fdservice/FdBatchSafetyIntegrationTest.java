@@ -158,9 +158,8 @@ class FdBatchSafetyIntegrationTest {
         java.sql.Timestamp maturityTimestamp = jdbc.queryForObject("SELECT ft_txn_date FROM fd_transactions WHERE ft_account_id=? AND ft_txn_type_id=(SELECT tt_txn_type_id FROM transaction_types WHERE tt_txn_type_code='FD_MATURITY')",
                 java.sql.Timestamp.class, maturesDuringAdvance);
         assertNotNull(maturityTimestamp);
-        assertEquals(advanceTarget, maturityTimestamp.toInstant().atZone(java.time.ZoneOffset.UTC).toLocalDate());
-        assertTrue(Math.abs(java.time.Duration.between(clock.status().effectiveTime(), maturityTimestamp.toInstant()).toSeconds()) <= 3,
-                "the maturity activity timestamp must use the simulated effective time");
+        assertEquals(today.plusDays(15), maturityTimestamp.toInstant().atZone(java.time.ZoneOffset.UTC).toLocalDate(),
+                "maturity activity must use the contractual maturity date, not the later batch date");
         var actor = new UsernamePasswordAuthenticationToken("batch-probe-user-980", "", java.util.List.of());
         actor.setDetails(java.util.Map.of("userId", 980L));
         var maturityActivity = lifecycle.transactions(actor, maturesDuringAdvance).stream()

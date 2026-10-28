@@ -13,6 +13,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -108,7 +109,7 @@ public class FdBatchAccountProcessor {
                         "VALUES(?,?,?,?,?,?,?,?)",
                 id, typeId("FD_MATURITY"), balance, balance, currency,
                 "Account matured; settlement can be completed using the account's close action", "fd-batch",
-                Timestamp.from(clock.status().effectiveTime()));
+                Timestamp.from(maturity.atStartOfDay(ZoneOffset.UTC).toInstant()));
         event(id, "MATURED", Map.of("status", "MATURED", "maturityAmount", balance, "maturityDate", maturity.toString()));
         lifecycleRecords.recordNoticeIfMissing(id, "FD_MATURED", batchDate, "fd-batch");
         return rows;
