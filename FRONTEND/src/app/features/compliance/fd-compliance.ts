@@ -622,6 +622,58 @@ export class FdCompliance implements OnInit {
       }
     }
 
+    // Pairwise interval and tenure overlap validation
+    for (let i = 0; i < this.editableBands.length; i++) {
+      const b1 = this.editableBands[i];
+      const from1 = b1.effectiveFrom || this.editableProductEffectiveFrom || '';
+      const to1 = b1.effectiveTo || this.editableProductEffectiveTo || '';
+
+      for (let j = i + 1; j < this.editableBands.length; j++) {
+        const b2 = this.editableBands[j];
+        if (b1.currencyCode !== b2.currencyCode) {
+          continue;
+        }
+
+        const tenureOverlap = Math.max(b1.minimumTenureMonths, b2.minimumTenureMonths) <=
+                              Math.min(b1.maximumTenureMonths, b2.maximumTenureMonths);
+        if (!tenureOverlap) {
+          continue;
+        }
+
+        const from2 = b2.effectiveFrom || this.editableProductEffectiveFrom || '';
+        const to2 = b2.effectiveTo || this.editableProductEffectiveTo || '';
+
+        const datesOverlap = (!from1 || !to2 || from1 <= to2) && (!from2 || !to1 || from2 <= to1);
+        if (datesOverlap) {
+          const overlapStart = (!from1 || !from2) ? (from1 || from2 || 'open') : (from1 > from2 ? from1 : from2);
+          const overlapEnd = (!to1 || !to2) ? (to1 || to2 || 'open') : (to1 < to2 ? to1 : to2);
+          this.scheduleError = `AMBIGUOUS_CONFIGURATION: Rate bands ${i + 1} and ${j + 1} for currency ${b1.currencyCode} conflict with overlapping tenure (${Math.max(b1.minimumTenureMonths, b2.minimumTenureMonths)}–${Math.min(b1.maximumTenureMonths, b2.maximumTenureMonths)} mo) and effective dates (${overlapStart} to ${overlapEnd}).`;
+          return;
+        }
+      }
+    }
+
+    if (this.schedule.status === 'ACTIVE') {
+      const today = new Date().toISOString().slice(0, 10);
+      const evalDate = (this.editableProductEffectiveFrom && this.editableProductEffectiveFrom > today)
+        ? this.editableProductEffectiveFrom
+        : today;
+
+      const currencies = Array.from(new Set(this.editableBands.map(b => b.currencyCode)));
+      for (const curr of currencies) {
+        const bandsForCurr = this.editableBands.filter(b => b.currencyCode === curr);
+        const hasEffective = bandsForCurr.some(b => {
+          const from = b.effectiveFrom || this.editableProductEffectiveFrom || '';
+          const to = b.effectiveTo || this.editableProductEffectiveTo || '';
+          return (!from || evalDate >= from) && (!to || evalDate <= to);
+        });
+        if (!hasEffective) {
+          this.scheduleError = `NO_APPLICABLE_RATE: No rate schedule for currency ${curr} is effective on ${evalDate}. Active products require an effective rate schedule.`;
+          return;
+        }
+      }
+    }
+
     const payload: UpdateScheduleRequest = {
       effectiveFrom: this.editableProductEffectiveFrom || null,
       effectiveTo: this.editableProductEffectiveTo || null,

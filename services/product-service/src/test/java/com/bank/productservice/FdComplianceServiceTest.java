@@ -9,6 +9,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.jdbc.core.RowMapper;
 
 import java.math.BigDecimal;
@@ -514,5 +515,295 @@ class FdComplianceServiceTest {
         );
         assertEquals(org.springframework.http.HttpStatus.BAD_REQUEST, ex.getStatusCode());
         assertTrue(ex.getReason().contains("requires at least one active currency configuration"));
+    }
+
+    @Test
+    @DisplayName("updateProductSchedule: Inclusive date boundary overlap (Oct 28-Nov 7 vs Nov 7-Nov 28) throws 409 CONFLICT")
+    void updateProductSchedule_inclusiveBoundaryOverlap_throwsConflict() {
+        when(jdbc.queryForList(contains("SELECT pro_product_id, pro_product_code"), eq(10L)))
+                .thenReturn(List.of(java.util.Map.of(
+                        "pro_product_id", 10L, "pro_product_code", "FD_BOUND", "pro_product_name", "Boundary Test FD",
+                        "pro_status", "ACTIVE", "pro_event_version", 1L
+                )));
+        when(jdbc.query(contains("FROM currency WHERE"), any(ResultSetExtractor.class), eq("INR"))).thenReturn(1L);
+
+        FdComplianceService.UpdateScheduleRequest request = new FdComplianceService.UpdateScheduleRequest(
+                LocalDate.of(2026, 10, 28), LocalDate.of(2026, 12, 31),
+                List.of(
+                        new FdComplianceService.RateBandInput("INR", 12, 24, new BigDecimal("0.0700"),
+                                "QUARTERLY", "AT_MATURITY", LocalDate.of(2026, 10, 28), LocalDate.of(2026, 11, 7)),
+                        new FdComplianceService.RateBandInput("INR", 12, 24, new BigDecimal("0.0750"),
+                                "QUARTERLY", "AT_MATURITY", LocalDate.of(2026, 11, 7), LocalDate.of(2026, 11, 28))
+                )
+        );
+
+        org.springframework.web.server.ResponseStatusException ex = assertThrows(
+                org.springframework.web.server.ResponseStatusException.class,
+                () -> complianceService.updateProductSchedule(10L, request)
+        );
+        assertEquals(org.springframework.http.HttpStatus.CONFLICT, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("AMBIGUOUS_CONFIGURATION"));
+
+        // Verify that database was NOT modified and outbox was NOT written
+        verify(jdbc, never()).update(contains("DELETE FROM rule_condition"), anyLong());
+        verify(jdbc, never()).update(contains("DELETE FROM product_rule"), anyLong());
+        verify(jdbc, never()).update(contains("INSERT INTO outbox_event"), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("updateProductSchedule: Sequential non-overlapping dates (Oct 28-Nov 7 vs Nov 8-Nov 28) succeed")
+    void updateProductSchedule_sequentialNonOverlappingDates_succeeds() {
+        when(jdbc.queryForList(contains("SELECT pro_product_id, pro_product_code"), eq(11L)))
+                .thenReturn(List.of(java.util.Map.of(
+                        "pro_product_id", 11L, "pro_product_code", "FD_SEQ", "pro_product_name", "Sequential FD",
+                        "pro_status", "DRAFT", "pro_event_version", 1L
+                )));
+        when(jdbc.query(contains("FROM currency WHERE"), any(ResultSetExtractor.class), eq("INR"))).thenReturn(1L);
+        when(jdbc.query(contains("FROM product_currency_config WHERE"), any(ResultSetExtractor.class), eq(11L), eq(1L)))
+                .thenReturn(java.util.Map.of("min", new BigDecimal("1000.00"), "max", new BigDecimal("1000000.00")));
+        when(jdbc.query(contains("FROM rule_type WHERE"), any(ResultSetExtractor.class))).thenReturn(1L);
+        when(jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class)).thenReturn(101L, 102L);
+
+        when(jdbc.queryForList(contains("FROM product_currency_config cfg"), eq(11L)))
+                .thenReturn(List.of(java.util.Map.of(
+                        "pcc_currency_id", 1L, "cur_iso_code", "INR",
+                        "pcc_minimum_amount", new BigDecimal("1000.00"), "pcc_maximum_amount", new BigDecimal("1000000.00")
+                )));
+        mockCandidateData(List.of(
+                new MockCandidate(LocalDate.of(2026, 10, 28), LocalDate.of(2026, 11, 7), new BigDecimal("0.0700"),
+                        "QUARTERLY", "AT_MATURITY", new BigDecimal("1000.00"), new BigDecimal("1000000.00"), 12, 24),
+                new MockCandidate(LocalDate.of(2026, 11, 8), LocalDate.of(2026, 11, 28), new BigDecimal("0.0750"),
+                        "QUARTERLY", "AT_MATURITY", new BigDecimal("1000.00"), new BigDecimal("1000000.00"), 12, 24)
+        ));
+
+        when(jdbc.query(contains("FROM product_currency_config pcc JOIN currency c"), any(RowMapper.class), eq(11L)))
+                .thenReturn(List.of(new FdComplianceService.CurrencyLimitSummary("INR", new BigDecimal("1000.00"), new BigDecimal("1000000.00"), true)));
+        when(jdbc.query(contains("SELECT r.pr_rule_id, c.cur_iso_code"), any(RowMapper.class), eq(11L)))
+                .thenReturn(List.of());
+
+        FdComplianceService.UpdateScheduleRequest request = new FdComplianceService.UpdateScheduleRequest(
+                LocalDate.of(2026, 10, 28), LocalDate.of(2026, 12, 31),
+                List.of(
+                        new FdComplianceService.RateBandInput("INR", 12, 24, new BigDecimal("0.0700"),
+                                "QUARTERLY", "AT_MATURITY", LocalDate.of(2026, 10, 28), LocalDate.of(2026, 11, 7)),
+                        new FdComplianceService.RateBandInput("INR", 12, 24, new BigDecimal("0.0750"),
+                                "QUARTERLY", "AT_MATURITY", LocalDate.of(2026, 11, 8), LocalDate.of(2026, 11, 28))
+                )
+        );
+
+        assertDoesNotThrow(() -> complianceService.updateProductSchedule(11L, request));
+        verify(jdbc, times(1)).update(contains("DELETE FROM product_rule"), eq(11L));
+    }
+
+    @Test
+    @DisplayName("updateProductSchedule: Overlapping future-dated bands throw 409 CONFLICT")
+    void updateProductSchedule_overlappingFutureDates_throwsConflict() {
+        when(jdbc.queryForList(contains("SELECT pro_product_id, pro_product_code"), eq(12L)))
+                .thenReturn(List.of(java.util.Map.of(
+                        "pro_product_id", 12L, "pro_product_code", "FD_FUT_CONF", "pro_product_name", "Future Conflict FD",
+                        "pro_status", "DRAFT", "pro_event_version", 1L
+                )));
+        when(jdbc.query(contains("FROM currency WHERE"), any(ResultSetExtractor.class), eq("INR"))).thenReturn(1L);
+
+        FdComplianceService.UpdateScheduleRequest request = new FdComplianceService.UpdateScheduleRequest(
+                LocalDate.of(2026, 10, 28), LocalDate.of(2026, 12, 31),
+                List.of(
+                        new FdComplianceService.RateBandInput("INR", 12, 24, new BigDecimal("0.0701"),
+                                "QUARTERLY", "AT_MATURITY", LocalDate.of(2026, 11, 17), LocalDate.of(2026, 11, 28)),
+                        new FdComplianceService.RateBandInput("INR", 12, 24, new BigDecimal("0.0800"),
+                                "QUARTERLY", "AT_MATURITY", LocalDate.of(2026, 11, 17), LocalDate.of(2026, 11, 28))
+                )
+        );
+
+        org.springframework.web.server.ResponseStatusException ex = assertThrows(
+                org.springframework.web.server.ResponseStatusException.class,
+                () -> complianceService.updateProductSchedule(12L, request)
+        );
+        assertEquals(org.springframework.http.HttpStatus.CONFLICT, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("AMBIGUOUS_CONFIGURATION"));
+
+        verify(jdbc, never()).update(contains("DELETE FROM product_rule"), anyLong());
+    }
+
+    @Test
+    @DisplayName("updateProductSchedule: Different currencies with same dates and tenure do not conflict")
+    void updateProductSchedule_differentCurrencies_doNotConflict() {
+        when(jdbc.queryForList(contains("SELECT pro_product_id, pro_product_code"), eq(13L)))
+                .thenReturn(List.of(java.util.Map.of(
+                        "pro_product_id", 13L, "pro_product_code", "FD_MULTI_CURR", "pro_product_name", "Multi Currency FD",
+                        "pro_status", "DRAFT", "pro_event_version", 1L
+                )));
+        when(jdbc.query(contains("FROM currency WHERE"), any(ResultSetExtractor.class), eq("INR"))).thenReturn(1L);
+        when(jdbc.query(contains("FROM currency WHERE"), any(ResultSetExtractor.class), eq("USD"))).thenReturn(2L);
+        when(jdbc.query(contains("FROM product_currency_config WHERE"), any(ResultSetExtractor.class), eq(13L), eq(1L)))
+                .thenReturn(java.util.Map.of("min", new BigDecimal("1000.00"), "max", new BigDecimal("1000000.00")));
+        when(jdbc.query(contains("FROM product_currency_config WHERE"), any(ResultSetExtractor.class), eq(13L), eq(2L)))
+                .thenReturn(java.util.Map.of("min", new BigDecimal("100.00"), "max", new BigDecimal("100000.00")));
+        when(jdbc.query(contains("FROM rule_type WHERE"), any(ResultSetExtractor.class))).thenReturn(1L);
+        when(jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class)).thenReturn(101L, 102L);
+
+        when(jdbc.queryForList(contains("FROM product_currency_config cfg"), eq(13L)))
+                .thenReturn(List.of(
+                        java.util.Map.of("pcc_currency_id", 1L, "cur_iso_code", "INR",
+                                "pcc_minimum_amount", new BigDecimal("1000.00"), "pcc_maximum_amount", new BigDecimal("1000000.00")),
+                        java.util.Map.of("pcc_currency_id", 2L, "cur_iso_code", "USD",
+                                "pcc_minimum_amount", new BigDecimal("100.00"), "pcc_maximum_amount", new BigDecimal("100000.00"))
+                ));
+        mockCandidateData(List.of(
+                new MockCandidate(LocalDate.of(2026, 10, 28), LocalDate.of(2026, 12, 31), new BigDecimal("0.0700"),
+                        "QUARTERLY", "AT_MATURITY", new BigDecimal("1000.00"), new BigDecimal("1000000.00"), 12, 24)
+        ));
+
+        when(jdbc.query(contains("FROM product_currency_config pcc JOIN currency c"), any(RowMapper.class), eq(13L)))
+                .thenReturn(List.of());
+        when(jdbc.query(contains("SELECT r.pr_rule_id, c.cur_iso_code"), any(RowMapper.class), eq(13L)))
+                .thenReturn(List.of());
+
+        FdComplianceService.UpdateScheduleRequest request = new FdComplianceService.UpdateScheduleRequest(
+                LocalDate.of(2026, 10, 28), LocalDate.of(2026, 12, 31),
+                List.of(
+                        new FdComplianceService.RateBandInput("INR", 12, 24, new BigDecimal("0.0700"),
+                                "QUARTERLY", "AT_MATURITY", LocalDate.of(2026, 10, 28), LocalDate.of(2026, 12, 31)),
+                        new FdComplianceService.RateBandInput("USD", 12, 24, new BigDecimal("0.0500"),
+                                "QUARTERLY", "AT_MATURITY", LocalDate.of(2026, 10, 28), LocalDate.of(2026, 12, 31))
+                )
+        );
+
+        assertDoesNotThrow(() -> complianceService.updateProductSchedule(13L, request));
+    }
+
+    @Test
+    @DisplayName("updateProductSchedule: Non-overlapping tenure ranges on same dates do not conflict")
+    void updateProductSchedule_nonOverlappingTenure_doesNotConflict() {
+        when(jdbc.queryForList(contains("SELECT pro_product_id, pro_product_code"), eq(14L)))
+                .thenReturn(List.of(java.util.Map.of(
+                        "pro_product_id", 14L, "pro_product_code", "FD_DIFF_TENURE", "pro_product_name", "Diff Tenure FD",
+                        "pro_status", "DRAFT", "pro_event_version", 1L
+                )));
+        when(jdbc.query(contains("FROM currency WHERE"), any(ResultSetExtractor.class), eq("INR"))).thenReturn(1L);
+        when(jdbc.query(contains("FROM product_currency_config WHERE"), any(ResultSetExtractor.class), eq(14L), eq(1L)))
+                .thenReturn(java.util.Map.of("min", new BigDecimal("1000.00"), "max", new BigDecimal("1000000.00")));
+        when(jdbc.query(contains("FROM rule_type WHERE"), any(ResultSetExtractor.class))).thenReturn(1L);
+        when(jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class)).thenReturn(101L, 102L);
+
+        when(jdbc.queryForList(contains("FROM product_currency_config cfg"), eq(14L)))
+                .thenReturn(List.of(java.util.Map.of(
+                        "pcc_currency_id", 1L, "cur_iso_code", "INR",
+                        "pcc_minimum_amount", new BigDecimal("1000.00"), "pcc_maximum_amount", new BigDecimal("1000000.00")
+                )));
+        mockCandidateData(List.of(
+                new MockCandidate(LocalDate.of(2026, 10, 28), LocalDate.of(2026, 12, 31), new BigDecimal("0.0650"),
+                        "QUARTERLY", "AT_MATURITY", new BigDecimal("1000.00"), new BigDecimal("1000000.00"), 1, 12),
+                new MockCandidate(LocalDate.of(2026, 10, 28), LocalDate.of(2026, 12, 31), new BigDecimal("0.0750"),
+                        "QUARTERLY", "AT_MATURITY", new BigDecimal("1000.00"), new BigDecimal("1000000.00"), 13, 24)
+        ));
+
+        when(jdbc.query(contains("FROM product_currency_config pcc JOIN currency c"), any(RowMapper.class), eq(14L)))
+                .thenReturn(List.of());
+        when(jdbc.query(contains("SELECT r.pr_rule_id, c.cur_iso_code"), any(RowMapper.class), eq(14L)))
+                .thenReturn(List.of());
+
+        FdComplianceService.UpdateScheduleRequest request = new FdComplianceService.UpdateScheduleRequest(
+                LocalDate.of(2026, 10, 28), LocalDate.of(2026, 12, 31),
+                List.of(
+                        new FdComplianceService.RateBandInput("INR", 1, 12, new BigDecimal("0.0650"),
+                                "QUARTERLY", "AT_MATURITY", LocalDate.of(2026, 10, 28), LocalDate.of(2026, 12, 31)),
+                        new FdComplianceService.RateBandInput("INR", 13, 24, new BigDecimal("0.0750"),
+                                "QUARTERLY", "AT_MATURITY", LocalDate.of(2026, 10, 28), LocalDate.of(2026, 12, 31))
+                )
+        );
+
+        assertDoesNotThrow(() -> complianceService.updateProductSchedule(14L, request));
+    }
+
+    @Test
+    @DisplayName("Activation: Future-dated interval overlap throws 409 CONFLICT")
+    void validateProductScheduleForActivation_futureIntervalOverlap_throwsConflict() {
+        LocalDate today = LocalDate.now(java.time.ZoneOffset.UTC);
+        when(jdbc.queryForList(contains("SELECT pro_product_id, pro_product_code"), eq(15L)))
+                .thenReturn(List.of(java.util.Map.of(
+                        "pro_product_id", 15L, "pro_product_code", "FD_FUT_ACT", "pro_product_name", "Future Act FD",
+                        "pro_status", "DRAFT", "pro_effective_from", today.toString(), "pro_effective_to", today.plusYears(1).toString()
+                )));
+        when(jdbc.queryForList(contains("FROM product_currency_config cfg"), eq(15L)))
+                .thenReturn(List.of(java.util.Map.of(
+                        "pcc_currency_id", 1L, "cur_iso_code", "INR",
+                        "pcc_minimum_amount", new BigDecimal("1000.00"), "pcc_maximum_amount", new BigDecimal("100000.00")
+                )));
+        mockCandidateData(List.of(
+                new MockCandidate(
+                        today.plusDays(10), today.plusDays(30), new BigDecimal("0.0701"),
+                        "QUARTERLY", "AT_MATURITY", new BigDecimal("1000.00"), new BigDecimal("100000.00"), 12, 24
+                ),
+                new MockCandidate(
+                        today.plusDays(20), today.plusDays(40), new BigDecimal("0.0800"),
+                        "QUARTERLY", "AT_MATURITY", new BigDecimal("1000.00"), new BigDecimal("100000.00"), 12, 24
+                )
+        ));
+
+        org.springframework.web.server.ResponseStatusException ex = assertThrows(
+                org.springframework.web.server.ResponseStatusException.class,
+                () -> complianceService.validateProductScheduleForActivation(15L)
+        );
+        assertEquals(org.springframework.http.HttpStatus.CONFLICT, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("AMBIGUOUS_CONFIGURATION"));
+    }
+
+    @Test
+    @DisplayName("Activation: Non-overlapping tenure bands on same dates succeed")
+    void validateProductScheduleForActivation_nonOverlappingTenure_succeeds() {
+        LocalDate today = LocalDate.now(java.time.ZoneOffset.UTC);
+        when(jdbc.queryForList(contains("SELECT pro_product_id, pro_product_code"), eq(16L)))
+                .thenReturn(List.of(java.util.Map.of(
+                        "pro_product_id", 16L, "pro_product_code", "FD_TEN_ACT", "pro_product_name", "Tenure Act FD",
+                        "pro_status", "DRAFT", "pro_effective_from", today.toString(), "pro_effective_to", today.plusYears(1).toString()
+                )));
+        when(jdbc.queryForList(contains("FROM product_currency_config cfg"), eq(16L)))
+                .thenReturn(List.of(java.util.Map.of(
+                        "pcc_currency_id", 1L, "cur_iso_code", "INR",
+                        "pcc_minimum_amount", new BigDecimal("1000.00"), "pcc_maximum_amount", new BigDecimal("100000.00")
+                )));
+        mockCandidateData(List.of(
+                new MockCandidate(
+                        today, today.plusYears(1), new BigDecimal("0.0650"),
+                        "QUARTERLY", "AT_MATURITY", new BigDecimal("1000.00"), new BigDecimal("100000.00"), 1, 12
+                ),
+                new MockCandidate(
+                        today, today.plusYears(1), new BigDecimal("0.0750"),
+                        "QUARTERLY", "AT_MATURITY", new BigDecimal("1000.00"), new BigDecimal("100000.00"), 13, 24
+                )
+        ));
+
+        assertDoesNotThrow(() -> complianceService.validateProductScheduleForActivation(16L));
+    }
+
+    @Test
+    @DisplayName("dateIntervalsOverlap: Correctly detects inclusive boundary and open interval overlap")
+    void dateIntervalsOverlap_truthTable() {
+        // Oct 28 - Nov 7 vs Nov 7 - Nov 28 (inclusive boundary overlap)
+        assertTrue(FdComplianceService.dateIntervalsOverlap(
+                LocalDate.of(2026, 10, 28), LocalDate.of(2026, 11, 7),
+                LocalDate.of(2026, 11, 7), LocalDate.of(2026, 11, 28)
+        ));
+
+        // Oct 28 - Nov 7 vs Nov 8 - Nov 28 (strictly sequential non-overlapping)
+        assertFalse(FdComplianceService.dateIntervalsOverlap(
+                LocalDate.of(2026, 10, 28), LocalDate.of(2026, 11, 7),
+                LocalDate.of(2026, 11, 8), LocalDate.of(2026, 11, 28)
+        ));
+
+        // Open-ended dates (null)
+        assertTrue(FdComplianceService.dateIntervalsOverlap(
+                null, null,
+                LocalDate.of(2026, 10, 28), LocalDate.of(2026, 11, 7)
+        ));
+        assertTrue(FdComplianceService.dateIntervalsOverlap(
+                LocalDate.of(2026, 10, 28), null,
+                LocalDate.of(2026, 11, 7), LocalDate.of(2026, 12, 1)
+        ));
+        assertFalse(FdComplianceService.dateIntervalsOverlap(
+                null, LocalDate.of(2026, 10, 27),
+                LocalDate.of(2026, 10, 28), null
+        ));
     }
 }

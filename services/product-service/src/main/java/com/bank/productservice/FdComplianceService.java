@@ -201,13 +201,15 @@ public class FdComplianceService {
                             c2.maxMonths());
                     boolean amountOverlap = c1.minAmount().compareTo(c2.maxAmount()) <= 0
                             && c2.minAmount().compareTo(c1.maxAmount()) <= 0;
-                    if (tenureOverlap && amountOverlap && c1.effectiveOn(evaluationDate)
-                            && c2.effectiveOn(evaluationDate)) {
-                        if (c1.rate().compareTo(c2.rate()) != 0) {
-                            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                                    "AMBIGUOUS_CONFIGURATION: Multiple rate schedules overlap for currency "
-                                            + currencyCode + " on " + evaluationDate + " with differing rates.");
-                        }
+                    if (tenureOverlap && amountOverlap && dateIntervalsOverlap(c1.from(), c1.to(), c2.from(), c2.to())) {
+                        LocalDate overlapStart = maxDate(c1.from(), c2.from());
+                        LocalDate overlapEnd = minDate(c1.to(), c2.to());
+                        throw new ResponseStatusException(HttpStatus.CONFLICT,
+                                "AMBIGUOUS_CONFIGURATION: Multiple rate schedules overlap for currency "
+                                        + currencyCode + " on tenure (" + Math.max(c1.minMonths(), c2.minMonths())
+                                        + "-" + Math.min(c1.maxMonths(), c2.maxMonths()) + " mo) and effective dates ("
+                                        + (overlapStart != null ? overlapStart : "open") + " to "
+                                        + (overlapEnd != null ? overlapEnd : "open") + ").");
                     }
                 }
             }
@@ -305,7 +307,7 @@ public class FdComplianceService {
                   JOIN rule_outcome o ON o.ro_rule_id=r.pr_rule_id AND o.ro_outcome_type='INTEREST_RATE'
                   JOIN currency c ON c.cur_currency_id=o.ro_currency_id
                   LEFT JOIN rule_condition rc ON rc.rc_rule_id=r.pr_rule_id
-                 WHERE r.pr_product_id=? AND r.pr_rule_name='TENURE_RATE'
+                 WHERE r.pr_product_id=?
                  GROUP BY r.pr_rule_id, c.cur_iso_code, r.pr_effective_from, r.pr_effective_to, p.pro_effective_from, p.pro_effective_to, o.ro_outcome_value, o.ro_compounding_basis, o.ro_payout_frequency, r.pr_is_active
                  ORDER BY c.cur_iso_code, min_months
                 """,
@@ -361,23 +363,8 @@ public class FdComplianceService {
         LocalDate effFrom = request.effectiveFrom();
         LocalDate effTo = request.effectiveTo();
 
-        if (effFrom != null && effTo != null && effFrom.isAfter(effTo)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Effective-to date must be on or after effective-from date.");
-        }
-        if (request.rateBands() == null || request.rateBands().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Rate schedule requires at least one rate band.");
-        }
-        for (RateBandInput band : request.rateBands()) {
-            if (band.annualRate() == null || band.annualRate().signum() < 0 || band.annualRate().compareTo(BigDecimal.ONE) > 0) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Annual interest rate must be between 0.0000 and 1.0000.");
-            }
-            if (band.minimumTenureMonths() < 1 || band.maximumTenureMonths() < band.minimumTenureMonths()) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tenure range is invalid: minimum tenure must be >= 1 and <= maximum tenure.");
-            }
-            if (band.effectiveFrom() != null && band.effectiveTo() != null && band.effectiveFrom().isAfter(band.effectiveTo())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Rate band effective-from cannot be after effective-to.");
-            }
-        }
+        // Validate proposed schedule in memory BEFORE modifying any database records
+        validateProposedSchedule(productId, status, effFrom, effTo, request.rateBands());
 
         jdbc.update(
                 "UPDATE product SET pro_effective_from=?, pro_effective_to=?, pro_updated_by='STAFF_COMPLIANCE', pro_updated_date=UTC_TIMESTAMP(6) WHERE pro_product_id=?",
@@ -385,9 +372,9 @@ public class FdComplianceService {
                 effTo == null ? null : effTo.toString(),
                 productId);
 
-        jdbc.update("DELETE FROM rule_condition WHERE rc_rule_id IN (SELECT pr_rule_id FROM product_rule WHERE pr_product_id=? AND pr_rule_name='TENURE_RATE')", productId);
-        jdbc.update("DELETE FROM rule_outcome WHERE ro_rule_id IN (SELECT pr_rule_id FROM product_rule WHERE pr_product_id=? AND pr_rule_name='TENURE_RATE')", productId);
-        jdbc.update("DELETE FROM product_rule WHERE pr_product_id=? AND pr_rule_name='TENURE_RATE'", productId);
+        jdbc.update("DELETE FROM rule_condition WHERE rc_rule_id IN (SELECT pr_rule_id FROM product_rule WHERE pr_product_id=?)", productId);
+        jdbc.update("DELETE FROM rule_outcome WHERE ro_rule_id IN (SELECT pr_rule_id FROM product_rule WHERE pr_product_id=?) AND ro_outcome_type='INTEREST_RATE'", productId);
+        jdbc.update("DELETE FROM product_rule WHERE pr_product_id=? AND (pr_rule_name='TENURE_RATE' OR pr_rule_id NOT IN (SELECT ro_rule_id FROM rule_outcome))", productId);
 
         Long ruleTypeId = jdbc.query("SELECT rut_rule_type_id FROM rule_type WHERE rut_rule_type_code='FD_TENURE_RATE'", rs -> rs.next() ? rs.getLong(1) : 1L);
         int priority = 1;
@@ -505,13 +492,121 @@ public class FdComplianceService {
             LocalDate effectiveTo) {
     }
 
+    public record UpdateScheduleRequest(LocalDate effectiveFrom, LocalDate effectiveTo, List<RateBandInput> rateBands) {
+    }
+
     public record ProductScheduleResponse(long productId, String productCode, String productName, String status,
             LocalDate effectiveFrom, LocalDate effectiveTo, List<CurrencyLimitSummary> currencies,
             List<RateBandSummary> rateBands) {
     }
 
-    public record UpdateScheduleRequest(LocalDate effectiveFrom, LocalDate effectiveTo,
-            List<RateBandInput> rateBands) {
+    private void validateProposedSchedule(long productId, String productStatus, LocalDate effFrom, LocalDate effTo,
+                                          List<RateBandInput> rateBands) {
+        if (effFrom != null && effTo != null && effFrom.isAfter(effTo)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Effective-to date must be on or after effective-from date.");
+        }
+        if (rateBands == null || rateBands.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Rate schedule requires at least one rate band.");
+        }
+
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        if ("ACTIVE".equalsIgnoreCase(productStatus) && effTo != null && effTo.isBefore(today)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Product schedule has expired on " + effTo + "; expired products cannot be active.");
+        }
+
+        for (int i = 0; i < rateBands.size(); i++) {
+            RateBandInput band = rateBands.get(i);
+            if (band.annualRate() == null || band.annualRate().signum() < 0 || band.annualRate().compareTo(BigDecimal.ONE) > 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Band " + (i + 1) + ": Annual interest rate must be between 0.0000 and 1.0000.");
+            }
+            if (band.minimumTenureMonths() < 1 || band.maximumTenureMonths() < band.minimumTenureMonths()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Band " + (i + 1) + ": Tenure range is invalid: minimum tenure must be >= 1 and <= maximum tenure.");
+            }
+            if (band.effectiveFrom() != null && band.effectiveTo() != null && band.effectiveFrom().isAfter(band.effectiveTo())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Band " + (i + 1) + ": Effective-from date cannot be after effective-to date.");
+            }
+            String curr = norm(band.currencyCode());
+            Long currencyId = jdbc.query(
+                    "SELECT cur_currency_id FROM currency WHERE UPPER(cur_iso_code)=UPPER(?) AND cur_is_active=1",
+                    rs -> rs.next() ? rs.getLong(1) : null,
+                    curr);
+            if (currencyId == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Active currency not found: " + curr);
+            }
+        }
+
+        for (int i = 0; i < rateBands.size(); i++) {
+            RateBandInput b1 = rateBands.get(i);
+            String curr1 = norm(b1.currencyCode());
+            LocalDate from1 = b1.effectiveFrom() != null ? b1.effectiveFrom() : effFrom;
+            LocalDate to1 = b1.effectiveTo() != null ? b1.effectiveTo() : effTo;
+
+            for (int j = i + 1; j < rateBands.size(); j++) {
+                RateBandInput b2 = rateBands.get(j);
+                String curr2 = norm(b2.currencyCode());
+                if (!curr1.equals(curr2)) {
+                    continue;
+                }
+
+                boolean tenureOverlap = Math.max(b1.minimumTenureMonths(), b2.minimumTenureMonths()) <=
+                        Math.min(b1.maximumTenureMonths(), b2.maximumTenureMonths());
+                if (!tenureOverlap) {
+                    continue;
+                }
+
+                LocalDate from2 = b2.effectiveFrom() != null ? b2.effectiveFrom() : effFrom;
+                LocalDate to2 = b2.effectiveTo() != null ? b2.effectiveTo() : effTo;
+
+                if (dateIntervalsOverlap(from1, to1, from2, to2)) {
+                    LocalDate overlapStart = maxDate(from1, from2);
+                    LocalDate overlapEnd = minDate(to1, to2);
+                    throw new ResponseStatusException(HttpStatus.CONFLICT,
+                            "AMBIGUOUS_CONFIGURATION: Rate bands for currency " + curr1
+                                    + " conflict with overlapping tenure ("
+                                    + Math.max(b1.minimumTenureMonths(), b2.minimumTenureMonths()) + "-"
+                                    + Math.min(b1.maximumTenureMonths(), b2.maximumTenureMonths()) + " mo) and effective dates ("
+                                    + (overlapStart != null ? overlapStart : "open") + " to "
+                                    + (overlapEnd != null ? overlapEnd : "open") + ").");
+                }
+            }
+        }
+
+        if ("ACTIVE".equalsIgnoreCase(productStatus)) {
+            LocalDate evaluationDate = effFrom != null && effFrom.isAfter(today) ? effFrom : today;
+            Map<String, List<RateBandInput>> byCurrency = rateBands.stream()
+                    .collect(java.util.stream.Collectors.groupingBy(b -> norm(b.currencyCode())));
+
+            for (Map.Entry<String, List<RateBandInput>> entry : byCurrency.entrySet()) {
+                boolean anyEffective = entry.getValue().stream().anyMatch(b -> {
+                    LocalDate from = b.effectiveFrom() != null ? b.effectiveFrom() : effFrom;
+                    LocalDate to = b.effectiveTo() != null ? b.effectiveTo() : effTo;
+                    return (from == null || !evaluationDate.isBefore(from)) && (to == null || !evaluationDate.isAfter(to));
+                });
+                if (!anyEffective) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "NO_APPLICABLE_RATE: No rate schedule for currency " + entry.getKey()
+                                    + " is effective on " + evaluationDate + ".");
+                }
+            }
+        }
+    }
+
+    static boolean dateIntervalsOverlap(LocalDate from1, LocalDate to1, LocalDate from2, LocalDate to2) {
+        return (from1 == null || to2 == null || !from1.isAfter(to2))
+                && (from2 == null || to1 == null || !from2.isAfter(to1));
+    }
+
+    static LocalDate maxDate(LocalDate d1, LocalDate d2) {
+        if (d1 == null) return d2;
+        if (d2 == null) return d1;
+        return d1.isAfter(d2) ? d1 : d2;
+    }
+
+    static LocalDate minDate(LocalDate d1, LocalDate d2) {
+        if (d1 == null) return d2;
+        if (d2 == null) return d1;
+        return d1.isBefore(d2) ? d1 : d2;
     }
 
     static record Candidate(LocalDate from, LocalDate to, BigDecimal rate, String compounding, String payout,
